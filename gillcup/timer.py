@@ -23,6 +23,8 @@ class Timer(object):
         self.currentEventIndex = 0
 
     def advance(self, dt):
+        if dt < 0:
+            raise ValueError("Can't advance into the past")
         while self.events and self.events[0].time <= self.time + dt:
             entry = heapq.heappop(self.events)
             dt -= entry.time - self.time
@@ -32,10 +34,11 @@ class Timer(object):
 
     def schedule(self, dt, *actions):
         if dt < 0:
-            raise AssertionError('Scheduling an event in the past')
-        heapq.heappush(self.events, EventHeapEntry(
-                self.time + dt,
-                self.currentEventIndex,
-                action,
-            ))
-        self.currentEventIndex += 1
+            raise ValueError("Can't schedule an event in the past")
+        for action in actions:
+            heapq.heappush(self.events, EventHeapEntry(
+                    self.time + dt,
+                    self.currentEventIndex,
+                    action,
+                ))
+            self.currentEventIndex += 1

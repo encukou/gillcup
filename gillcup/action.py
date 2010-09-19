@@ -10,7 +10,7 @@ class Action(object):
     once the event it represents happens.
     """
     def __init__(self):
-        self.chain = None
+        self.chain = []
 
     def chain(self, *others):
         self.chain.append(others)
@@ -24,7 +24,7 @@ def NullAction(Action):
 
 class FunctionAction(Action):
     def __init__(self, func, kwargs={}, passTimer=False, *args):
-        Action.__init__(self, func)
+        Action.__init__(self)
         self.func = func
         self.args = args
         self.kwargs = kwargs
@@ -36,7 +36,7 @@ class FunctionAction(Action):
             kwargs.update(self.kwargs)
         else:
             kwargs = self.kwargs
-        self.func(timer, *self.args, **kwargs)
+        self.func(*self.args, **kwargs)
         for ch in self.chain:
             ch.run(timer)
 
