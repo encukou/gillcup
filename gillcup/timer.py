@@ -2,6 +2,9 @@
 import heapq
 import collections
 
+from gillcup.action import FunctionAction
+
+
 EventHeapEntry = collections.namedtuple(
         'EventHeapEntry',
         'time index action'
@@ -36,6 +39,8 @@ class Timer(object):
         if dt < 0:
             raise ValueError("Can't schedule an event in the past")
         for action in actions:
+            if callable(action):
+                action = FunctionAction(action)
             heapq.heappush(self.events, EventHeapEntry(
                     self.time + dt,
                     self.currentEventIndex,

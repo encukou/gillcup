@@ -1,5 +1,7 @@
 
-from gillcup.action import NullAction
+from __future__ import division
+
+from gillcup.action import Action, FunctionAction, EffectAction
 
 
 class Effect(object):
@@ -10,12 +12,12 @@ class Effect(object):
     """
     def __init__(self, end=None):
         if end is None:
-            self.end = NullAction()
+            self._end = Action()
         else:
-            self.end = end
+            self._end = end
 
-    def chain(self, *actions):
-        self.end.chain(*actions)
+    def chain(self, *actions, **kwargs):
+        self._end.chain(*actions, **kwargs)
 
 
 class AttributeEffect(Effect):
@@ -29,34 +31,52 @@ class AttributeEffect(Effect):
         self.old = object._animate(attribute, self)
 
 
-class Interpolate(AttributeEffect):
+class InterpolationEffect(AttributeEffect):
     """The most useful effect. Interpolates a value.
+
+    This object is designed so that most of its methods can be overriden
+    at the instance level.
     """
+    finalized = False
+
     def __init__(self, value, time, *args, **kwargs):
-        PropertyEffect.__init__(self, *args, **kwargs)
+        AttributeEffect.__init__(self, *args, **kwargs)
         self.value = value
         self.time = time
-        self.ended = False
 
     def start(self, *args, **kwargs):
-        PropertyEffect.start(self, *args, **kwargs)
-        self.timer.schedule(self.time, self.end)
+        AttributeEffect.start(self, *args, **kwargs)
+        self.timer.schedule(self.time, self._end)
 
-    def interpolateValue(self, a, b, t):
-        if isinstance(b, tuple):
-            return tuple(
-                    self.interpolateValue(aa, bb, t)
-                    for aa, bb in zip(a, b))
-        else:
-            return a * (1 - t) + b * t
+    def finalize(self):
+        """End the effect
+
+        After calling this method, the Effect will always return the value
+        at t=1, and most attempts to change it will fail.
+        """
+        self.old = self.time = self.timer = self.clampTime = self.ease = None
+        self.finalized = True
+        self.getValue = lambda: self.value
+
+    @staticmethod
+    def interpolateScalar(a, b, t):
+        return a * (1 - t) + b * t
+
+    @staticmethod
+    def interpolateTuple(a, b, t):
+        return tuple(self.interpolateScalar(aa, bb, t) for aa, bb in zip(a, b))
+
+    interpolateValue = interpolateScalar
 
     def getTime(self):
-        return self.timer
+        return (self.timer.time - self.startTime) / self.time
 
-    def ease(self, t):
+    @staticmethod
+    def ease(t):
         return t
 
-    def clampTime(self, t):
+    @staticmethod
+    def clampTime(t):
         if t <= 0:
             return 0
         elif t >= 1:
@@ -67,3 +87,25 @@ class Interpolate(AttributeEffect):
     def getValue(self):
         t = self.ease(self.clampTime(self.getTime()))
         return self.interpolateValue(self.old(), self.value, t)
+
+def animation(object, attribute, value, *morevalues, **kwargs):
+    """Convenience function to create various Interpolation effects on
+    objects.
+    """
+    if morevalues:
+        value = (value, ) + morevalues
+    time = kwargs.pop('time', 0)
+    if not time:
+        return FunctionAction(setattr, object, attribute, value)
+    else:
+        effect = InterpolationEffect(value, time)
+        easing = kwargs.pop('easing', None)
+        if easing:
+            effect.ease = easing
+        if kwargs.pop('infinite', False):
+            effect.clampTime = lambda t: t
+        elif not kwargs.pop('keep', False):
+            effect.chain(FunctionAction(effect.finalize))
+        return EffectAction(effect, object, attribute)
+
+
