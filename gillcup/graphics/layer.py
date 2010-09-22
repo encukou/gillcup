@@ -24,33 +24,44 @@ class Layer(BaseLayer):
                 c for c in self.children if not c.do_draw(**kwargs)
             ]
 
-    def getDrawContext(self, window=None, **kwargs):
+    def getDrawContext(self, kwargs):
+        window = kwargs.get('window', None)
         if window:
             if self.opacity < 0.999 or self.pixelization > 1:
+                parent_texture = kwargs.get('parent_texture')
+                if parent_texture:
+                    parent_width = parent_texture.width
+                    parent_height = parent_texture.height
+                else:
+                    parent_width = window.width
+                    parent_height = window.height
                 if self._opacity_data:
                     rendermanager, rendertexture = self._opacity_data
                 else:
                     rendermanager = RenderTextureManager(window)
                     rendertexture = rendermanager.Create(
-                            width=window.width/self.pixelization,
-                            height=window.height/self.pixelization,
+                            width=parent_width/self.pixelization,
+                            height=parent_height/self.pixelization,
                             alpha=True,
                         )
                     self._opacity_data = rendermanager, rendertexture
+                kwargs['parent_texture'] = rendertexture
                 @contextmanager
                 def cm(*args, **kwargs):
                     glPushMatrix()
-                    glPushMatrix()
+                    if parent_texture:
+                        parent_texture.EndRender()
                     rendertexture.StartRender()
                     glClearColor(0, 0, 0, 0)
                     glClear(GL_COLOR_BUFFER_BIT)
                     glPopMatrix()
                     yield kwargs
                     rendertexture.EndRender()
+                    if parent_texture:
+                        parent_texture.StartRender()
                     glLoadIdentity()
-                    # Enable these for rougher pixelization
-                    #glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-                    #glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+                    if parent_texture:
+                        parent_texture.SetAsInactive(0)
                     rendertexture.SetAsActive(0)
                     glColor4fv((GLfloat * 4)(1, 1, 1, self.opacity))
                     glEnable(GL_TEXTURE_2D)
@@ -66,7 +77,8 @@ class Layer(BaseLayer):
                     glEnd()
                     glDisable(GL_TEXTURE_2D)
                     rendertexture.SetAsInactive(0)
-                    glPopMatrix()
+                    if parent_texture:
+                        parent_texture.SetAsActive(0)
                 return cm()
             else:
                 if self._opacity_data:

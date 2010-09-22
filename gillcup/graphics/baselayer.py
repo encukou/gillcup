@@ -50,7 +50,7 @@ class BaseLayer(AnimatedObject):
         gl.glPushMatrix()
         try:
             self.changeMatrix()
-            with self.getDrawContext(**kwargs):
+            with self.getDrawContext(kwargs):
                 rv = self.draw(**kwargs)
                 return self.dead
         finally:
