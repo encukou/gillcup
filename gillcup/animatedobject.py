@@ -23,9 +23,12 @@ class AnimatedObject(object):
             oldValue = self.__dict__[attribute]
             del self.__dict__[attribute]
         except KeyError:
-            old = self._anim_data_[attribute].getValue
+            old = self._anim_data_[attribute]
         else:
-            old = lambda: oldValue
+            class Old(object):
+                def getValue(self):
+                    return oldValue
+            old = Old()
         self._anim_data_[attribute] = animation
         return old
 

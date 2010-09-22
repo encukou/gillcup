@@ -4,7 +4,7 @@ from nose.tools import raises, assert_equal
 from gillcup.timer import Timer
 from gillcup.action import FunctionAction, EffectAction
 from gillcup.animatedobject import AnimatedObject
-from gillcup.effect import Interpolate
+from gillcup.effect import InterpolationEffect
 
 def test_timer_advance():
     timer = Timer()
@@ -45,7 +45,7 @@ def test_animated_object_float():
     timer = Timer()
     obj = AnimatedObject()
     obj.attr = 1
-    eff = Interpolate(3, 2)
+    eff = InterpolationEffect(3, 2)
     eff.start(timer, obj, 'attr')
     assert_equal(obj.attr, 1)
     timer.advance(1)
@@ -59,7 +59,10 @@ def test_animated_object_tuple():
     timer = Timer()
     obj = AnimatedObject()
     obj.attr = 1, 2, 3
-    eff = Interpolate((3, 2, 1), 2)
+    eff = InterpolationEffect((3, 2, 1), 2)
+    eff.interpolate = lambda a, b, t: tuple(
+                eff.interpolateScalar(aa, bb, t) for aa, bb in zip(a, b)
+            )
     eff.start(timer, obj, 'attr')
     assert_equal(obj.attr, (1, 2, 3))
     timer.advance(1)
@@ -77,7 +80,7 @@ def test_action_chain():
     action = FunctionAction(callback)
     obj = AnimatedObject()
     obj.attr = 1
-    eff = Interpolate(3, 2)
+    eff = InterpolationEffect(3, 2)
     eff.chain(action)
     eff.start(timer, obj, 'attr')
     timer.advance(1)
@@ -95,8 +98,8 @@ def test_action_chain_multiple():
     action = FunctionAction(callback)
     obj = AnimatedObject()
     obj.attr = 1
-    eff1 = Interpolate(3, 2)
-    eff2 = Interpolate(1, 2)
+    eff1 = InterpolationEffect(3, 2)
+    eff2 = InterpolationEffect(1, 2)
     eff1.chain(EffectAction(eff2, obj, 'attr'))
     eff1.start(timer, obj, 'attr')
     assert_equal(obj.attr, 1)

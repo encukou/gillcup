@@ -62,11 +62,7 @@ class InterpolationEffect(AttributeEffect):
     def interpolateScalar(a, b, t):
         return a * (1 - t) + b * t
 
-    @staticmethod
-    def interpolateTuple(a, b, t):
-        return tuple(self.interpolateScalar(aa, bb, t) for aa, bb in zip(a, b))
-
-    interpolateValue = interpolateScalar
+    interpolate = interpolateScalar
 
     def getTime(self):
         return (self.timer.time - self.startTime) / self.time
@@ -85,8 +81,10 @@ class InterpolationEffect(AttributeEffect):
             return t
 
     def getValue(self):
-        t = self.ease(self.clampTime(self.getTime()))
-        return self.interpolateValue(self.old(), self.value, t)
+        t = self.getTime()
+        t = self.clampTime(t)
+        t = self.ease(t)
+        return self.interpolate(self.old.getValue(), self.value, t)
 
 def animation(object, attribute, value, *morevalues, **kwargs):
     """Convenience function to create various Interpolation effects on
@@ -95,17 +93,37 @@ def animation(object, attribute, value, *morevalues, **kwargs):
     if morevalues:
         value = (value, ) + morevalues
     time = kwargs.pop('time', 0)
-    if not time:
-        return FunctionAction(setattr, object, attribute, value)
+    if kwargs.pop('additive', False):
+        interpolateScalar = lambda a, b, t: a + b * t
+    elif kwargs.pop('multiplicative', False):
+        interpolateScalar = lambda a, b, t: a * ((t - 1) + b * t)
     else:
-        effect = InterpolationEffect(value, time)
-        easing = kwargs.pop('easing', None)
-        if easing:
-            effect.ease = easing
-        if kwargs.pop('infinite', False):
-            effect.clampTime = lambda t: t
-        elif not kwargs.pop('keep', False):
-            effect.chain(FunctionAction(effect.finalize))
-        return EffectAction(effect, object, attribute)
+        interpolateScalar = InterpolationEffect.interpolateScalar
+    if isinstance(value, tuple):
+        interpolate = lambda a, b, t: tuple(
+                interpolateScalar(aa, bb, t) for aa, bb in zip(a, b)
+            )
+    else:
+        interpolate = interpolateScalar
+    effect = InterpolationEffect(value, time)
+    easing = kwargs.pop('easing', None)
+    if easing:
+        if isinstance(easing, basestring):
+            attrarray = easing.split()
+            from gillcup import easing
+            for a in attrarray:
+                easing = getattr(easing, a)
+        effect.ease = easing
+    if kwargs.pop('infinite', False):
+        effect.clampTime = lambda t: t
+    elif not kwargs.pop('keep', False):
+        effect.chain(FunctionAction(effect.finalize))
+    elif not time:
+        value = interpolate(getattr(object, attribute), value, 1)
+        return FunctionAction(setattr, object, attribute, value)
+    if not time:
+        effect.getTime = lambda: 1
+    effect.interpolate = interpolate
+    return EffectAction(effect, object, attribute)
 
 

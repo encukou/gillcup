@@ -71,6 +71,7 @@ class Layer(AnimatedObject):
                 type(self).__name__,
                 "@{0}".format(self.position),
                 "x{0}".format(self.scale),
+                "o{0}".format(self.opacity),
             ])
         for child in self.children:
             child.dump(indentLevel + 1)
@@ -89,3 +90,9 @@ class Layer(AnimatedObject):
         if height is None:
             height = width
         self.animate('scale', (width, height), **animargs)
+
+    def scaleBy(self, width, height=None, **animargs):
+        self.scaleTo(width, height, multiplicative=True, **animargs)
+
+    def fadeTo(self, opacity, **animargs):
+        self.animate('opacity', opacity, **animargs)
