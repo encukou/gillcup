@@ -1,98 +1,74 @@
 
+from contextlib import contextmanager
+
 import pyglet
 from pyglet.gl import *
 
-from gillcup.animatedobject import AnimatedObject
+from gillcup.graphics.baselayer import BaseLayer
 from gillcup.graphics import helpers
+from gillcup.pygrendertexture.RenderTextureManager import RenderTextureManager
 
-class Layer(AnimatedObject):
-    handlesOpacity = False
+white = (GLfloat * 3)(1, 1, 1)
 
-    def __init__(self,
-            parent=None,
-            position=(0, 0),
-            anchorPoint=(0, 0),
-            scale=(1, 1, 1),
-            rotation=0,
-            opacity=1,
-            toBack=False,
-            timer=None,
-        ):
-        super(Layer, self).__init__()
-        self.position = position
-        self.anchorPoint = anchorPoint
-        self.rotation = rotation
-        self.scale = scale
-        self.opacity = opacity
-        self.parent = parent
-        if timer:
-            self.timer = timer
-        else:
-            obj = self.parent
-            while not obj.timer:
-                obj = obj.parent
-            self.timer = obj.timer
-        if parent:
-            if toBack:
-                parent.children.insert(0, self)
-            else:
-                parent.children.append(self)
+class Layer(BaseLayer):
+    _opacity_data = None
+
+    def __init__(self, parent=None, **kwargs):
+        self.pixelization = kwargs.pop('pixelization', 1)
+        super(Layer, self).__init__(parent, **kwargs)
         self.children = []
-        self.dead = False
 
-    def do_draw(self):
-        # XXX: Make sure tree is never deeper than 32
-        gl.glPushMatrix()
-        try:
-            self.changeMatrix()
-            rv = self.draw()
-            self.children = [c for c in self.children if not c.do_draw()]
-            if rv is None:
-                return self.dead
+    def draw(self, **kwargs):
+        gl.glTranslatef(*helpers.extend_tuple(self.anchorPoint))
+        self.children = [
+                c for c in self.children if not c.do_draw(**kwargs)
+            ]
+
+    def getDrawContext(self, window=None, **kwargs):
+        if window:
+            if self.opacity < 0.999 or self.pixelization > 1:
+                if self._opacity_data:
+                    rendermanager, rendertexture = self._opacity_data
+                else:
+                    rendermanager = RenderTextureManager(window)
+                    rendertexture = rendermanager.Create(
+                            width=window.width/self.pixelization,
+                            height=window.height/self.pixelization,
+                            alpha=True,
+                        )
+                    self._opacity_data = rendermanager, rendertexture
+                @contextmanager
+                def cm(*args, **kwargs):
+                    glPushMatrix()
+                    glPushMatrix()
+                    rendertexture.StartRender()
+                    glClearColor(0, 0, 0, 0)
+                    glClear(GL_COLOR_BUFFER_BIT)
+                    glPopMatrix()
+                    yield kwargs
+                    rendertexture.EndRender()
+                    glLoadIdentity()
+                    # Enable these for rougher pixelization
+                    #glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+                    #glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+                    rendertexture.SetAsActive(0)
+                    glColor4fv((GLfloat * 4)(1, 1, 1, self.opacity))
+                    glEnable(GL_TEXTURE_2D)
+                    glBegin(GL_QUADS)
+                    glTexCoord2f(0, 0)
+                    glVertex2i(0, 0)
+                    glTexCoord2f(rendertexture.maxtextureu, 0 )
+                    glVertex2i(window.width, 0)
+                    glTexCoord2f(rendertexture.maxtextureu, rendertexture.maxtexturev)
+                    glVertex2i(window.width, window.height)
+                    glTexCoord2f(0, rendertexture.maxtexturev)
+                    glVertex2i(0, window.height)
+                    glEnd()
+                    glDisable(GL_TEXTURE_2D)
+                    rendertexture.SetAsInactive(0)
+                    glPopMatrix()
+                return cm()
             else:
-                return rv
-        finally:
-            gl.glPopMatrix()
-
-    def changeMatrix(self):
-        gl.glTranslatef(*helpers.extend_tuple(self.position))
-        gl.glRotatef(self.rotation, 0, 0, 1)
-        gl.glScalef(*helpers.extend_tuple(self.scale, default=1))
-        gl.glTranslatef(*(
-                -x for x in helpers.extend_tuple(self.anchorPoint)
-            ))
-
-    def draw(self):
-        # Return a true value to delete this Layer from its parent
-        pass
-
-    def dump(self, indentLevel=0):
-        print '  ' * indentLevel + ' '.join([
-                type(self).__name__,
-                "@{0}".format(self.position),
-                "x{0}".format(self.scale),
-                "o{0}".format(self.opacity),
-            ])
-        for child in self.children:
-            child.dump(indentLevel + 1)
-
-    def die(self):
-        self.dead = True
-        self.parent = None
-        for child in self.children:
-            if child.parent is self:
-                child.die()
-
-    def rotateBy(self, value, **animargs):
-        self.animate('rotation', value, additive=True, **animargs)
-
-    def scaleTo(self, width, height=None, **animargs):
-        if height is None:
-            height = width
-        self.animate('scale', (width, height), **animargs)
-
-    def scaleBy(self, width, height=None, **animargs):
-        self.scaleTo(width, height, multiplicative=True, **animargs)
-
-    def fadeTo(self, opacity, **animargs):
-        self.animate('opacity', opacity, **animargs)
+                if self._opacity_data:
+                    self._opacity_data = None
+        return helpers.nullContextManager(**kwargs)

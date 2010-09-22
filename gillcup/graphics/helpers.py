@@ -1,4 +1,6 @@
 
+from contextlib import contextmanager
+
 def extend_tuple(args, default=0):
     try:
         x, y, z = args
@@ -28,3 +30,7 @@ def extend_tuple_copy(args):
                 x = args
             y = z = x
     return x, y, z
+
+@contextmanager
+def nullContextManager(*args, **kwargs):
+    yield kwargs

@@ -25,7 +25,7 @@ def createMainWindow(layer, width=768, height=576, debug=False, config_args={},
         glEnable(GL_LINE_SMOOTH)
         glClear(GL_COLOR_BUFFER_BIT)
         glLoadIdentity()
-        layer.do_draw()
+        layer.do_draw(window=window)
         if debug:
             fps_display.draw()
             layer.dump()

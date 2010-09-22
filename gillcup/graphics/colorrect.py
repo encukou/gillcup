@@ -2,7 +2,7 @@
 import pyglet
 from pyglet.gl import *
 
-from gillcup.graphics.layer import Layer
+from gillcup.graphics.baselayer import BaseLayer
 from gillcup.graphics import helpers
 
 vertices = [
@@ -14,14 +14,14 @@ vertices = [
 vertices_gl = (GLfloat * len(vertices))(*vertices)
 
 
-class ColorRect(Layer):
+class ColorRect(BaseLayer):
     """ColorRect without animatable properties"""
     def __init__(self, parent, size=(1, 1), color=(.5, .5, .5), **kwargs):
         super(ColorRect, self).__init__(parent, **kwargs)
         self.size = size
         self.color = color
 
-    def draw(self):
+    def draw(self, **kwargs):
         glScalef(*helpers.extend_tuple(self.size, default=1))
         color = helpers.extend_tuple_copy(self.color) + (self.opacity, )
         glColor4fv((GLfloat * 4)(*color))
