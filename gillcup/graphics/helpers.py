@@ -33,4 +33,4 @@ def extend_tuple_copy(args):
 
 @contextmanager
 def nullContextManager(*args, **kwargs):
-    yield kwargs
+    yield

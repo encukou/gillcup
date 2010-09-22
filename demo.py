@@ -35,7 +35,7 @@ def demo():
         )
     opacityLayer.rotateBy(2, time=1, infinite=True)
     ColorRect(opacityLayer, position=(.25, 0), anchorPoint=(.5, .5), color=(0, 0, 0), rotation=45).rotateBy(100, time=1, infinite=True)
-    opacityLayer2 = Layer(opacityLayer, scale=(1.5, 1.5), opacity=.75, pixelization=4)
+    opacityLayer2 = Layer(opacityLayer, scale=(1.5, 1.5), opacity=.75, pixelization=(2, 8))
     ColorRect(opacityLayer2, color=(.5, .5, .5), anchorPoint=(.5, .5))
     ColorRect(opacityLayer, position=(-.25, 0), anchorPoint=(.5, .5), color=(1, 1, 1), rotation=45).rotateBy(-100, time=1, infinite=True)
     mainwindow.run(topLayer, debug=True)

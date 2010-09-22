@@ -27,7 +27,8 @@ class Layer(BaseLayer):
     def getDrawContext(self, kwargs):
         window = kwargs.get('window', None)
         if window:
-            if self.opacity < 0.999 or self.pixelization > 1:
+            pixelization = helpers.extend_tuple_copy(self.pixelization)
+            if self.opacity < 0.999 or pixelization != (1, 1, 1):
                 parent_texture = kwargs.get('parent_texture')
                 if parent_texture:
                     parent_width = parent_texture.width
@@ -39,9 +40,10 @@ class Layer(BaseLayer):
                     rendermanager, rendertexture = self._opacity_data
                 else:
                     rendermanager = RenderTextureManager(window)
+                    pix_x, pix_y, dummy = pixelization
                     rendertexture = rendermanager.Create(
-                            width=parent_width/self.pixelization,
-                            height=parent_height/self.pixelization,
+                            width=parent_width/pix_x,
+                            height=parent_height/pix_y,
                             alpha=True,
                         )
                     self._opacity_data = rendermanager, rendertexture
