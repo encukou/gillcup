@@ -6,10 +6,9 @@ from gillcup.graphics.baselayer import BaseLayer
 from gillcup.graphics import helpers
 
 class Sprite(BaseLayer):
-    def __init__(self, parent, spriteFilename='', size=(1, 1), **kwargs):
+    def __init__(self, parent, spriteFilename='', **kwargs):
         super(Sprite, self).__init__(parent, **kwargs)
         self.sprite = pyglet.sprite.Sprite(pyglet.image.load(spriteFilename))
-        self.size = size
 
     def draw(self, **kwargs):
         self.sprite.opacity = self.opacity * 255
@@ -17,9 +16,10 @@ class Sprite(BaseLayer):
                 int(c * 255) for c
                 in helpers.extend_tuple_copy(*self.color)
             )
+        size = helpers.extend_tuple_copy(self.size)
         glScalef(
-                self.size[0] / self.sprite.width,
-                self.size[1] / self.sprite.height,
+                size[0] / self.sprite.width,
+                size[1] / self.sprite.height,
                 1,
             )
         self.sprite.draw()

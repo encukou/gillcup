@@ -16,13 +16,12 @@ vertices_gl = (GLfloat * len(vertices))(*vertices)
 
 class ColorRect(BaseLayer):
     """ColorRect without animatable properties"""
-    def __init__(self, parent, size=(1, 1), color=(.5, .5, .5), **kwargs):
+    def __init__(self, parent, color=(.5, .5, .5), **kwargs):
         super(ColorRect, self).__init__(parent, **kwargs)
-        self.size = size
         self.color = color
 
     def draw(self, **kwargs):
-        glScalef(*helpers.extend_tuple(self.size, default=1))
+        glScalef(*helpers.extend_tuple_copy(self.size))
         color = helpers.extend_tuple_copy(self.color) + (self.opacity, )
         glColor4fv((GLfloat * 4)(*color))
         glEnableClientState(GL_VERTEX_ARRAY)

@@ -34,9 +34,17 @@ class AnimatedObject(object):
 
     def __getattr__(self, attr):
         try:
-            return self._anim_data_[attr].getValue()
+            effect = self._anim_data_[attr]
         except KeyError:
             raise AttributeError(attr)
+        except RuntimeError:
+            # Probably _anim_data_ doesn't exist => infinite recursion
+            raise RuntimeError(
+                    'Runtime error while getting attribute %s. '
+                    'Likely the base __init__ method was not called'
+                    % attr
+                )
+        return effect.getValue()
 
     def _replace_effect(self, attribute, oldEffect, newEffect):
         try:

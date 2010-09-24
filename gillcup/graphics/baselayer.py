@@ -12,9 +12,10 @@ class BaseLayer(AnimatedObject):
 
     def __init__(self,
             parent=None,
-            position=(0, 0),
-            anchorPoint=(0, 0),
+            position=(0, 0, 0),
+            anchorPoint=(0, 0, 0),
             scale=(1, 1, 1),
+            size=(1, 1),
             rotation=0,
             opacity=1,
             toBack=False,
@@ -27,6 +28,7 @@ class BaseLayer(AnimatedObject):
         self.scale = scale
         self.opacity = opacity
         self.parent = parent
+        self.size = size
         if timer:
             self.timer = timer
         else:
@@ -69,12 +71,14 @@ class BaseLayer(AnimatedObject):
         pass
 
     def dump(self, indentLevel=0):
-        print '  ' * indentLevel + ' '.join([
-                type(self).__name__,
-                "@{0}".format(self.position),
-                "x{0}".format(self.scale),
-                "o{0}".format(self.opacity),
-            ])
+        print '  ' * indentLevel + ' '.join(x for x, c in [
+                (type(self).__name__, True),
+                ("@{0}".format(self.position), self.position != (0, 0, 0)),
+                ("x{0}".format(self.scale), self.scale != (1, 1, 1)),
+                ("a{0}".format(self.anchorPoint), self.anchorPoint != (0,0,0)),
+                ("s{0}".format(self.size), self.size != (1, 1)),
+                ("o{0}".format(self.opacity), self.opacity != 1),
+            ] if c)
         for child in self.children:
             child.dump(indentLevel + 1)
 
@@ -96,6 +100,14 @@ class BaseLayer(AnimatedObject):
             kwargs.update(moreKwargs)
             return func(*args, **kwargs)
         return wrapped
+
+    @property
+    def width(self):
+        return helpers.extend_tuple(self.size)[0]
+
+    @property
+    def height(self):
+        return helpers.extend_tuple(self.size)[1]
 
     def rotationTo(self, value, **animargs):
         return self.animation('rotation', value, **animargs)
@@ -133,6 +145,13 @@ class BaseLayer(AnimatedObject):
     moveAnchorTo = _applyFunc(anchorMovementTo)
     anchorMovementBy = _addMoreArgs(anchorMovementTo, multiplicative=True)
     moveAnchorBy = _applyFunc(anchorMovementBy)
+
+    def resizingTo(self, w, h, **animargs):
+        return self.animation('size', (w, h), **animargs)
+
+    resizeTo = _applyFunc(resizingTo)
+    resizingBy = _addMoreArgs(resizingTo, multiplicative=True)
+    resizeBy = _applyFunc(resizingBy)
 
     _applyFunc = classmethod(_applyFunc)
     _addMoreArgs = classmethod(_addMoreArgs)

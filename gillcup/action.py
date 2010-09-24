@@ -13,9 +13,10 @@ class Action(object):
     def __init__(self):
         self._chain = []
 
-    def chain(self, *others, **kwargs):
-        for other in others:
+    def chain(self, action, *others, **kwargs):
+        for other in (action,) + others:
             self._chain.append((kwargs.get('dt', 0), other))
+        return action
 
     def run(self, timer):
         for dt, ch in self._chain:
@@ -51,4 +52,4 @@ class EffectAction(Action):
     def run(self, timer):
         self.effect.start(timer, *self.args, **self.kwargs)
         for dt, ch in self._chain:
-            self.effect.chain(dt, ch)
+            self.effect.chain(ch, dt=dt)

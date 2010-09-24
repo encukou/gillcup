@@ -17,7 +17,7 @@ class Effect(object):
             self._end = end
 
     def chain(self, *actions, **kwargs):
-        self._end.chain(*actions, **kwargs)
+        return self._end.chain(*actions, **kwargs)
 
 
 class AttributeEffect(Effect):
