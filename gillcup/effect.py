@@ -34,8 +34,7 @@ class AttributeEffect(Effect):
     def replace(self, newEffect):
         return self.object._replace_effect(self.attribute, self, newEffect)
 
-
-    def _replace_effect(self, attribute, oldEffect, newEffect):
+    def _replace_effect(self, oldEffect, newEffect):
         try:
             currentEffect = self.old
         except KeyError:
@@ -45,6 +44,12 @@ class AttributeEffect(Effect):
                 self.old = newEffect
             else:
                 currentEffect._replace_effect(oldEffect, newEffect)
+
+
+class GetterObject(object):
+    def __init__(self, getValue):
+        self.getValue = getValue
+
 
 class InterpolationEffect(AttributeEffect):
     """The most useful effect. Interpolates a value.
@@ -69,9 +74,11 @@ class InterpolationEffect(AttributeEffect):
         After calling this method, the Effect will always return the value
         at t=1, and most attempts to change it will fail.
         """
+        finalValue = self.getValue()
+        self.getValue = lambda: finalValue
+        self.replace(GetterObject(self.getValue))
         self.old = self.time = self.timer = self.clampTime = self.ease = None
         self.finalized = True
-        self.getValue = lambda: self.value
 
     @staticmethod
     def interpolateScalar(a, b, t):
@@ -110,10 +117,13 @@ def animation(object, attribute, value, *morevalues, **kwargs):
     time = kwargs.pop('time', 0)
     if kwargs.pop('additive', False):
         interpolateScalar = lambda a, b, t: a + b * t
+        keep = kwargs.pop('keep', True)
     elif kwargs.pop('multiplicative', False):
         interpolateScalar = lambda a, b, t: a * ((t - 1) + b * t)
+        keep = kwargs.pop('keep', True)
     else:
         interpolateScalar = InterpolationEffect.interpolateScalar
+        keep = kwargs.pop('keep', False)
     if isinstance(value, tuple):
         interpolate = lambda a, b, t: tuple(
                 interpolateScalar(aa, bb, t) for aa, bb in zip(a, b)
@@ -131,7 +141,7 @@ def animation(object, attribute, value, *morevalues, **kwargs):
         effect.ease = easing
     if kwargs.pop('infinite', False):
         effect.clampTime = lambda t: t
-    elif not kwargs.pop('keep', False):
+    elif not keep:
         effect.chain(FunctionAction(effect.finalize))
     elif not time:
         value = interpolate(getattr(object, attribute), value, 1)

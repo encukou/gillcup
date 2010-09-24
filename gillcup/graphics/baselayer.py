@@ -5,6 +5,7 @@ import pyglet
 from pyglet.gl import *
 
 from gillcup.animatedobject import AnimatedObject
+from gillcup.action import FunctionAction
 from gillcup.graphics import helpers
 
 class BaseLayer(AnimatedObject):
@@ -27,7 +28,8 @@ class BaseLayer(AnimatedObject):
         self.rotation = rotation
         self.scale = scale
         self.opacity = opacity
-        self.parent = parent
+        self.parent = None
+        self.reparent(parent)
         self.size = size
         if timer:
             self.timer = timer
@@ -39,11 +41,6 @@ class BaseLayer(AnimatedObject):
                 self.timer = DynamicTimer(self)
             else:
                 self.timer = obj.timer
-        if parent:
-            if toBack:
-                parent.children.insert(0, self)
-            else:
-                parent.children.append(self)
         self.children = ()
         self.dead = False
 
@@ -88,6 +85,22 @@ class BaseLayer(AnimatedObject):
         for child in self.children:
             if child.parent is self:
                 child.die()
+
+    def reparent(self, newParent, toBack=False):
+        if self.parent:
+            self.parent.children = [
+                    c for c in self.parent.children if c is not self
+                ]
+            self.parent = None
+        if newParent:
+            if toBack:
+                newParent.children.insert(0, self)
+            else:
+                newParent.children.append(self)
+            self.parent = newParent
+
+    def reparenting(self, newParent, toBack=False):
+        return FunctionAction(self.reparent, newParent, toBack)
 
     def _applyFunc(func):
         def wrapped(self, *args, **kwargs):
@@ -136,14 +149,14 @@ class BaseLayer(AnimatedObject):
         return self.animation('position', (x, y), **animargs)
 
     moveTo = _applyFunc(movementTo)
-    movementBy = _addMoreArgs(movementTo, multiplicative=True)
+    movementBy = _addMoreArgs(movementTo, additive=True)
     moveBy = _applyFunc(movementBy)
 
     def anchorMovementTo(self, x, y, **animargs):
         return self.animation('position', (x, y), **animargs)
 
     moveAnchorTo = _applyFunc(anchorMovementTo)
-    anchorMovementBy = _addMoreArgs(anchorMovementTo, multiplicative=True)
+    anchorMovementBy = _addMoreArgs(anchorMovementTo, additive=True)
     moveAnchorBy = _applyFunc(anchorMovementBy)
 
     def resizingTo(self, w, h, **animargs):

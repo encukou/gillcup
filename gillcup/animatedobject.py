@@ -25,10 +25,7 @@ class AnimatedObject(object):
         except KeyError:
             old = self._anim_data_[attribute]
         else:
-            class Old(object):
-                def getValue(self):
-                    return oldValue
-            old = Old()
+            old = _OldEffect(oldValue)
         self._anim_data_[attribute] = animation
         return old
 
@@ -69,3 +66,17 @@ class AnimatedObject(object):
         timer = timer or self.timer
         timer.schedule(dt, anim)
         return anim
+
+    def setDynamicAttribute(self, attribute, getter):
+        return self._animate(attribute, GetterObject(getter))
+
+class _OldEffect(object):
+    def __init__(self, oldValue):
+        self.oldValue = oldValue
+
+    def getValue(self):
+        return self.oldValue
+
+class GetterObject(object):
+    def __init__(self, getValue):
+        self.getValue = getValue
