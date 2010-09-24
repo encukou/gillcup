@@ -5,12 +5,16 @@ from gillcup.action import Action, FunctionAction, EffectAction
 
 
 class Effect(object):
-    """Something that exists over a longer time: a continuous animation
+    """Dynamically changes an AnimatedObject's attribute over time
+
+    The most important method is getValue, which determines what the associated
+    attribute will be.
 
     An effect usually has an "end" action.
     Chaining an action to an effect chains it to the effect's end.
     """
     def __init__(self, end=None):
+        super(Effect,self).__init__()
         if end is None:
             self._end = Action()
         else:
@@ -19,10 +23,6 @@ class Effect(object):
     def chain(self, *actions, **kwargs):
         return self._end.chain(*actions, **kwargs)
 
-
-class AttributeEffect(Effect):
-    """An Effect that dynamically changes an AnimatedObject's attribute
-    """
     def start(self, timer, object, attribute):
         self.timer = timer
         self.startTime = self.timer.time
@@ -51,7 +51,7 @@ class GetterObject(object):
         self.getValue = getValue
 
 
-class InterpolationEffect(AttributeEffect):
+class InterpolationEffect(Effect):
     """The most useful effect. Interpolates a value.
 
     This object is designed so that most of its methods can be overriden
@@ -60,12 +60,12 @@ class InterpolationEffect(AttributeEffect):
     finalized = False
 
     def __init__(self, value, time, *args, **kwargs):
-        AttributeEffect.__init__(self, *args, **kwargs)
+        Effect.__init__(self, *args, **kwargs)
         self.value = value
         self.time = time
 
     def start(self, *args, **kwargs):
-        AttributeEffect.start(self, *args, **kwargs)
+        Effect.start(self, *args, **kwargs)
         self.timer.schedule(self.time, self._end)
 
     def finalize(self):
@@ -130,6 +130,10 @@ def animation(object, attribute, value, *morevalues, **kwargs):
             )
     else:
         interpolate = interpolateScalar
+    base = kwargs.pop('base', None)
+    if not base:
+        base = InterpolationEffect
+        keep = True
     effect = InterpolationEffect(value, time)
     easing = kwargs.pop('easing', None)
     if easing:

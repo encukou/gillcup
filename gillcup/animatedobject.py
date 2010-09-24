@@ -1,5 +1,6 @@
 
 from gillcup.effect import animation
+from gillcup.action import EffectAction
 
 class AnimatedObject(object):
     """An objects whose attributes can be animated
@@ -19,6 +20,11 @@ class AnimatedObject(object):
         self.timer = timer
 
     def _animate(self, attribute, animation):
+        """Animate the given attribute by the given animation
+
+        animation can be any object with a getValue method; but an Effect
+        works best.
+        """
         try:
             oldValue = self.__dict__[attribute]
             del self.__dict__[attribute]
@@ -67,8 +73,13 @@ class AnimatedObject(object):
         timer.schedule(dt, anim)
         return anim
 
-    def setDynamicAttribute(self, attribute, getter):
-        return self._animate(attribute, GetterObject(getter))
+    def dynamicAttributeSetter(self, attribute, getter):
+        return EffectAction(_GetterObject(getter), self, attribute)
+
+    def setDynamicAttribute(self, attribute, getter, dt=0, timer=None):
+        setter = self.dynamicAttributeSetter(attribute, getter)
+        return self.apply(setter, dt, timer)
+
 
 class _OldEffect(object):
     def __init__(self, oldValue):
@@ -77,6 +88,8 @@ class _OldEffect(object):
     def getValue(self):
         return self.oldValue
 
-class GetterObject(object):
+
+class _GetterObject(object):
     def __init__(self, getValue):
         self.getValue = getValue
+
