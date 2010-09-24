@@ -38,9 +38,26 @@ class AnimatedObject(object):
         except KeyError:
             raise AttributeError(attr)
 
+    def _replace_effect(self, attribute, oldEffect, newEffect):
+        try:
+            currentEffect = self._anim_data_[attribute]
+        except KeyError:
+            return False
+        else:
+            if currentEffect is oldEffect:
+                self._anim_data_[attribute] = newEffect
+                return True
+            else:
+                return currentEffect._replace_effect(oldEffect, newEffect)
+
     def animate(self, attr, value, dt=0, timer=None, **options):
-        timer = timer or self.timer
-        timer.schedule(dt, self.animation(attr, value, **options))
+        anim = self.animation(attr, value, **options)
+        return self.apply(anim, dt=dt, timer=timer)
 
     def animation(self, attr, value, **options):
         return animation(self, attr, value, **options)
+
+    def apply(self, anim, dt=0, timer=None):
+        timer = timer or self.timer
+        timer.schedule(dt, anim)
+        return anim

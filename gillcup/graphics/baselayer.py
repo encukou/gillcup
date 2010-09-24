@@ -85,19 +85,58 @@ class BaseLayer(AnimatedObject):
             if child.parent is self:
                 child.die()
 
-    def rotateBy(self, value, **animargs):
-        self.animate('rotation', value, additive=True, **animargs)
+    def _applyFunc(func):
+        def wrapped(self, *args, **kwargs):
+            dt = kwargs.pop('dt', 0)
+            return self.apply(func(self, *args, **kwargs), dt=dt)
+        return wrapped
 
-    def scaleTo(self, width, height=None, **animargs):
+    def _addMoreArgs(func, **moreKwargs):
+        def wrapped(*args, **kwargs):
+            kwargs.update(moreKwargs)
+            return func(*args, **kwargs)
+        return wrapped
+
+    def rotationTo(self, value, **animargs):
+        return self.animation('rotation', value, **animargs)
+
+    rotateTo = _applyFunc(rotationTo)
+    rotationBy = _addMoreArgs(rotationTo, additive=True)
+    rotateBy = _applyFunc(rotationBy)
+
+    def scalingTo(self, width, height=None, **animargs):
         if height is None:
             height = width
-        self.animate('scale', (width, height), **animargs)
+        return self.animation('scale', (width, height), **animargs)
 
-    def scaleBy(self, width, height=None, **animargs):
-        self.scaleTo(width, height, multiplicative=True, **animargs)
+    scaleTo = _applyFunc(scalingTo)
+    scalingBy = _addMoreArgs(scaleTo, multiplicative=True)
+    scaleBy = _applyFunc(scalingBy)
 
-    def fadeTo(self, opacity, **animargs):
-        self.animate('opacity', opacity, **animargs)
+    def fadingTo(self, opacity, **animargs):
+        return self.animation('opacity', opacity, **animargs)
+
+    fadeTo = _applyFunc(fadingTo)
+    fadingBy = _addMoreArgs(fadingTo, multiplicative=True)
+    fadeBy = _applyFunc(fadingBy)
+
+    def movementTo(self, x, y, **animargs):
+        return self.animation('position', (x, y), **animargs)
+
+    moveTo = _applyFunc(movementTo)
+    movementBy = _addMoreArgs(movementTo, multiplicative=True)
+    moveBy = _applyFunc(movementBy)
+
+    def anchorMovementTo(self, x, y, **animargs):
+        return self.animation('position', (x, y), **animargs)
+
+    moveAnchorTo = _applyFunc(anchorMovementTo)
+    anchorMovementBy = _addMoreArgs(anchorMovementTo, multiplicative=True)
+    moveAnchorBy = _applyFunc(anchorMovementBy)
+
+    _applyFunc = classmethod(_applyFunc)
+    _addMoreArgs = classmethod(_addMoreArgs)
+
 
 class DynamicTimer(object):
     # XXX: Untested

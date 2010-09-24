@@ -31,6 +31,21 @@ class AttributeEffect(Effect):
         self.old = object._animate(attribute, self)
 
 
+    def replace(self, newEffect):
+        return self.object._replace_effect(self.attribute, self, newEffect)
+
+
+    def _replace_effect(self, attribute, oldEffect, newEffect):
+        try:
+            currentEffect = self.old
+        except KeyError:
+            return False
+        else:
+            if currentEffect is oldEffect:
+                self.old = newEffect
+            else:
+                currentEffect._replace_effect(oldEffect, newEffect)
+
 class InterpolationEffect(AttributeEffect):
     """The most useful effect. Interpolates a value.
 
