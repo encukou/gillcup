@@ -1,10 +1,11 @@
 
 from __future__ import division
 
+from gillcup.animatedobject import AnimatedObject
 from gillcup.action import Action, FunctionAction, EffectAction
 
 
-class Effect(object):
+class Effect(AnimatedObject):
     """Dynamically changes an AnimatedObject's attribute over time
 
     The most important method is getValue, which determines what the associated
@@ -34,7 +35,7 @@ class Effect(object):
     def replace(self, newEffect):
         return self.object._replace_effect(self.attribute, self, newEffect)
 
-    def _replace_effect(self, oldEffect, newEffect):
+    def _replace_effect_(self, oldEffect, newEffect):
         try:
             currentEffect = self.old
         except KeyError:
@@ -50,6 +51,8 @@ class GetterObject(object):
     def __init__(self, getValue):
         self.getValue = getValue
 
+    def dump(self, indentationLevel):
+        print '  ' * indentationLevel, 'GetterObject'
 
 class InterpolationEffect(Effect):
     """The most useful effect. Interpolates a value.
@@ -63,6 +66,7 @@ class InterpolationEffect(Effect):
         Effect.__init__(self, *args, **kwargs)
         self.value = value
         self.time = time
+        self.strength = 1
 
     def start(self, *args, **kwargs):
         Effect.start(self, *args, **kwargs)
@@ -106,7 +110,34 @@ class InterpolationEffect(Effect):
         t = self.getTime()
         t = self.clampTime(t)
         t = self.ease(t)
+        t *= self.strength
         return self.interpolate(self.old.getValue(), self.value, t)
+
+    def dump(self, indentationLevel):
+        name = type(self).__name__
+        try:
+            name = '"' + self.name + '" ' + name
+        except AttributeError:
+            pass
+        print '  ' * indentationLevel + name
+        indentationLevel += 1
+        if self.strength != 1:
+            print '  ' * indentationLevel + 'x' + str(self.strength)
+        time = self.getTime()
+        if time:
+            print '  ' * indentationLevel + '@' + str(time)
+            clamped = self.clampTime(time)
+            if time != clamped:
+                print '  ' * indentationLevel + '  [>]' + str(clamped)
+        print '  ' * indentationLevel + '>' + str(self.value)
+        AnimatedObject._dump_effects(self, indentationLevel)
+        print '  ' * indentationLevel + 'base:' + str(self.old.getValue())
+        try:
+            dump = self.old.dump
+        except AttributeError:
+            print '  ' * (indentationLevel + 1) + str(self.old)
+        else:
+            self.old.dump(indentationLevel + 1)
 
 def animation(object, attribute, value, *morevalues, **kwargs):
     """Convenience function to create various Interpolation effects on
@@ -115,6 +146,7 @@ def animation(object, attribute, value, *morevalues, **kwargs):
     if morevalues:
         value = (value, ) + morevalues
     time = kwargs.pop('time', 0)
+    infinite = kwargs.pop('infinite', False)
     if kwargs.pop('additive', False):
         interpolateScalar = lambda a, b, t: a + b * t
         keep = kwargs.pop('keep', True)
@@ -124,6 +156,9 @@ def animation(object, attribute, value, *morevalues, **kwargs):
     else:
         interpolateScalar = InterpolationEffect.interpolateScalar
         keep = kwargs.pop('keep', False)
+    if time == 'dynamic':
+        time = 0
+        infinite = True
     if isinstance(value, tuple):
         interpolate = lambda a, b, t: tuple(
                 interpolateScalar(aa, bb, t) for aa, bb in zip(a, b)
@@ -133,8 +168,13 @@ def animation(object, attribute, value, *morevalues, **kwargs):
     base = kwargs.pop('base', None)
     if not base:
         base = InterpolationEffect
+    else:
         keep = True
     effect = InterpolationEffect(value, time)
+    if time == 'absolute':
+        effect.time = 1
+        effect.getTime = lambda: effect.timer.time
+        infinite = True
     easing = kwargs.pop('easing', None)
     if easing:
         if isinstance(easing, basestring):
@@ -143,16 +183,20 @@ def animation(object, attribute, value, *morevalues, **kwargs):
             for a in attrarray:
                 easing = getattr(easing, a)
         effect.ease = easing
-    if kwargs.pop('infinite', False):
+    if infinite:
         effect.clampTime = lambda t: t
     elif not keep:
-        effect.chain(FunctionAction(effect.finalize))
-    elif not time:
-        value = interpolate(getattr(object, attribute), value, 1)
-        return FunctionAction(setattr, object, attribute, value)
+        if not time:
+            value = interpolate(getattr(object, attribute), value, 1)
+            return FunctionAction(setattr, object, attribute, value)
+        else:
+            effect.chain(FunctionAction(effect.finalize))
     if not time:
         effect.getTime = lambda: 1
     effect.interpolate = interpolate
+    name = kwargs.pop('name', None)
+    if name:
+        effect.name = name
     return EffectAction(effect, object, attribute)
 
 

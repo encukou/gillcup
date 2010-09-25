@@ -1,5 +1,4 @@
 
-from gillcup.effect import animation
 from gillcup.action import EffectAction
 
 class AnimatedObject(object):
@@ -31,7 +30,7 @@ class AnimatedObject(object):
         except KeyError:
             old = self._anim_data_[attribute]
         else:
-            old = _OldEffect(oldValue)
+            old = _Constant(oldValue)
         self._anim_data_[attribute] = animation
         return old
 
@@ -59,13 +58,24 @@ class AnimatedObject(object):
                 self._anim_data_[attribute] = newEffect
                 return True
             else:
-                return currentEffect._replace_effect(oldEffect, newEffect)
+                return currentEffect._replace_effect_(oldEffect, newEffect)
+
+    def _dump_effects(self, indentLevel=0):
+        for attr, effect in self._anim_data_.items():
+            print '  ' * indentLevel + '.' + attr + ':' + str(getattr(self, attr))
+            try:
+                dump = effect.dump
+            except AttributeError:
+                print '  ' * (indentLevel + 1) + str(effect)
+            else:
+                effect.dump(indentLevel + 1)
 
     def animate(self, attr, value, dt=0, timer=None, **options):
         anim = self.animation(attr, value, **options)
         return self.apply(anim, dt=dt, timer=timer)
 
     def animation(self, attr, value, **options):
+        from gillcup.effect import animation
         return animation(self, attr, value, **options)
 
     def apply(self, anim, dt=0, timer=None):
@@ -77,19 +87,28 @@ class AnimatedObject(object):
         return EffectAction(_GetterObject(getter), self, attribute)
 
     def setDynamicAttribute(self, attribute, getter, dt=0, timer=None):
-        setter = self.dynamicAttributeSetter(attribute, getter)
-        return self.apply(setter, dt, timer)
+        if not dt:
+            self._animate(attribute, _GetterObject(getter))
+        else:
+            setter = self.dynamicAttributeSetter(attribute, getter)
+            return self.apply(setter, dt, timer)
 
 
-class _OldEffect(object):
-    def __init__(self, oldValue):
-        self.oldValue = oldValue
+class _Constant(object):
+    def __init__(self, value):
+        self.value = value
 
     def getValue(self):
-        return self.oldValue
+        return self.value
+
+    def dump(self, indentationLevel):
+        o = str(self.value)
+        print '  ' * indentationLevel + type(self).__name__ + ': ' + o
 
 
 class _GetterObject(object):
     def __init__(self, getValue):
         self.getValue = getValue
 
+    def dump(self, indentationLevel):
+        print '  ' * indentationLevel + type(self).__name__

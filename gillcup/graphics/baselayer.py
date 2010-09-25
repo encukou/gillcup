@@ -76,6 +76,7 @@ class BaseLayer(AnimatedObject):
                 ("s{0}".format(self.size), self.size != (1, 1)),
                 ("o{0}".format(self.opacity), self.opacity != 1),
             ] if c)
+        self._dump_effects(indentLevel + 1)
         for child in self.children:
             child.dump(indentLevel + 1)
 
