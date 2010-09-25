@@ -1,39 +1,42 @@
 #! /usr/bin/python
 # Encoding: UTF-8
 
-# Adapded partially from Robert Penner's Easing Equations, as they
-# appear in the Qt library. The original license follows:
+"""
+Adapded partially from Robert Penner's Easing Equations, as they
+appear in the Qt library. The original license follows:
 
-# TERMS OF USE - EASING EQUATIONS
-#
-# Open source under the BSD License.
-#
-# Copyright © 2001 Robert Penner
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-#    * Redistributions of source code must retain the above copyright notice,
-#      this list of conditions and the following disclaimer.
-#    * Redistributions in binary form must reproduce the above copyright
-#      notice, this list of conditions and the following disclaimer in the
-#      documentation and/or other materials provided with the distribution.
-#    * Neither the name of the author nor the names of contributors may be
-#      used to endorse or promote products derived from this software without
-#      specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+TERMS OF USE - EASING EQUATIONS
+
+Open source under the BSD License.
+
+Copyright © 2001 Robert Penner
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+   * Redistributions of source code must retain the above copyright notice,
+     this list of conditions and the following disclaimer.
+   * Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+   * Neither the name of the author nor the names of contributors may be
+     used to endorse or promote products derived from this software without
+     specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+"""
 
 from __future__ import division
 
@@ -99,30 +102,56 @@ def tweenfunc(func):
 
 @tweenfunc
 def linear(t):
+    """Linear interpolation
+
+    t → t
+    """
     return t
 
 @tweenfunc
 def quad(t):
+    """Quadratic easing
+
+    t → t**2
+    """
     return t ** 2
 
 @tweenfunc
 def cubic(t):
+    """Cubic easing
+
+    t → t**3
+    """
     return t ** 3
 
 @tweenfunc
 def quart(t):
+    """Quartic easing
+
+    t → t**4
+    """
     return t ** 4
 
 @tweenfunc
 def quint(t):
+    """Quintic easing
+
+    t → t**5
+    """
     return t ** 5
 
 @tweenfunc
 def sin(t):
+    """Sinusoidal easing
+
+    Quarter of a cosine wave
+    """
     return (-math.cos(t / 2 * math.pi) + 1)
 
 @tweenfunc
 def exp(t):
+    """Exponential easing
+    """
     if t in (0, 1):
         return t
     else:
@@ -130,18 +159,24 @@ def exp(t):
 
 @tweenfunc
 def circ(t):
+    """Circular easing
+    """
     try:
         return 1 - math.sqrt(1 - t * t)
     except ValueError:
         return 0
 
 def elastic(period, amplitude=1):
+    """Elastic easing
+    """
     @tweenfunc
     def elastic(t):
         return exp(t) * math.cos((1 - t) * 2 * math.pi / period) * amplitude
     return elastic
 
 def overshoot(amount):
+    """Overshoot easing
+    """
     @tweenfunc
     def overshoot(t):
         t = 1 - t
@@ -164,6 +199,8 @@ def _bounce_helper(t, c, a):
         return -a * (1. - (7.5625 * t * t + .984375)) + c
 
 def bounce(amplitude):
+    """Bounce easing
+    """
     @tweenfunc
     def bounce(t):
         return _bounce_helper(t, 1, amplitude)
@@ -180,6 +217,8 @@ def showcase(
         items='(poly) sin exp circ elastic_example overshoot_example '
         'bounce_example'.split()
     ):
+    """Show graphs of the easing functions in this module
+    """
     import pylab
 
     time = pylab.arange(0.0, 1.01, 0.01)

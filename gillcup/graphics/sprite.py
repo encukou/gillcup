@@ -1,17 +1,4 @@
 
-
-"""A Sprite layer, displaying an image
-
-Currently, 3 methods of specifying the image exist:
-- Passing a Pyglet sprite in the 'sprite' argument to __init__
-- Passing a filename in the 'filename' argument to __init__
-    (any image type loadable by Pyglet will do)
-- Passing 'filename' and 'pkg' attributes will call
-    pkg_resources.resource_filename(pkg, filename)
-
-Other methods are possible by overriding the loadSprite classmethod.
-"""
-
 from __future__ import division
 
 import pyglet
@@ -21,6 +8,16 @@ from gillcup.graphics.baselayer import BaseLayer
 from gillcup.graphics import helpers
 
 class Sprite(BaseLayer):
+    """An image
+
+    See :py:meth:`loadSprite` for keyword arguments to pass for loading images.
+
+    :param color: The color of this rectangle. Becomes an animable attribute.
+
+    See the :py:class:`base class <gillcup.graphics.baselayer.BaseLayer>`
+    for functionality common to all graphics objects, particularly additional
+    attributes and __init__ arguments.
+    """
     def __init__(self, parent, color=(1, 1, 1), **kwargs):
         self.sprite = self.loadSprite(kwargs)
         self.color = color
@@ -28,6 +25,20 @@ class Sprite(BaseLayer):
 
     @classmethod
     def loadSprite(cls, kwargs):
+        """Load an image to use given __init__'s kwargs
+
+        Currently, 3 methods of specifying the image exist:
+
+        - Passing a Pyglet sprite in the 'sprite' argument to __init__
+        - Passing a filename in the 'filename' argument to __init__
+            (any image type loadable by Pyglet will do)
+        - Passing 'filename' and 'pkg' attributes will call
+            pkg_resources.resource_filename(pkg, filename)
+
+        Used arguments are removed from kwargs.
+
+        Returns a Pyglet sprite.
+        """
         sprite = kwargs.pop('sprite', None)
         if sprite:
             return sprite

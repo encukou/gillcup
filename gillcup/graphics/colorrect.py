@@ -15,7 +15,14 @@ vertices_gl = (GLfloat * len(vertices))(*vertices)
 
 
 class ColorRect(BaseLayer):
-    """ColorRect without animatable properties"""
+    """A rectangle of solid color.
+
+    :param color: The color of this rectangle. Becomes an animable attribute.
+
+    See the :py:class:`base class <gillcup.graphics.baselayer.BaseLayer>`
+    for functionality common to all graphics objects, particularly additional
+    attributes and __init__ arguments.
+    """
     def __init__(self, parent, color=(.5, .5, .5), **kwargs):
         super(ColorRect, self).__init__(parent, **kwargs)
         self.color = color

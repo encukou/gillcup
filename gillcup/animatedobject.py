@@ -49,6 +49,8 @@ class AnimatedObject(object):
         return effect.getValue()
 
     def _replace_effect(self, attribute, oldEffect, newEffect):
+        """ Replace the given effct by a new effect
+        """
         try:
             currentEffect = self._anim_data_[attribute]
         except KeyError:
@@ -58,7 +60,12 @@ class AnimatedObject(object):
                 self._anim_data_[attribute] = newEffect
                 return True
             else:
-                return currentEffect._replace_effect_(oldEffect, newEffect)
+                try:
+                    replaceMethod = currentEffect._replace_effect_
+                except AttributeError:
+                    return False
+                else:
+                    return currentEffect._replace_effect_(oldEffect, newEffect)
 
     def _dump_effects(self, indentLevel=0):
         for attr, effect in self._anim_data_.items():
@@ -70,28 +77,59 @@ class AnimatedObject(object):
             else:
                 effect.dump(indentLevel + 1)
 
-    def animate(self, attr, value, dt=0, timer=None, **options):
-        anim = self.animation(attr, value, **options)
+    def animate(self, attribute, value, dt=0, timer=None, **options):
+        """Animate the given attribute
+
+        Calls self.apply(self.animation(...), dt=dt).
+        Returns the resulting Action.
+        """
+        anim = self.animation(attribute, value, **options)
         return self.apply(anim, dt=dt, timer=timer)
 
-    def animation(self, attr, value, **options):
-        from gillcup.effect import animation
-        return animation(self, attr, value, **options)
+    def animation(self, attribute, value, **options):
+        """Return an animation Action for the given attribute.
 
-    def apply(self, anim, dt=0, timer=None):
+        When this Action is run, the given attribute will be gradually set
+        to the new value. The style of the animation is given by options.
+
+        See :py:func:`gillcup.effect.animation` for what options are available.
+        """
+        from gillcup.effect import animation
+        return animation(self, attribute, value, **options)
+
+    def apply(self, action, dt=0, timer=None):
+        """Schedule action on this object's timer
+
+        dt is the time in which the Action is to be executed (measured from the
+        timer's current time).
+        timer can be given to specify the timer to use; if None, self's timer
+        will be used
+        """
         timer = timer or self.timer
-        timer.schedule(dt, anim)
-        return anim
+        timer.schedule(dt, action)
+        return action
 
     def dynamicAttributeSetter(self, attribute, getter):
+        """Returns an Action to set an attribute getter
+
+        After the returned Action runs, the given getter function will be used
+        to provide values for the given attribute.
+        """
         return EffectAction(_GetterObject(getter), self, attribute)
 
     def setDynamicAttribute(self, attribute, getter, dt=0, timer=None):
+        """Set a getter for an attribute
+
+        If dt==0, sets getter as the attribute getter for the given attribute.
+
+        Otherwise, calls
+        self.apply(self.dynamicAttributeSetter(attribute, getter), dt=dt).
+        """
         if not dt:
             self._animate(attribute, _GetterObject(getter))
         else:
             setter = self.dynamicAttributeSetter(attribute, getter)
-            return self.apply(setter, dt, timer)
+            self.apply(setter, dt, timer)
 
 
 class _Constant(object):

@@ -9,6 +9,34 @@ from gillcup.action import FunctionAction
 from gillcup.graphics import helpers
 
 class BaseLayer(AnimatedObject):
+    """Base class for Gillcup's graphics objects
+
+    Provides with a common set of attributes and common options.
+
+    All arguments except parent should be given as keyword arguments.
+
+    :param parent: The parent Layer. Leave None for no parent. Note that only
+            Layers, not just any graphics objects, can act as a parent.
+    :param timer: The timer to use for animations. Leave None to use
+            the parent's timer, or None if no parent
+    :param toBack: If true, the object will be prepended to the parent's list
+            of children, and will thus appear behind them. By default, it is
+            appended.
+
+    The following arguments become instance attributes, and can be then
+    animated:
+
+    :param position: The position of the anchorPoint , relative to the parent
+    :param anchorPoint: The reference point, around which rotations and scaling
+            is done. Also, position references the anchorPoint.
+    :param scale: The scale of the object, relative to the default (1, 1).
+            Affects all children.
+    :param size: The size of the object. Is dependent on the object type, but
+            usually has the same effect as scale, except it does not affect
+            children.
+    :param rotation: The rotation of the object, in counterclockwise degrees.
+    :param opacity: The opacity of the object, a float in the range [0..1]
+    """
     getDrawContext = helpers.nullContextManager
 
     def __init__(self,
@@ -45,6 +73,12 @@ class BaseLayer(AnimatedObject):
         self.dead = False
 
     def do_draw(self, **kwargs):
+        """Draw this object
+
+        This method sets up the transformation matrix and calls draw().
+
+        Subclasses will usually want to override draw(), not this method.
+        """
         # XXX: Make sure tree is never deeper than 32
         gl.glPushMatrix()
         try:
@@ -56,6 +90,8 @@ class BaseLayer(AnimatedObject):
             gl.glPopMatrix()
 
     def changeMatrix(self):
+        """Set up the transformation matrix for object
+        """
         gl.glTranslatef(*helpers.extend_tuple(self.position))
         gl.glRotatef(self.rotation, 0, 0, 1)
         gl.glScalef(*helpers.extend_tuple(self.scale, default=1))
@@ -64,10 +100,13 @@ class BaseLayer(AnimatedObject):
             ))
 
     def draw(self, **kwargs):
-        # Return a dict to modify kwargs passed to children
+        """Draw this object. Overridden in subclasses.
+        """
         pass
 
     def dump(self, indentLevel=0):
+        """Dump this object to the standard output. A debugging tool.
+        """
         print '  ' * indentLevel + ' '.join(x for x, c in [
                 (type(self).__name__, True),
                 ("@{0}".format(self.position), self.position != (0, 0, 0)),
@@ -81,6 +120,11 @@ class BaseLayer(AnimatedObject):
             child.dump(indentLevel + 1)
 
     def die(self):
+        """Destroy this object
+
+        Sets up to detach from the parent on the next frame, and calls die()
+        on all children.
+        """
         self.dead = True
         self.parent = None
         for child in self.children:
@@ -88,6 +132,11 @@ class BaseLayer(AnimatedObject):
                 child.die()
 
     def reparent(self, newParent, toBack=False):
+        """Set a new parent
+
+        Remove this object from the current parent (if there is one) and
+        attech to a new one. The toBack argument is the same as for __init__.
+        """
         if self.parent:
             self.parent.children = [
                     c for c in self.parent.children if c is not self
@@ -101,29 +150,43 @@ class BaseLayer(AnimatedObject):
             self.parent = newParent
 
     def reparenting(self, newParent, toBack=False):
+        """Return an Action that calls raparent() when run"""
         return FunctionAction(self.reparent, newParent, toBack)
 
     def _applyFunc(func):
         def wrapped(self, *args, **kwargs):
             dt = kwargs.pop('dt', 0)
             return self.apply(func(self, *args, **kwargs), dt=dt)
+        if func.func_name != 'wrapped':
+            wrapped.__doc__ = "Call self.apply(self.%s(), dt=dt)" % (
+                    func.func_name,
+                )
         return wrapped
 
     def _addMoreArgs(func, **moreKwargs):
         def wrapped(*args, **kwargs):
             kwargs.update(moreKwargs)
             return func(*args, **kwargs)
+        if func.func_name != 'wrapped':
+            wrapped.__doc__ = "Call %s with %s" % (
+                    func.func_name,
+                    ', '.join('%s=%s' % (a, b) for a, b in moreKwargs.items())
+                )
         return wrapped
 
     @property
     def width(self):
+        """size[0]"""
         return helpers.extend_tuple(self.size)[0]
 
     @property
     def height(self):
+        """size[1]"""
         return helpers.extend_tuple(self.size)[1]
 
     def rotationTo(self, value, **animargs):
+        """Return Action for animating rotation to the given value
+        """
         return self.animation('rotation', value, **animargs)
 
     rotateTo = _applyFunc(rotationTo)
@@ -131,6 +194,8 @@ class BaseLayer(AnimatedObject):
     rotateBy = _applyFunc(rotationBy)
 
     def scalingTo(self, width, height=None, **animargs):
+        """Return Action for animating scale to the given value
+        """
         if height is None:
             height = width
         return self.animation('scale', (width, height), **animargs)
@@ -140,6 +205,8 @@ class BaseLayer(AnimatedObject):
     scaleBy = _applyFunc(scalingBy)
 
     def fadingTo(self, opacity, **animargs):
+        """Return Action for animating opacity to the given value
+        """
         return self.animation('opacity', opacity, **animargs)
 
     fadeTo = _applyFunc(fadingTo)
@@ -147,6 +214,8 @@ class BaseLayer(AnimatedObject):
     fadeBy = _applyFunc(fadingBy)
 
     def movementTo(self, x, y, **animargs):
+        """Return Action for animating position to the given value
+        """
         return self.animation('position', (x, y), **animargs)
 
     moveTo = _applyFunc(movementTo)
@@ -154,6 +223,8 @@ class BaseLayer(AnimatedObject):
     moveBy = _applyFunc(movementBy)
 
     def anchorMovementTo(self, x, y, **animargs):
+        """Return Action for animating anchorPoint to the given value
+        """
         return self.animation('position', (x, y), **animargs)
 
     moveAnchorTo = _applyFunc(anchorMovementTo)
@@ -161,6 +232,8 @@ class BaseLayer(AnimatedObject):
     moveAnchorBy = _applyFunc(anchorMovementBy)
 
     def resizingTo(self, w, h, **animargs):
+        """Return Action for animating size to the given value
+        """
         return self.animation('size', (w, h), **animargs)
 
     resizeTo = _applyFunc(resizingTo)

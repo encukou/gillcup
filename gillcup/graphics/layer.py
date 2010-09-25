@@ -11,6 +11,20 @@ from gillcup.pygrendertexture.RenderTextureManager import RenderTextureManager
 white = (GLfloat * 3)(1, 1, 1)
 
 class Layer(BaseLayer):
+    """A container for graphics objects
+
+    :param pixelization: The side lengths of a "pixel" for a mosaic effect.
+
+    See the :py:class:`base class <gillcup.graphics.baselayer.BaseLayer>`
+    for functionality common to all graphics objects, particularly additional
+    attributes and __init__ arguments.
+
+    Setting opacity (or pixelization) to a non-trivial value will cause the
+    contents of a Layer to be rendered in an of-screen buffer, which may hurt
+    performance.
+
+    A Layer may be the parent of other graphics objects.
+    """
     _opacity_data = None
 
     def __init__(self, parent=None, **kwargs):
