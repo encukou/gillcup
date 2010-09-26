@@ -22,6 +22,7 @@ class BaseLayer(AnimatedObject):
     :param toBack: If true, the object will be prepended to the parent's list
             of children, and will thus appear behind them. By default, it is
             appended.
+    :param name: A name for the layer. Shows up in debug dumps.
 
     The following arguments become instance attributes, and can be then
     animated:
@@ -33,7 +34,8 @@ class BaseLayer(AnimatedObject):
             Affects all children.
     :param size: The size of the object. Is dependent on the object type, but
             usually has the same effect as scale, except it does not affect
-            children.
+            children. Conceptually, size is the inherent size of the object,
+            while scale specifies how much it is stretched.
     :param rotation: The rotation of the object, in counterclockwise degrees.
     :param opacity: The opacity of the object, a float in the range [0..1]
     """
@@ -49,6 +51,7 @@ class BaseLayer(AnimatedObject):
             opacity=1,
             toBack=False,
             timer=None,
+            name=None,
         ):
         super(BaseLayer, self).__init__()
         self.position = position
@@ -59,6 +62,7 @@ class BaseLayer(AnimatedObject):
         self.parent = None
         self.reparent(parent)
         self.size = size
+        self.name = name
         if timer:
             self.timer = timer
         else:
@@ -109,6 +113,7 @@ class BaseLayer(AnimatedObject):
         """
         print '  ' * indentLevel + ' '.join(x for x, c in [
                 (type(self).__name__, True),
+                ('"{0}"'.format(self.name), self.name),
                 ("@{0}".format(self.position), self.position != (0, 0, 0)),
                 ("x{0}".format(self.scale), self.scale != (1, 1, 1)),
                 ("a{0}".format(self.anchorPoint), self.anchorPoint != (0,0,0)),

@@ -12,3 +12,4 @@ Contents:
     sprite
     baselayer
     helpers
+    text
