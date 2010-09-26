@@ -169,12 +169,11 @@ def animation(object, attribute, value, *morevalues, **kwargs):
         keep = True
     effect = InterpolationEffect(value, time)
     if time == 'absolute':
-        effect.time = 1
+        effect.time = time = 1
         effect.getTime = lambda: effect.timer.time
         infinite = True
     if time == 'dynamic':
-        time = 1
-        effect.strength = 0
+        effect.time = time = 0
         infinite = True
     easing = kwargs.pop('easing', None)
     if easing:
