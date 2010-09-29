@@ -60,7 +60,7 @@ class BaseLayer(AnimatedObject):
         self.scale = scale
         self.opacity = opacity
         self.parent = None
-        self.reparent(parent)
+        self.reparent(parent, toBack)
         self.size = size
         self.name = name
         if timer:
