@@ -13,6 +13,8 @@ class Sprite(BaseLayer):
     See :py:meth:`loadSprite` for keyword arguments to pass for loading images.
 
     :param color: The color of this rectangle. Becomes an animable attribute.
+    :param size: The size of this sprite, (width, height). By default, the
+            size of the image.
 
     See the :py:class:`base class <gillcup.graphics.baselayer.BaseLayer>`
     for functionality common to all graphics objects, particularly additional
@@ -20,6 +22,7 @@ class Sprite(BaseLayer):
     """
     def __init__(self, parent, color=(1, 1, 1), **kwargs):
         self.sprite = self.loadSprite(kwargs)
+        kwargs.setdefault('size', (self.sprite.width, self.sprite.height))
         self.color = color
         super(Sprite, self).__init__(parent, **kwargs)
 
