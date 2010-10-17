@@ -20,7 +20,7 @@ class Layer(BaseLayer):
     attributes and __init__ arguments.
 
     Setting opacity (or pixelization) to a non-trivial value will cause the
-    contents of a Layer to be rendered in an of-screen buffer, which may hurt
+    contents of a Layer to be rendered in an off-screen buffer, which may hurt
     performance.
 
     A Layer may be the parent of other graphics objects.
@@ -28,7 +28,7 @@ class Layer(BaseLayer):
     _opacity_data = None
 
     def __init__(self, parent=None, **kwargs):
-        self.pixelization = kwargs.pop('pixelization', 1)
+        self.pixelization = kwargs.pop('pixelization', (1, 1))
         super(Layer, self).__init__(parent, **kwargs)
         self.children = []
 
@@ -50,17 +50,21 @@ class Layer(BaseLayer):
                 else:
                     parent_width = window.width
                     parent_height = window.height
+                pix_x, pix_y, dummy = pixelization
+                width = max(1, int(parent_width/pix_x))
+                height = max(1, int(parent_height/pix_y))
                 if self._opacity_data:
-                    rendermanager, rendertexture = self._opacity_data
+                    rendermanager, rendertexture, w, h = self._opacity_data
                 else:
+                    w, h = 0, 0
+                if (w, h) != (width, height):
                     rendermanager = RenderTextureManager(window)
-                    pix_x, pix_y, dummy = pixelization
                     rendertexture = rendermanager.Create(
-                            width=parent_width/pix_x,
-                            height=parent_height/pix_y,
+                            width=width,
+                            height=height,
                             alpha=True,
                         )
-                    self._opacity_data = rendermanager, rendertexture
+                    self._opacity_data = rendermanager, rendertexture, width, height
                 kwargs['parent_texture'] = rendertexture
                 @contextmanager
                 def cm(*args, **kwargs):
@@ -79,18 +83,22 @@ class Layer(BaseLayer):
                     if parent_texture:
                         parent_texture.SetAsInactive(0)
                     rendertexture.SetAsActive(0)
-                    glColor4fv((GLfloat * 4)(1, 1, 1, self.opacity))
-                    glEnable(GL_TEXTURE_2D)
-                    glBegin(GL_QUADS)
-                    glTexCoord2f(0, 0)
-                    glVertex2i(0, 0)
-                    glTexCoord2f(rendertexture.maxtextureu, 0 )
-                    glVertex2i(window.width, 0)
-                    glTexCoord2f(rendertexture.maxtextureu, rendertexture.maxtexturev)
-                    glVertex2i(window.width, window.height)
-                    glTexCoord2f(0, rendertexture.maxtexturev)
-                    glVertex2i(0, window.height)
-                    glEnd()
+                    try:
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+                        glColor4fv((GLfloat * 4)(1, 1, 1, self.opacity))
+                        glEnable(GL_TEXTURE_2D)
+                        glBegin(GL_QUADS)
+                        glTexCoord2f(0, 0)
+                        glVertex2i(0, 0)
+                        glTexCoord2f(rendertexture.maxtextureu, 0 )
+                        glVertex2i(window.width, 0)
+                        glTexCoord2f(rendertexture.maxtextureu, rendertexture.maxtexturev)
+                        glVertex2i(window.width, window.height)
+                        glTexCoord2f(0, rendertexture.maxtexturev)
+                        glVertex2i(0, window.height)
+                        glEnd()
+                    finally:
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
                     glDisable(GL_TEXTURE_2D)
                     rendertexture.SetAsInactive(0)
                     if parent_texture:

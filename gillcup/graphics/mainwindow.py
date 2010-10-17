@@ -22,7 +22,7 @@ def createMainWindow(layer, width=768, height=576, debug=False, config_args={},
 
     A convenience function designed to be easy to use rather than clean.
     """
-    config = pyglet.gl.Config(sample_buffers=1, samples=4, **config_args)
+    config = pyglet.gl.Config(**config_args)
     window = pyglet.window.Window(
             config=config,
             width=width,
