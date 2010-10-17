@@ -1,6 +1,8 @@
 
 from __future__ import division
 
+import weakref
+
 import pyglet
 from pyglet.gl import *
 
@@ -26,6 +28,8 @@ class Sprite(BaseLayer):
         self.color = color
         super(Sprite, self).__init__(parent, **kwargs)
 
+    spriteCache = weakref.WeakValueDictionary()
+
     @classmethod
     def loadSprite(cls, kwargs):
         """Load an image to use given __init__'s kwargs
@@ -48,10 +52,16 @@ class Sprite(BaseLayer):
         else:
             pkg = kwargs.pop('pkg', None)
             filename = kwargs.pop('filename')
-            if pkg:
-                import pkg_resources
-                filename = pkg_resources.resource_filename(pkg, filename)
-            return pyglet.sprite.Sprite(pyglet.image.load(filename))
+            key = pkg, filename
+            try:
+                return cls.spriteCache[key]
+            except KeyError:
+                if pkg:
+                    import pkg_resources
+                    filename = pkg_resources.resource_filename(pkg, filename)
+                sprite = pyglet.sprite.Sprite(pyglet.image.load(filename))
+                cls.spriteCache[key] = sprite
+                return sprite
 
     def draw(self, **kwargs):
         self.sprite.opacity = self.opacity * 255
