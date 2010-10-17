@@ -162,12 +162,12 @@ def animation(object, attribute, value, *morevalues, **kwargs):
             )
     else:
         interpolate = interpolateScalar
-    base = kwargs.pop('base', None)
-    if not base:
-        base = InterpolationEffect
+    cls = kwargs.pop('cls', None)
+    if not cls:
+        cls = InterpolationEffect
     else:
         keep = True
-    effect = InterpolationEffect(value, time)
+    effect = cls(value, time)
     if time == 'absolute':
         effect.time = time = 1
         effect.getTime = lambda: effect.timer.time
