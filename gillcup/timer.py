@@ -86,7 +86,7 @@ class Timer(object):
         """
         if dt < 0:
             raise ValueError("Can't advance into the past")
-        while self.events and self.events[0].time <= self.time + dt:
+        while self.events and self.events[0].time < self.time + dt:
             entry = heapq.heappop(self.events)
             dt -= entry.time - self.time
             self.time = entry.time
