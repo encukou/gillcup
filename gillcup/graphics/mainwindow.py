@@ -34,6 +34,7 @@ def createMainWindow(layer, width=768, height=576, debug=False, config_args={},
         layer.timer.time
     except RuntimeError:
         layer.timer = getMainTimer()
+    layer.timer.advance(0)
 
     layer.scaleTo(width / layer.width, height / layer.height)
 
@@ -86,6 +87,8 @@ def getMainTimer():
 def run(layer, *args, **kwargs):
     """Call createMainWindow() and run a main loop with it"""
     window = createMainWindow(layer, *args, **kwargs)
-    window.run()
-    if kwargs.get('debug'):
-        layer.dump()
+    try:
+        window.run()
+    finally:
+        if kwargs.get('debug'):
+            layer.dump()
