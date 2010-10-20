@@ -106,12 +106,15 @@ class InterpolationEffect(Effect):
         else:
             return t
 
+    def oldValue(self):
+        return self.old.getValue()
+
     def getValue(self):
         t = self.getTime()
         t = self.clampTime(t)
         t = self.ease(t)
         t *= self.strength
-        return self.interpolate(self.old.getValue(), self.value, t)
+        return self.interpolate(self.oldValue(), self.value, t)
 
     def dump(self, indentationLevel):
         name = type(self).__name__
@@ -193,6 +196,9 @@ def animation(object, attribute, value, *morevalues, **kwargs):
             effect.chain(FunctionAction(effect.finalize))
     if not time:
         effect.getTime = lambda: 1
+    oldValue = kwargs.pop('start', None)
+    if oldValue is not None:
+        effect.oldValue = lambda: oldValue
     effect.interpolate = interpolate
     name = kwargs.pop('name', None)
     if name:
