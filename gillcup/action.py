@@ -12,6 +12,7 @@ class Action(object):
     """
     def __init__(self):
         self._chain = []
+        self.expired = False
 
     def chain(self, action, *others, **kwargs):
         """Schedule an Action (or more) at the end of this Action
@@ -21,9 +22,15 @@ class Action(object):
 
         For EffectAction, the actions are scheduled after the applied effect
         ends.
+
+        If this action has already finished, the chained ones are scheduled
+        immediately.
         """
-        for other in (action,) + others:
-            self._chain.append((kwargs.get('dt', 0), other))
+        if self.expired:
+            self.timer.schedule(kwargs.get('dt', 0), action, others)
+        else:
+            for act in (action,) + others:
+                self._chain.append((kwargs.get('dt', 0), act))
         return action
 
     def run(self, timer):
@@ -31,6 +38,8 @@ class Action(object):
 
         Called from a Timer.
         """
+        self.expired = True
+        self.timer = timer
         for dt, ch in self._chain:
             timer.schedule(dt, ch)
 
@@ -60,8 +69,7 @@ class FunctionAction(Action):
         else:
             kwargs = self.kwargs
         self.func(*self.args, **kwargs)
-        for dt, ch in self._chain:
-            timer.schedule(dt, ch)
+        Action.run(self, timer)
 
 
 class EffectAction(Action):
@@ -83,3 +91,5 @@ class EffectAction(Action):
         self.effect.start(timer, *self.args, **self.kwargs)
         for dt, ch in self._chain:
             self.effect.chain(ch, dt=dt)
+        self._chain = []
+        Action.run(self, timer)
