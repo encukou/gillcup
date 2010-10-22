@@ -253,6 +253,11 @@ class BaseLayer(AnimatedObject):
     _applyFunc = classmethod(_applyFunc)
     _addMoreArgs = classmethod(_addMoreArgs)
 
+    def getColor(self, kwargs):
+        """Get color to draw with."""
+        color = helpers.extend_tuple_copy(self.color)
+        parentColor = kwargs.get('color', (1, 1, 1))
+        return helpers.tuple_multiply(color, parentColor)
 
 class DynamicTimer(object):
     # XXX: Untested

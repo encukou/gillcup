@@ -33,6 +33,9 @@ class Layer(BaseLayer):
         self.children = []
 
     def draw(self, **kwargs):
+        color = self.getColor(kwargs)
+        if color != (1, 1, 1):
+            kwargs['color'] = color
         gl.glTranslatef(*helpers.extend_tuple(self.anchorPoint))
         self.children = [
                 c for c in self.children if not c.do_draw(**kwargs)

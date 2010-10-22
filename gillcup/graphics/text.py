@@ -56,7 +56,7 @@ class Text(BaseLayer):
             scale_x = width / c_width
             scale_y = height / c_height
         glScalef(scale_x, scale_y, 1)
-        color = helpers.extend_tuple_copy(self.color) + (self.opacity, )
+        color = self.getColor(kwargs) + (self.opacity, )
         self.sprite.color = [int(a * 255) for a in color]
         self.sprite.draw()
         from gillcup.graphics.colorrect import vertices_gl

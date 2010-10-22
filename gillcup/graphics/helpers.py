@@ -1,4 +1,6 @@
 
+import operator
+import functools
 from contextlib import contextmanager
 
 def extend_tuple(args, default=0):
@@ -40,3 +42,6 @@ def nullContextManager(*args, **kwargs):
     """A context manager that does nothing
     """
     yield
+
+def tuple_multiply(*tuples):
+    return tuple(functools.reduce(operator.mul, items) for items in zip(*tuples))
