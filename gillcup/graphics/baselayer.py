@@ -38,6 +38,7 @@ class BaseLayer(AnimatedObject):
             while scale specifies how much it is stretched.
     :param rotation: The rotation of the object, in counterclockwise degrees.
     :param opacity: The opacity of the object, a float in the range [0..1]
+    :param color: The color of the object.
     """
     getDrawContext = helpers.nullContextManager
 
@@ -49,6 +50,7 @@ class BaseLayer(AnimatedObject):
             size=(1, 1),
             rotation=0,
             opacity=1,
+            color=(1, 1, 1),
             toBack=False,
             timer=None,
             name=None,
@@ -61,6 +63,7 @@ class BaseLayer(AnimatedObject):
         self.opacity = opacity
         self.parent = None
         self.reparent(parent, toBack)
+        self.color = color
         self.size = size
         self.name = name
         if timer:

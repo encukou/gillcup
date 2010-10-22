@@ -24,8 +24,7 @@ class ColorRect(BaseLayer):
     attributes and __init__ arguments.
     """
     def __init__(self, parent, color=(.5, .5, .5), **kwargs):
-        super(ColorRect, self).__init__(parent, **kwargs)
-        self.color = color
+        super(ColorRect, self).__init__(parent, color=color, **kwargs)
 
     def draw(self, **kwargs):
         glScalef(*helpers.extend_tuple_copy(self.size))

@@ -30,14 +30,12 @@ class Text(BaseLayer):
     def __init__(self,
             parent,
             text,
-            color=(1, 1, 1),
             fontSize=72,
             fontName=None,
             **kwargs
         ):
         kwargs.setdefault('size', (0, 1))
         super(Text, self).__init__(parent, **kwargs)
-        self.color = color
         self.text = text
         self.fontName = fontName
         self.fontSize = fontSize

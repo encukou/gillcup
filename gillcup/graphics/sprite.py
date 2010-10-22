@@ -22,10 +22,9 @@ class Sprite(BaseLayer):
     for functionality common to all graphics objects, particularly additional
     attributes and __init__ arguments.
     """
-    def __init__(self, parent, color=(1, 1, 1), **kwargs):
+    def __init__(self, parent, **kwargs):
         self.sprite = self.loadSprite(kwargs)
         kwargs.setdefault('size', (self.sprite.width, self.sprite.height))
-        self.color = color
         super(Sprite, self).__init__(parent, **kwargs)
 
     spriteCache = weakref.WeakValueDictionary()
