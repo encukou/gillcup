@@ -27,7 +27,7 @@ class Action(object):
         immediately.
         """
         if self.expired:
-            self.timer.schedule(kwargs.get('dt', 0), action, others)
+            self.timer.schedule(kwargs.get('dt', 0), action, *others)
         else:
             for act in (action,) + others:
                 self._chain.append((kwargs.get('dt', 0), act))
@@ -38,6 +38,8 @@ class Action(object):
 
         Called from a Timer.
         """
+        if self.expired:
+            raise RuntimeError('An Action is being run twice')
         self.expired = True
         self.timer = timer
         for dt, ch in self._chain:
@@ -63,13 +65,13 @@ class FunctionAction(Action):
         self.passTimer = options.get('passTimer', False)
 
     def run(self, timer):
+        Action.run(self, timer)
         if self.passTimer:
             kwargs = dict(timer=timer)
             kwargs.update(self.kwargs)
         else:
             kwargs = self.kwargs
         self.func(*self.args, **kwargs)
-        Action.run(self, timer)
 
 
 class EffectAction(Action):
@@ -88,8 +90,36 @@ class EffectAction(Action):
         self.kwargs = kwargs
 
     def run(self, timer):
-        self.effect.start(timer, *self.args, **self.kwargs)
-        for dt, ch in self._chain:
-            self.effect.chain(ch, dt=dt)
-        self._chain = []
+        self._chain, chain = [], self._chain
         Action.run(self, timer)
+        self.effect.start(timer, *self.args, **self.kwargs)
+        for dt, ch in chain:
+            self.effect.chain(ch, dt=dt)
+
+
+class WaitForAll(Action):
+    """An Action that waits for other actions, and runs when they all are run
+    """
+    def __init__(self, *actions):
+        Action.__init__(self)
+        self.pending_actions = set(actions)
+        for action in self.pending_actions:
+            action.chain(FunctionAction(self.triggered, action))
+
+    def triggered(self, action):
+        self.pending_actions.remove(action)
+        if not self.pending_actions:
+            self.run(action.timer)
+
+
+class WaitForAny(Action):
+    """An Action that waits for other actions, and runs when any of them is run
+    """
+    def __init__(self, *actions):
+        Action.__init__(self)
+        for action in actions:
+            action.chain(self.maybeRun)
+
+    def maybeRun(self, timer):
+        if not self.expired:
+            self.run()

@@ -44,7 +44,7 @@ class Effect(AnimatedObject):
             if currentEffect is oldEffect:
                 self.old = newEffect
             else:
-                currentEffect._replace_effect(oldEffect, newEffect)
+                currentEffect._replace_effect_(oldEffect, newEffect)
 
 
 class GetterObject(object):
