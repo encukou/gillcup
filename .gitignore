@@ -1,2 +1,3 @@
 gillcup.egg-info
 doc/build
+*.pyc
