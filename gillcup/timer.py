@@ -95,6 +95,9 @@ class Timer(object):
 
     def schedule(self, dt, *actions):
         """Schedule actions to run "dt" time units from the current time
+
+        Scheduling is stable:  if two things are scheduled for the same
+        time, they will be called in the order they were scheduled.
         """
         if dt < 0:
             raise ValueError("Can't schedule an event in the past")

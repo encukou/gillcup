@@ -130,7 +130,7 @@ position, scale, and anchorPoint.
 First, an introduction to Gillcup's geometry: The “x” axis points right,
 and the “y” axis points up (i.e. not down as you may be used to from GUI
 toolkits). The origin — that is, the (0, 0) point – is in the lower left
-of the window. This is standard in math, OpenGL an Pyglet.
+of the window. This is standard in math, OpenGL and Pyglet.
 
 The mainwindow.run() scales (resizes) its root layer so that the (1, 1) point
 is in the upper right corner of the window.

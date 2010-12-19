@@ -145,6 +145,8 @@ class InterpolationEffect(Effect):
 def animation(object, attribute, value, *morevalues, **kwargs):
     """Convenience function to create various Interpolation effects on
     objects.
+
+    [XXX] Document once the API settles a bit
     """
     if morevalues:
         value = (value, ) + morevalues

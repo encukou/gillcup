@@ -39,7 +39,7 @@ animations; but other timers are possible: if we wanted to render a movie, we'd
 use a timer that advances by a fixed amount after we're drawing each frame.
 
 The second line applies a very uninteresting animation to the rectangle,
-rotating it instantly by 45°. This is abous as disappointing as the blank
+rotating it instantly by 45°. This is about as disappointing as the blank
 window from the previous part of the tutorial; let's fix that.
 
 
@@ -55,7 +55,7 @@ script, the run() convenience function doesn't like to be called multiple
 times.
 
 If you saw movement, congratulations! You've made your first Gillcup animation.
-As you can see, the setting of the rotation took 3 seconds[#] to complete,
+As you can see, the setting of the rotation took 3 seconds [1]_ to complete,
 smoothly transitioning from the previous value (0°) to 45°.
 
 
@@ -69,7 +69,7 @@ Try adding the following line::
 As you can see, it's not only numbers that can be animated: tuples of numbers
 can, too. 
 
-Be aware, however, that Gillcup's default animations only animates numbers and
+Be aware, however, that Gillcup's default animations only animate numbers and
 tuples of numbers. Don't set a property you want to animate to a list, for
 example.
 
@@ -119,7 +119,7 @@ applying it later. This approach has the advantage that you can keep the
 animation around, and use it at a later time.
 
 The animation object is the only thing you need to keep; any AnimatedObject
-can be used to apply it, as long as it shares the same timer [#].
+can be used to apply it (as long as it shares the same timer [2]_).
 
 Note that the “dt” (delay) argument is passed to apply().
 
@@ -132,7 +132,7 @@ Actions
 
 An Action is something that can be scheduled for the future: think of it as
 a delayed function call. The object that the rotationTo method returns is such
-an action; in this case, it starts an animation.
+an action. In our case, the action starts an animation when called.
 
 You can use any function as an action. Try putting the following before your
 mainwindow.run call::
@@ -153,7 +153,7 @@ Effects are, in essence, attribute modifiers. They change an AnimatedObject's
 attribute, usually based on the time and the attribute's previous value.
 
 Effects “last” for a longer time, as opposed to Actions which are instantaneous
-(in the sense that the timer doesn't advance).
+(as far as Gillcup's timer is concerned).
 
 The simplest useful effect, which we have been using, just linearly
 interpolates between the old value and a new value. There are, of course,
@@ -193,11 +193,13 @@ We have, however, been using an Action's chain(). This does pretty much the
 same: it chains the scheduled actions on the Effect it applies. Or, if it's
 not an EffectAction, runs them just after it's done.
 
-The chain method will also take a “dt” parameter to delay the new Action.
+The chain method will also take a “dt” argument to delay the new Action.
 
 If you are using plain functions, you can wrap them in
 gillcup.action.FunctionAction to get the chain() method. Or, just schedule
-whatever you're chaining for the same time as your function.
+whatever you're chaining for the same time as your function (scheduling is
+stable: if two things are scheduled for the same time, they will happen
+in the order they were scheduled).
 
 
 
@@ -276,7 +278,7 @@ suddenly start rotating back. The transition is smooth. Why is that?
 
 When I said earlier that a simple Effect interpolates between an old value
 and a new value, I was only telling half of the truth. The “old value” includes
-any effect that was on the attribute before. Effectively, an Effect
+any effect that was on the attribute before. That is, by default an Effect
 interpolates between a *dynamic value* and the given endpoint.
 
 
@@ -377,9 +379,10 @@ Dummy effects
 
 
 
-..  [#] The default time timer happens to be in seconds; the actual animations
+..  [1] The default time timer happens to be in seconds; the actual animations
     don't care about what the unit of time is.
 
 
-..  [#] The timer of the applying object will be used for the animation; you
-    can theoretically use this for interesting results.
+..  [2] The timer of the applying object will be used for the animation. You
+    can theoretically use this for interesting results, but generally mixing
+    multiple timers is just confusing.
