@@ -1,7 +1,7 @@
 The Gillcup Magic: Animations
 =============================
 
-So, you've gone throught the first part of the tutorial, and you stull think
+So, you've gone throught the first part of the tutorial, and you still think
 you can take more? Yes? Then here we go.
 
 
@@ -36,7 +36,7 @@ If we want to animate, the layers need to know the current time; the first line
 says that we are using a normal timer that reflects the system clock's seconds
 and starts when the main window is displayed. This is great for interactive
 animations; but other timers are possible: if we wanted to render a movie, we'd
-use a timer that advances by a fixed amount after we're drawing each frame.
+use a timer that advances by a fixed amount after we're drawn each frame.
 
 The second line applies a very uninteresting animation to the rectangle,
 rotating it instantly by 45°. This is about as disappointing as the blank
@@ -107,7 +107,7 @@ This time, the animation starts a second after the window is shown.
 Actions and Effects
 -------------------
 
-Once again replace the animation line, this time with:
+Once again replace the animation line, this time with::
 
     action = rect.rotationTo(45, time=3)
     rect.apply(action, dt=1)
@@ -248,7 +248,7 @@ and setting the chain's end; it may useful to you.
 Infinite Effects
 ----------------
 
-Replace your animation by the following:
+Replace your animation by the following::
 
     rect.rotateTo(90, time=1, infinite=True)
 
@@ -285,7 +285,7 @@ interpolates between a *dynamic value* and the given endpoint.
 Dynamic Attributes
 ------------------
 
-Try this::
+Replace you animation code by this::
 
     import math
     def sinOfTime():
@@ -379,7 +379,7 @@ Dummy effects
 
 
 
-..  [1] The default time timer happens to be in seconds; the actual animations
+..  [1] The default timer's time happens to be in seconds; the actual animations
     don't care about what the unit of time is.
 
 
