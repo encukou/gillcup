@@ -55,6 +55,7 @@ Module Contents
 
 import heapq
 import collections
+import weakref
 
 from gillcup.action import FunctionAction
 
@@ -86,7 +87,7 @@ class Timer(object):
         """
         if dt < 0:
             raise ValueError("Can't advance into the past")
-        while self.events and self.events[0].time < self.time + dt:
+        while self.events and self.events[0].time <= self.time + dt:
             entry = heapq.heappop(self.events)
             dt -= entry.time - self.time
             self.time = entry.time
@@ -104,9 +105,14 @@ class Timer(object):
         for action in actions:
             if callable(action):
                 action = FunctionAction(action)
+            if action in pastActions:
+                raise AssertionError('Scheduling an action twice!')
+            pastActions[action] = True
             heapq.heappush(self.events, _EventHeapEntry(
                     self.time + dt,
                     self.currentEventIndex,
                     action,
                 ))
             self.currentEventIndex += 1
+
+pastActions = weakref.WeakKeyDictionary()
