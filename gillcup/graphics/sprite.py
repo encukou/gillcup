@@ -41,6 +41,11 @@ class Sprite(BaseLayer):
         - Passing 'filename' and 'pkg' attributes will call
             pkg_resources.resource_filename(pkg, filename)
 
+        The 'region' argument can be specified to only use a specific region
+        of the loaded image.
+        The 'trim' argument will use a region 1px smaller on each side
+        (used to prevent antialiasing errors).
+
         Used arguments are removed from kwargs.
 
         Returns a Pyglet sprite.
@@ -52,14 +57,23 @@ class Sprite(BaseLayer):
             pkg = kwargs.pop('pkg', None)
             filename = kwargs.pop('filename')
             key = pkg, filename
+            if kwargs.pop('trim', False):
+                region = 'trim'
+            else:
+                region = kwargs.pop('region', None)
             try:
-                return cls.spriteCache[key]
+                return cls.spriteCache[key, region]
             except KeyError:
                 if pkg:
                     import pkg_resources
                     filename = pkg_resources.resource_filename(pkg, filename)
-                sprite = pyglet.sprite.Sprite(pyglet.image.load(filename))
-                cls.spriteCache[key] = sprite
+                image = pyglet.image.load(filename)
+                if region is 'trim':
+                    region = 1, 1, image.width - 2, image.height - 2
+                if region:
+                    image = image.get_texture().get_region(*region)
+                sprite = pyglet.sprite.Sprite(image)
+                cls.spriteCache[key, region] = sprite
                 return sprite
 
     def draw(self, **kwargs):
