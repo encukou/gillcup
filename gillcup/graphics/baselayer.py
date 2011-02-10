@@ -87,7 +87,7 @@ class BaseLayer(AnimatedObject):
         Subclasses will usually want to override draw(), not this method.
         """
         # XXX: Make sure tree is never deeper than 32
-        if self.opacity <=0 or not any(self.scale):
+        if self.opacity <=0 or not any(self.scale) or self.dead:
             return self.dead
         gl.glPushMatrix()
         try:
