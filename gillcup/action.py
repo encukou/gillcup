@@ -45,6 +45,10 @@ class Action(object):
         for dt, ch in self._chain:
             timer.schedule(dt, ch)
 
+    def delay(self, dt):
+        """Schedule a null action at time dt (useful in chaining)
+        """
+        return self.chain(Action(), dt=dt)
 
 class FunctionAction(Action):
     """An Action that executes a function when run
