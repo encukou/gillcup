@@ -41,7 +41,7 @@ class Text(BaseLayer):
         self.fontSize = fontSize
         self.sprite = pyglet.text.Label(text)
 
-    def draw(self, **kwargs):
+    def draw(self, opacity=1, **kwargs):
         if self.fontName:
             self.sprite.font_name = self.fontName
         self.sprite.font_size = self.fontSize
@@ -56,7 +56,7 @@ class Text(BaseLayer):
             scale_x = width / c_width
             scale_y = height / c_height
         glScalef(scale_x, scale_y, 1)
-        color = self.getColor(kwargs) + (self.opacity, )
+        color = self.getColor(kwargs) + (self.opacity * opacity, )
         self.sprite.color = [int(a * 255) for a in color]
         self.sprite.draw()
         from gillcup.graphics.colorrect import vertices_gl

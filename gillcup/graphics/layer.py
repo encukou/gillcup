@@ -27,19 +27,22 @@ class Layer(BaseLayer):
     """
     _opacity_data = None
 
-    def __init__(self, parent=None, **kwargs):
-        self.pixelization = kwargs.pop('pixelization', (1, 1))
+    def __init__(self, parent=None, pixelization=(1, 1), **kwargs):
         super(Layer, self).__init__(parent, **kwargs)
+        self.pixelization = pixelization
         self.children = []
 
-    def draw(self, transformation, **kwargs):
+    def draw(self, transformation, opacity=1, **kwargs):
         color = self.getColor(kwargs)
         if color != (1, 1, 1):
             kwargs['color'] = color
         transformation.translate(*helpers.extend_tuple(self.anchorPoint))
+        if not self.needOffscreen():
+            opacity *= self.opacity
         self.children = [
                 c for c in self.children if not c.do_draw(
                         transformation=transformation,
+                        opacity=opacity,
                         **kwargs
                     )
             ]
@@ -120,5 +123,5 @@ class Layer(BaseLayer):
                     parent_texture.SetAsActive(0)
             return cm()
         elif self._opacity_data:
-                self._opacity_data = None
+            self._opacity_data = None
         return helpers.nullContextManager(**kwargs)

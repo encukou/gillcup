@@ -76,8 +76,8 @@ class Sprite(BaseLayer):
                 cls.spriteCache[key, region] = sprite
                 return sprite
 
-    def draw(self, **kwargs):
-        self.sprite.opacity = self.opacity * 255
+    def draw(self, opacity=1, **kwargs):
+        self.sprite.opacity = self.opacity * opacity * 255
         self.sprite.color = tuple( int(c * 255) for c in self.getColor(kwargs))
         size = helpers.extend_tuple_copy(self.size)
         glScalef(

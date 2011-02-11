@@ -26,9 +26,9 @@ class ColorRect(BaseLayer):
     def __init__(self, parent, color=(.5, .5, .5), **kwargs):
         super(ColorRect, self).__init__(parent, color=color, **kwargs)
 
-    def draw(self, **kwargs):
+    def draw(self, opacity=1, **kwargs):
         glScalef(*helpers.extend_tuple_copy(self.size))
-        color = self.getColor(kwargs) + (self.opacity, )
+        color = self.getColor(kwargs) + (self.opacity * opacity, )
         glColor4fv((GLfloat * 4)(*color))
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointer(2, GL_FLOAT, 0, vertices_gl)
