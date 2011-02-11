@@ -48,11 +48,18 @@ class Effect(AnimatedObject):
 
 
 class GetterObject(object):
-    def __init__(self, getValue):
+    def __init__(self, getValue, isConstant=False):
         self.getValue = getValue
+        self._is_constant = isConstant
 
     def dump(self, indentationLevel):
-        print '  ' * indentationLevel, 'GetterObject'
+        if self._is_constant:
+            print '  ' * indentationLevel, 'GetterObject (constant)'
+        else:
+            print '  ' * indentationLevel, 'GetterObject (expression)'
+
+    def _replace_effect_(self, oldEffect, newEffect):
+        return
 
 class InterpolationEffect(Effect):
     """The most useful effect. Interpolates a value.
@@ -80,7 +87,7 @@ class InterpolationEffect(Effect):
         """
         finalValue = self.getValue()
         self.getValue = lambda: finalValue
-        self.replace(GetterObject(self.getValue))
+        self.replace(GetterObject(self.getValue, isConstant=True))
         self.old = self.time = self.timer = self.clampTime = self.ease = None
         self.finalized = True
 

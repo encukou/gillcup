@@ -57,7 +57,11 @@ class AnimatedObject(object):
             return False
         else:
             if currentEffect is oldEffect:
-                self._anim_data_[attribute] = newEffect
+                if getattr(newEffect, '_is_constant', False):
+                    del self._anim_data_[attribute]
+                    setattr(self, attribute, newEffect.getValue())
+                else:
+                    self._anim_data_[attribute] = newEffect
                 return True
             else:
                 try:
@@ -65,7 +69,7 @@ class AnimatedObject(object):
                 except AttributeError:
                     return False
                 else:
-                    return currentEffect._replace_effect_(oldEffect, newEffect)
+                    return replaceMethod(oldEffect, newEffect)
 
     def _dump_effects(self, indentLevel=0):
         for attr, effect in self._anim_data_.items():
@@ -125,14 +129,16 @@ class AnimatedObject(object):
         Otherwise, calls
         self.apply(self.dynamicAttributeSetter(attribute, getter), dt=dt).
         """
+        from gillcup import effect
         if not dt:
-            self._animate(attribute, _GetterObject(getter))
+            self._animate(attribute, effect.GetterObject(getter))
         else:
             setter = self.dynamicAttributeSetter(attribute, getter)
             self.apply(setter, dt, timer)
 
 
 class _Constant(object):
+    _is_constant = True
     def __init__(self, value):
         self.value = value
 
@@ -142,11 +148,3 @@ class _Constant(object):
     def dump(self, indentationLevel):
         o = str(self.value)
         print '  ' * indentationLevel + type(self).__name__ + ': ' + o
-
-
-class _GetterObject(object):
-    def __init__(self, getValue):
-        self.getValue = getValue
-
-    def dump(self, indentationLevel):
-        print '  ' * indentationLevel + type(self).__name__
