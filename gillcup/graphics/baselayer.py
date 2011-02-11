@@ -79,7 +79,20 @@ class BaseLayer(AnimatedObject):
         self.children = ()
         self.dead = False
 
-    def do_draw(self, **kwargs):
+    @property
+    def _hidden(self):
+        return self.dead or self.opacity <= 0 or not any(self.scale)
+
+    @contextmanager
+    def _transformationManager(self, transformation):
+        transformation.push()
+        try:
+            self.changeMatrix(transformation)
+            yield
+        finally:
+            transformation.pop()
+
+    def do_draw(self, transformation, **kwargs):
         """Draw this object
 
         This method sets up the transformation matrix and calls draw().
@@ -87,26 +100,32 @@ class BaseLayer(AnimatedObject):
         Subclasses will usually want to override draw(), not this method.
         """
         # XXX: Make sure tree is never deeper than 32
-        if self.opacity <=0 or not any(self.scale) or self.dead:
+        if self._hidden:
             return self.dead
-        gl.glPushMatrix()
-        try:
-            self.changeMatrix()
+        with self._transformationManager(transformation):
             with self.getDrawContext(kwargs):
-                rv = self.draw(**kwargs)
+                rv = self.draw(transformation=transformation, **kwargs)
                 return self.dead
-        finally:
-            gl.glPopMatrix()
 
-    def changeMatrix(self):
+    def changeMatrix(self, transformation):
         """Set up the transformation matrix for object
         """
-        gl.glTranslatef(*helpers.extend_tuple(self.position))
-        gl.glRotatef(self.rotation, 0, 0, 1)
-        gl.glScalef(*helpers.extend_tuple(self.scale, default=1))
-        gl.glTranslatef(*(
+        transformation.translate(*helpers.extend_tuple(self.position))
+        transformation.rotate(self.rotation, 0, 0, 1)
+        transformation.scale(*helpers.extend_tuple(self.scale, default=1))
+        transformation.translate(*(
                 -x for x in helpers.extend_tuple(self.anchorPoint)
             ))
+
+    def do_hitTest(self, transformation, **kwargs):
+        if not self._hidden:
+            with self._transformationManager(transformation):
+                return self.hitTest(transformation=transformation, **kwargs)
+
+    def hitTest(self, **kwargs):
+        """Redefine to get hit test notifications. Return true to claim the hit.
+        """
+        pass
 
     def draw(self, **kwargs):
         """Draw this object. Overridden in subclasses.

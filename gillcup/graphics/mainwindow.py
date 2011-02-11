@@ -13,6 +13,7 @@ import pyglet
 from pyglet.gl import *
 
 from gillcup.timer import Timer
+from gillcup.graphics.transformation import GlTransformation
 
 
 def createMainWindow(layer, width=768, height=576, debug=False, config_args={},
@@ -43,12 +44,14 @@ def createMainWindow(layer, width=768, height=576, debug=False, config_args={},
     if debug:
         fps_display = pyglet.clock.ClockDisplay(format=' ' * 33 + '%(fps).2f')
 
+    transformation = GlTransformation()
+
     @window.event
     def on_draw():
         glEnable(GL_LINE_SMOOTH)
         glClear(GL_COLOR_BUFFER_BIT)
-        glLoadIdentity()
-        layer.do_draw(window=window)
+        transformation.reset()
+        layer.do_draw(window=window, transformation=transformation)
         if debug:
             fps_display.draw()
             layer.dump()

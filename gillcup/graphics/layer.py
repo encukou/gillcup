@@ -32,14 +32,23 @@ class Layer(BaseLayer):
         super(Layer, self).__init__(parent, **kwargs)
         self.children = []
 
-    def draw(self, **kwargs):
+    def draw(self, transformation, **kwargs):
         color = self.getColor(kwargs)
         if color != (1, 1, 1):
             kwargs['color'] = color
-        gl.glTranslatef(*helpers.extend_tuple(self.anchorPoint))
+        transformation.translate(*helpers.extend_tuple(self.anchorPoint))
         self.children = [
-                c for c in self.children if not c.do_draw(**kwargs)
+                c for c in self.children if not c.do_draw(
+                        transformation=transformation,
+                        **kwargs
+                    )
             ]
+
+    def hitTest(self, **kwargs):
+        for c in self.children:
+            rv = c.do_hitTest(**kwargs)
+            if rv:
+                return rv
 
     def needOffscreen(self):
         pixelization = helpers.extend_tuple_copy(self.pixelization)
