@@ -137,12 +137,12 @@ class BaseLayer(AnimatedObject):
         """
         print '  ' * indentLevel + ' '.join(x for x, c in [
                 (type(self).__name__, True),
-                ('"{0}"'.format(self.name), self.name),
-                ("@{0}".format(self.position), self.position != (0, 0, 0)),
-                ("x{0}".format(self.scale), self.scale != (1, 1, 1)),
-                ("a{0}".format(self.anchorPoint), self.anchorPoint != (0,0,0)),
-                ("s{0}".format(self.size), self.size != (1, 1)),
-                ("o{0}".format(self.opacity), self.opacity != 1),
+                (u'"{0}"'.format(self.name), self.name),
+                (u"@{0}".format(self.position), self.position != (0, 0, 0)),
+                (u"x{0}".format(self.scale), self.scale != (1, 1, 1)),
+                (u"a{0}".format(self.anchorPoint), self.anchorPoint != (0,0,0)),
+                (u"s{0}".format(self.size), self.size != (1, 1)),
+                (u"o{0}".format(self.opacity), self.opacity != 1),
             ] if c)
         self._dump_effects(indentLevel + 1)
         for child in self.children:
