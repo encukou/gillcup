@@ -22,11 +22,13 @@ def createMainWindow(layer, width=768, height=576, debug=False, config_args={},
 
     A convenience function designed to be easy to use rather than clean.
     """
+    if 'fullscreen' not in winargs:
+        winargs['width'] = width
+        winargs['height'] = height
+
     config = pyglet.gl.Config(**config_args)
     window = pyglet.window.Window(
             config=config,
-            width=width,
-            height=height,
             **winargs
         )
 
