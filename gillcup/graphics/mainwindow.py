@@ -8,12 +8,12 @@ If you want even more control, call timer.advance() and layer.draw() for each
 frame yourself.
 """
 
-
 import pyglet
 from pyglet.gl import *
 
 from gillcup.timer import Timer
 from gillcup.graphics.transformation import GlTransformation
+from gillcup.graphics.helpers import nullContextManager
 
 
 def createMainWindow(layer, width=768, height=576, debug=False, config_args={},
@@ -48,18 +48,20 @@ def createMainWindow(layer, width=768, height=576, debug=False, config_args={},
 
     @window.event
     def on_draw():
-        glEnable(GL_LINE_SMOOTH)
-        glClear(GL_COLOR_BUFFER_BIT)
-        transformation.reset()
-        layer.do_draw(window=window, transformation=transformation)
-        if debug:
-            fps_display.draw()
-            layer.dump()
+        with window.draw_context():
+            glEnable(GL_LINE_SMOOTH)
+            glClear(GL_COLOR_BUFFER_BIT)
+            transformation.reset()
+            layer.do_draw(window=window, transformation=transformation)
+            if debug:
+                fps_display.draw()
+                layer.dump()
 
     pyglet.clock.set_fps_limit(60)
 
     window.run = pyglet.app.run
     window.draw = on_draw
+    window.draw_context = nullContextManager
 
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
