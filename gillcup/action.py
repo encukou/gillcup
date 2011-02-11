@@ -69,13 +69,13 @@ class FunctionAction(Action):
         self.passTimer = options.get('passTimer', False)
 
     def run(self, timer):
-        Action.run(self, timer)
         if self.passTimer:
             kwargs = dict(timer=timer)
             kwargs.update(self.kwargs)
         else:
             kwargs = self.kwargs
         self.func(*self.args, **kwargs)
+        Action.run(self, timer)
 
 
 class EffectAction(Action):
