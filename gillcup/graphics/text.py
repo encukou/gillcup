@@ -22,6 +22,8 @@ class Text(BaseLayer):
             calculated from the other so that aspect ratio is preserved.
     :param fontSize: The size of the font used. Increase if your label looks
             pixelated.
+    :param charactersDisplayed: The number of characters to be displayed
+            (or None to display them all)
 
     See the :py:class:`base class <gillcup.graphics.baselayer.BaseLayer>`
     for functionality common to all graphics objects, particularly additional
@@ -32,6 +34,7 @@ class Text(BaseLayer):
             text,
             fontSize=72,
             fontName=None,
+            charactersDisplayed=None,
             **kwargs
         ):
         kwargs.setdefault('size', (0, 1))
@@ -40,6 +43,7 @@ class Text(BaseLayer):
         self.fontName = fontName
         self.fontSize = fontSize
         self.sprite = pyglet.text.Label(text)
+        self.charactersDisplayed = charactersDisplayed
 
     def draw(self, opacity=1, **kwargs):
         if self.fontName:
@@ -58,6 +62,10 @@ class Text(BaseLayer):
         glScalef(scale_x, scale_y, 1)
         color = self.getColor(kwargs) + (self.opacity * opacity, )
         self.sprite.color = [int(a * 255) for a in color]
+        text = self.text
+        if self.charactersDisplayed is not None:
+            text = text[:int(self.charactersDisplayed)]
+        self.sprite.text = text
         self.sprite.draw()
         from gillcup.graphics.colorrect import vertices_gl
         glColor4fv((GLfloat * 4)(1, 1, 1, 0.2))
