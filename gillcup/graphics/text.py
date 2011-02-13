@@ -18,8 +18,6 @@ class Text(BaseLayer):
     These arguments become animable attributes:
 
     :param color: The color of the text.
-    :param size: The size of the text label. If one dimension is zero, it is
-            calculated from the other so that aspect ratio is preserved.
     :param fontSize: The size of the font used. Increase if your label looks
             pixelated.
     :param charactersDisplayed: The number of characters to be displayed
@@ -29,6 +27,7 @@ class Text(BaseLayer):
     for functionality common to all graphics objects, particularly additional
     attributes and __init__ arguments.
     """
+    # XXX: Setting a size does not work
     def __init__(self,
             parent,
             text,
@@ -37,29 +36,19 @@ class Text(BaseLayer):
             charactersDisplayed=None,
             **kwargs
         ):
-        kwargs.setdefault('size', (0, 1))
+        kwargs.setdefault('size', (None, None))
         super(Text, self).__init__(parent, **kwargs)
         self.text = text
         self.fontName = fontName
         self.fontSize = fontSize
         self.sprite = pyglet.text.Label(text)
         self.charactersDisplayed = charactersDisplayed
+        self.setSize()
 
     def draw(self, opacity=1, **kwargs):
         if self.fontName:
             self.sprite.font_name = self.fontName
         self.sprite.font_size = self.fontSize
-        width, height, dummy = helpers.extend_tuple_copy(self.size)
-        c_width = self.sprite.content_width
-        c_height = self.sprite.content_height
-        if not width:
-            scale_x = scale_y = height / c_height
-        elif not height:
-            scale_x = scale_y = width / c_width
-        else:
-            scale_x = width / c_width
-            scale_y = height / c_height
-        glScalef(scale_x, scale_y, 1)
         color = self.getColor(kwargs) + (self.opacity * opacity, )
         self.sprite.color = [int(a * 255) for a in color]
         text = self.text
@@ -67,22 +56,19 @@ class Text(BaseLayer):
             text = text[:int(self.charactersDisplayed)]
         self.sprite.text = text
         self.sprite.draw()
-        from gillcup.graphics.colorrect import vertices_gl
-        glColor4fv((GLfloat * 4)(1, 1, 1, 0.2))
-        glEnableClientState(GL_VERTEX_ARRAY)
-        glVertexPointer(2, GL_FLOAT, 0, vertices_gl)
-        glDrawArrays(GL_QUADS, 0, 4)
+        self.sprite.text = self.text
+
+    def setSize(self):
+        width, height, dummy = helpers.extend_tuple_copy(self.size)
+        self.sprite.width = width
+        self.sprite.height = height
 
     def getRealSize(self):
-        width, height, dummy_z = helpers.extend_tuple_copy(self.size)
-        c_width = self.sprite.content_width
-        c_height = self.sprite.content_height
-        if not width:
-            return height * c_width / c_height, height
-        elif not height:
-            return width, width * c_height / c_width
-        else:
-            return width, height
+        self.sprite.text = self.text
+        return (
+                self.sprite.width or self.sprite.content_width,
+                self.sprite.height or self.sprite.content_height,
+            )
 
     def _relativePoint(self, x, y):
         width, height = self.getRealSize()
