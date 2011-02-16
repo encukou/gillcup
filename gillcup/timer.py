@@ -99,7 +99,10 @@ class Timer(object):
 
         Scheduling is stable:  if two things are scheduled for the same
         time, they will be called in the order they were scheduled.
+
+        Returns the first action scheduled
         """
+        returnValue = None
         if dt < 0:
             raise ValueError("Can't schedule an event in the past")
         for action in actions:
@@ -114,5 +117,8 @@ class Timer(object):
                     action,
                 ))
             self.currentEventIndex += 1
+            if returnValue is None:
+                returnValue = action
+        return returnValue
 
 pastActions = weakref.WeakKeyDictionary()

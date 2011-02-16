@@ -110,8 +110,7 @@ class AnimatedObject(object):
         will be used
         """
         timer = timer or self.timer
-        timer.schedule(dt, action)
-        return action
+        return timer.schedule(dt, action)
 
     def dynamicAttributeSetter(self, attribute, getter):
         """Returns an Action to set an attribute getter
