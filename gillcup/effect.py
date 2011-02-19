@@ -212,6 +212,5 @@ def animation(object, attribute, value, *morevalues, **kwargs):
     name = kwargs.pop('name', None)
     if name:
         effect.name = name
+    effect.timer = object.timer
     return EffectAction(effect, object, attribute)
-
-
