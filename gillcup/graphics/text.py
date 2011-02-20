@@ -41,7 +41,11 @@ class Text(BaseLayer):
         self.text = text
         self.fontName = fontName
         self.fontSize = fontSize
-        self.sprite = pyglet.text.Label(text)
+        self.sprite = pyglet.text.Label(
+                text,
+                font_name=fontName,
+                font_size=fontSize,
+            )
         self.charactersDisplayed = charactersDisplayed
         self.setSize()
 
@@ -65,10 +69,7 @@ class Text(BaseLayer):
 
     def getRealSize(self):
         self.sprite.text = self.text
-        return (
-                self.sprite.width or self.sprite.content_width,
-                self.sprite.height or self.sprite.content_height,
-            )
+        return (self.sprite.content_width, self.sprite.content_height)
 
     def _relativePoint(self, x, y):
         width, height = self.getRealSize()
