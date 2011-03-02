@@ -40,7 +40,7 @@ def demo():
     opacityLayer2 = Layer(opacityLayer, scale=(1.5, 1.5), opacity=.75, pixelization=(2, 8))
     ColorRect(opacityLayer2, color=(.5, .5, .5), anchorPoint=(.5, .5))
     ColorRect(opacityLayer, position=(-.25, 0), anchorPoint=(.5, .5), color=(1, 1, 1), rotation=45).rotateBy(-100, time=1, infinite=True)
-    text = Text(topLayer, 'Hello world!', size=(0.5, 0), position=(.5, .5))
+    text = Text(topLayer, 'Hello world!', position=(.5, .5), scale=(.001, .001))
     text.setRelativeAnchor(0.5, 0.25)
     text.scaleTo(0, time=3, dt=2, easing='quad')
     text.rotateTo(1800, time=3, dt=2, easing='quad').chain(text.die)

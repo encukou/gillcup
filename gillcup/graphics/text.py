@@ -73,7 +73,8 @@ class Text(BaseLayer):
 
     def _relativePoint(self, x, y):
         width, height = self.getRealSize()
-        return width * x, height * y
+        x, y = width * x, height * y
+        return int(x), int(y)
 
     def relativeAnchorSetter(self, x, y):
         return FunctionAction(self.setRelativeAnchor, x, y)
