@@ -66,6 +66,9 @@ class Clock(object):
         time, they will be called in the order they were scheduled.
 
         Scheduling an action in the past (dt<0) will raise an error.
+
+        If the scheduled callable has a “schedule_callback” method, it will
+        be called with the clock and the time it'd been scheduled at.
         """
         if dt < 0:
             raise ValueError('Scheduling an action in the past')
@@ -73,3 +76,9 @@ class Clock(object):
         scheduled_time = self.time + dt
         entry = _HeapEntry(scheduled_time, self.next_index, action)
         heapq.heappush(self.events, entry)
+        try:
+            schedule_callback = action.schedule_callback
+        except AttributeError:
+            pass
+        else:
+            schedule_callback(self, scheduled_time)
