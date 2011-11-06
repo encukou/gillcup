@@ -1,6 +1,6 @@
 import pytest
 
-from gillcup import Clock, Action
+from gillcup import Clock, Action, actions
 
 class TimeAppendingAction(Action):
     def __init__(self, lst, *args):
@@ -61,3 +61,27 @@ def test_delayed_chaining():
     assert lst == [1, 2]
     clock.advance(1)
     assert lst == [1, 2, 3]
+
+def test_function_caller():
+    clock = Clock()
+    lst = []
+    action = TimeAppendingAction(lst, clock, 1)
+    action = action.chain(actions.FunctionCaller(lst.append, 'a'), 1)
+    action = action.chain(TimeAppendingAction(lst), 1)
+    clock.advance(1)
+    assert lst == [1]
+    clock.advance(1)
+    assert lst == [1, 'a']
+    clock.advance(1)
+    assert lst == [1, 'a', 3]
+
+def test_delay():
+    clock = Clock()
+    lst = []
+    action = TimeAppendingAction(lst, clock, 1)
+    action = action.chain(actions.Delay(1))
+    action = action.chain(TimeAppendingAction(lst))
+    clock.advance(1)
+    assert lst == [1]
+    clock.advance(1)
+    assert lst == [1, 2]

@@ -14,9 +14,6 @@ class Action(Chainable):
 
     Each Action may only be scheduled once. Initializing the class with the
     `clock` and `dt` arguments counts as scheduling.
-
-    Subclass authors are reminded to call the super's __call__ method if
-    they override it.
     """
     def __init__(self, clock=None, dt=0):
         super(Action, self).__init__()
@@ -43,16 +40,23 @@ class Action(Chainable):
         immediately `dt` units after the current time.
         To prevent or modify this behavior, the caller can check the `expired`
         attribute.
+
+        Returns the chained action.
         """
         if self.expired:
             self.clock.schedule(action, dt)
+            return action
         else:
-            super(Action, self).chain(action, dt)
+            return super(Action, self).chain(action, dt)
 
     def __call__(self):
-        """Run this action."""
+        """Run this action.
+
+        Subclasses should call the superclass implementation when they are
+        finished running.
+        """
         if self.expired:
-            raise RuntimeError('An Action is being run twice')
+            raise RuntimeError('%s was run twice' % self)
         self.expired = True
         self.trigger_chain(self.clock)
 
@@ -62,3 +66,26 @@ class Action(Chainable):
             raise RuntimeError('An Action was scheduled twice')
         self.clock = clock
         self.scheduled_time = time
+
+class FunctionCaller(Action):
+    """An Action that calls the given function, passing it the args and kwargs
+    """
+    def __init__(self, function, *args, **kwargs):
+        super(FunctionCaller, self).__init__()
+        self.function = function
+        self.args = args
+        self.kwargs = kwargs
+
+    def __call__(self):
+        self.function(*self.args, **self.kwargs)
+        super(FunctionCaller, self).__call__()
+
+class Delay(Action):
+    """An Action that triggers chained actions after a given delay
+    """
+    def __init__(self, time):
+        super(Delay, self).__init__()
+        self.time = time
+
+    def __call__(self):
+        self.clock.schedule(super(Delay, self).__call__, self.time)

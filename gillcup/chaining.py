@@ -19,8 +19,11 @@ class Chainable(object):
 
         The dt argument can be given to delay the chained action by the
         specified time.
+
+        Returns the chained action.
         """
         self._chain.append((action, dt))
+        return action
 
     def trigger_chain(self, clock):
         """Schedule the chained actions.

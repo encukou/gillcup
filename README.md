@@ -17,5 +17,5 @@ Dedicated docs are not yet written, but the code is kept well commented.
 Suggested reading order:
 
 1. clock.py
-2. action.py
+2. actions.py
 3. chaining.py

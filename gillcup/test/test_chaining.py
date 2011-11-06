@@ -2,6 +2,7 @@ import pytest
 
 from gillcup import Clock, Action
 from gillcup.chaining import WaitForAny, WaitForAll
+from gillcup import actions
 
 class TimeAppendingAction(Action):
     def __init__(self, lst, *args):

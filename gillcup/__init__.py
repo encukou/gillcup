@@ -1,2 +1,2 @@
 from gillcup.clock import Clock
-from gillcup.action import Action
+from gillcup.actions import Action
