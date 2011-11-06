@@ -8,8 +8,8 @@ class TimeAppendingAction(Action):
         self.list = lst
 
     def __call__(self):
-        super(TimeAppendingAction, self).__call__()
         self.list.append(self.clock.time)
+        super(TimeAppendingAction, self).__call__()
 
 def test_scheduling():
     clock = Clock()
@@ -85,3 +85,32 @@ def test_delay():
     assert lst == [1]
     clock.advance(1)
     assert lst == [1, 2]
+
+def test_sequence():
+    clock = Clock()
+    lst = []
+    action = actions.Sequence(
+            TimeAppendingAction(lst),
+            actions.Delay(1),
+            TimeAppendingAction(lst),
+            actions.Delay(1),
+            TimeAppendingAction(lst),
+        )
+    action.chain(TimeAppendingAction(lst))
+    clock.schedule(action)
+    clock.advance(2)
+    assert lst == [0, 1, 2, 2]
+
+def test_parallel():
+    clock = Clock()
+    lst = []
+    action = actions.Parallel(
+            TimeAppendingAction(lst),
+            TimeAppendingAction(lst),
+            actions.Sequence(actions.Delay(1), TimeAppendingAction(lst)),
+            actions.Sequence(actions.Delay(2), TimeAppendingAction(lst)),
+        )
+    action.chain(TimeAppendingAction(lst))
+    clock.schedule(action)
+    clock.advance(2)
+    assert lst == [0, 0, 1, 2, 2]

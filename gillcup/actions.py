@@ -3,7 +3,7 @@
 from gillcup.chaining import Chainable
 
 class Action(Chainable):
-    """A discrete event.
+    """An “event”.
 
     As any callable, an Action can be scheduled on a clock, either by calling
     schedule(), or directly in the constructor.
@@ -52,18 +52,26 @@ class Action(Chainable):
     def __call__(self):
         """Run this action.
 
-        Subclasses should call the superclass implementation when they are
-        finished running.
+        Subclasses that represent discrete moments in time should call the
+        superclass implementation when they are finished running.
+
+        Subclasses that represent time intervals (there's a delay between
+        the moment they are called and when they trigger chained actions)
+        should call `expire()` when they are called, and `triggr_chain()` when
+        they're done.
         """
+        self.expire()
+        self.trigger_chain(self.clock)
+
+    def expire(self):
         if self.expired:
             raise RuntimeError('%s was run twice' % self)
         self.expired = True
-        self.trigger_chain(self.clock)
 
     def schedule_callback(self, clock, time):
         """Called from a clock when this Action is scheduled"""
         if self.clock:
-            raise RuntimeError('An Action was scheduled twice')
+            raise RuntimeError('%s was scheduled twice' % self)
         self.clock = clock
         self.scheduled_time = time
 
@@ -88,4 +96,49 @@ class Delay(Action):
         self.time = time
 
     def __call__(self):
-        self.clock.schedule(super(Delay, self).__call__, self.time)
+        self.expire()
+        self.clock.schedule(lambda: self.trigger_chain(self.clock), self.time)
+
+class Sequence(Action):
+    """An Action that runs a series of Actions one after the other
+    """
+    def __init__(self, *actions, **kwargs):
+        super(Sequence, self).__init__(**kwargs)
+        self.remaining_actions = list(actions)
+        self.remaining_actions.reverse()
+
+    def __call__(self):
+        self.expire()
+        self.call_next()
+
+    def call_next(self):
+        try:
+            action = self.remaining_actions.pop()
+        except:
+            self.trigger_chain(self.clock)
+        else:
+            action.chain(self.call_next)
+            self.clock.schedule(action)
+
+class Parallel(Action):
+    """Starts the given Actions, and triggers chained ones after all are done
+
+    That is, after all the given actions have triggered their chained actions,
+    Parallel triggers its own chained actions.
+    """
+    def __init__(self, *actions, **kwargs):
+        super(Parallel, self).__init__(**kwargs)
+        self.remaining_actions = set(actions)
+
+    def __call__(self):
+        self.expire()
+        for action in self.remaining_actions:
+            def triggered(action=action):
+                self.triggered(action)
+            action.chain(triggered)
+            self.clock.schedule(action)
+
+    def triggered(self, action):
+        self.remaining_actions.remove(action)
+        if not self.remaining_actions:
+            self.trigger_chain(self.clock)

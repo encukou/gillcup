@@ -10,8 +10,8 @@ class TimeAppendingAction(Action):
         self.list = lst
 
     def __call__(self):
-        super(TimeAppendingAction, self).__call__()
         self.list.append(self.clock.time)
+        super(TimeAppendingAction, self).__call__()
 
 def test_wait_for_any():
     clock = Clock()
