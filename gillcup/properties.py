@@ -14,7 +14,7 @@ class AnimatedProperty(object):
         self.default = default
 
     @lru_cache()
-    def _animation_class(self, superclass):
+    def animation_class_factory(self, superclass):
         class CustomAnimation(superclass):
             target = self
         return CustomAnimation
@@ -68,8 +68,9 @@ class TupleProperty(AnimatedProperty):
                 for i in xrange(self.size)]
 
     @lru_cache()
-    def _animation_class(self, superclass):
-        anim_class = super(TupleProperty, self)._animation_class(superclass)
+    def animation_class_factory(self, superclass):
+        super_factory = super(TupleProperty, self).animation_class_factory
+        anim_class = super_factory(superclass)
         def init(self, object, property_name, *target, **kwargs):
             super(anim_class, self).__init__(object,
                     property_name, target, **kwargs)
@@ -86,6 +87,7 @@ class _TupleElementProperty(AnimatedProperty):
     """Animated property for one element of a TupleProperty
     """
     def __init__(self, parent, index):
+        super(_TupleElementProperty, self).__init__(parent.default[index])
         self.parent = parent
         self.index = index
 

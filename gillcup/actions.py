@@ -28,6 +28,11 @@ class Action(object):
     The operators can be usd with regular callables (which are wrapped in
     Actions), and with numbers (which create corresponding delays).
     """
+    # The states an Animation goes through are:
+    # - unscheduled (self.clock is unset)
+    # - scheduled
+    # - in progress (self.expired == True)
+    # - done (self.chain_triggered == True)
     def __init__(self, clock=None, dt=0):
         super(Action, self).__init__()
 

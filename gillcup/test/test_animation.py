@@ -1,6 +1,9 @@
+import math
+
 import pytest
 
-from gillcup import Clock, AnimatedProperty, TupleProperty, Animation, actions
+from gillcup import (Clock, AnimatedProperty, TupleProperty, Animation,
+        actions, animation)
 
 class Tone(object):
     pitch = AnimatedProperty(440)
@@ -100,3 +103,57 @@ def test_tuple_target_animation():
     assert tone.position == (0, 0, 0)
     clock.advance(1)
     assert tone.position == (-2, -4, -6)
+
+def test_additive_animation():
+    clock = Clock()
+    tone = Tone()
+    base_action = Animation(tone, 'pitch', 440)
+    action = animation.Add(tone, 'pitch', 20, time=2)
+    clock.schedule(base_action)
+    clock.schedule(action)
+    clock.advance(1)
+    assert tone.pitch == 450
+    clock.advance(1)
+    assert tone.pitch == 460
+    clock.advance(1)
+    assert tone.pitch == 460
+    clock.schedule(Animation(base_action, 'target', 420, time=2))
+    clock.advance(1)
+    assert tone.pitch == 450
+    clock.advance(1)
+    assert tone.pitch == 440
+
+def test_multiplicative_animation():
+    clock = Clock()
+    tone = Tone()
+    base_action = Animation(tone, 'pitch', 440)
+    action = animation.Multiply(tone, 'pitch', 2, time=2)
+    clock.schedule(base_action)
+    clock.schedule(action)
+    clock.advance(1)
+    assert tone.pitch == 440 * 1.5
+    clock.advance(1)
+    assert tone.pitch == 440 * 2
+    clock.advance(1)
+    assert tone.pitch == 440 * 2
+    clock.schedule(Animation(base_action, 'target', 220, time=2))
+    clock.advance(1)
+    assert tone.pitch == 330 * 2
+    clock.advance(1)
+    assert tone.pitch == 220 * 2
+
+def test_computed_animation():
+    clock = Clock()
+    tone = Tone()
+    def compute(t):
+        return math.sin(t) + 440
+    action = animation.Computed(tone, 'pitch', func=compute, time=2)
+    clock.schedule(action)
+    clock.advance(0)
+    assert tone.pitch == 440
+    clock.advance(1)
+    assert tone.pitch == 440 + math.sin(0.5)
+    clock.advance(1)
+    assert tone.pitch == 440 + math.sin(1)
+    clock.advance(1)
+    assert tone.pitch == 440 + math.sin(1)

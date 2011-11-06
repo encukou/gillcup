@@ -10,7 +10,6 @@ class Animation(Effect, Action):
     def __init__(self, object, property_name, target, time=1):
         super(Animation, self).__init__()
         self.object = object
-        self.property = getattr(type(object), property_name)
         self.target = target
         self.time = time
         self.parent = None
@@ -20,9 +19,16 @@ class Animation(Effect, Action):
         # match whatever we're animating, we use a special subclass with
         # `target` set.
         # Also, tuple properties can be animated with *args.
+        property = getattr(type(object), property_name)
+        try:
+            animation_class_factory = property.animation_class_factory
+        except AttributeError:
+            raise ValueError('%s is not an animated property' % property_name)
         super_new = super(Animation, cls).__new__
-        anim_class = getattr(type(object), property_name)._animation_class(cls)
-        return super_new(anim_class, object, property_name, *args, **kwargs)
+        anim_class = animation_class_factory(cls)
+        instance = super_new(anim_class, object, property_name, *args, **kwargs)
+        instance.property = getattr(type(object), property_name)
+        return instance
 
     def __call__(self):
         self.expire()
@@ -46,3 +52,35 @@ class Animation(Effect, Action):
     def compute_value(self, previous, target):
         t = self.get_time()
         return previous * (1 - t) + target * t
+
+class Add(Animation):
+    """An additive animation: the target value is added to the original
+    """
+    def compute_value(self, previous, target):
+        t = self.get_time()
+        return previous + target * t
+
+class Multiply(Animation):
+    """A multiplicative animation: the target value is multiplied to the original
+    """
+    def compute_value(self, previous, target):
+        t = self.get_time()
+        return previous * ((1 - t) + target * t)
+
+class Computed(Animation):
+    """A custom-valued animation: the target is computed by a function
+
+    Pass a `func` keyword argument with the function to the constructor.
+
+    The function will getone argument, the time elapsed, normalized so that
+    0 corresponds to the start of the animation, and 1 to the
+    end (i.e. start + `time`).
+    """
+    def __init__(self, *args, **kwargs):
+        self.func = kwargs.pop('func')
+        kwargs.setdefault('target', self.property.default)
+        super(Computed, self).__init__(*args, **kwargs)
+
+    def compute_value(self, previous, target):
+        t = self.get_time()
+        return self.func(t)
