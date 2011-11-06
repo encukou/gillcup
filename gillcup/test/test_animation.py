@@ -107,7 +107,7 @@ def test_tuple_target_animation():
 def test_additive_animation():
     clock = Clock()
     tone = Tone()
-    base_action = Animation(tone, 'pitch', 440)
+    base_action = Animation(tone, 'pitch', 420, delay=3, time=2)
     action = animation.Add(tone, 'pitch', 20, time=2)
     clock.schedule(base_action)
     clock.schedule(action)
@@ -117,7 +117,6 @@ def test_additive_animation():
     assert tone.pitch == 460
     clock.advance(1)
     assert tone.pitch == 460
-    clock.schedule(Animation(base_action, 'target', 420, time=2))
     clock.advance(1)
     assert tone.pitch == 450
     clock.advance(1)
@@ -126,7 +125,7 @@ def test_additive_animation():
 def test_multiplicative_animation():
     clock = Clock()
     tone = Tone()
-    base_action = Animation(tone, 'pitch', 440)
+    base_action = Animation(tone, 'pitch', 220, time=2, delay=3)
     action = animation.Multiply(tone, 'pitch', 2, time=2)
     clock.schedule(base_action)
     clock.schedule(action)
@@ -136,7 +135,6 @@ def test_multiplicative_animation():
     assert tone.pitch == 440 * 2
     clock.advance(1)
     assert tone.pitch == 440 * 2
-    clock.schedule(Animation(base_action, 'target', 220, time=2))
     clock.advance(1)
     assert tone.pitch == 330 * 2
     clock.advance(1)
@@ -157,3 +155,47 @@ def test_computed_animation():
     assert tone.pitch == 440 + math.sin(1)
     clock.advance(1)
     assert tone.pitch == 440 + math.sin(1)
+
+def test_delay():
+    clock = Clock()
+    tone = Tone()
+    action = Animation(tone, 'pitch', 450, time=2, delay=1)
+    clock.schedule(action)
+    clock.advance(1)
+    assert tone.pitch == 440
+    clock.advance(1)
+    assert tone.pitch == 445
+    clock.advance(1)
+    assert tone.pitch == 450
+    clock.advance(1)
+    assert tone.pitch == 450
+
+def test_infinite_timing():
+    clock = Clock()
+    tone = Tone()
+    action = Animation(tone, 'pitch', 450, time=1, timing='infinite')
+    clock.schedule(action)
+    assert tone.pitch == 440
+    clock.advance(1)
+    assert tone.pitch == 450
+    clock.advance(1)
+    assert tone.pitch == 460
+    clock.advance(1)
+    assert tone.pitch == 470
+    clock.advance(0.5)
+    assert tone.pitch == 475
+
+def test_infinite_timing():
+    clock = Clock()
+    tone = Tone()
+    clock.advance(1)
+    action = Animation(tone, 'pitch', 450, time=1, timing='absolute')
+    clock.schedule(action)
+    clock.advance(0)
+    assert tone.pitch == 450
+    clock.advance(1)
+    assert tone.pitch == 460
+    clock.advance(1)
+    assert tone.pitch == 470
+    clock.advance(0.5)
+    assert tone.pitch == 475
