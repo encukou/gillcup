@@ -114,3 +114,30 @@ def test_parallel():
     clock.schedule(action)
     clock.advance(2)
     assert lst == [0, 0, 1, 2, 2]
+
+def test_sequence_operator():
+    clock = Clock()
+    lst = []
+    print TimeAppendingAction(lst).__add__
+    action = TimeAppendingAction(lst) + 1 + TimeAppendingAction(lst)
+    action = 1 + action + 1 + (lambda: lst.append('a'))
+    action += lambda: lst.append('b')
+    action.chain(lambda: lst.append('end'))
+    clock.schedule(action)
+    assert lst == []
+    clock.advance(2)
+    assert lst == [1, 2]
+    clock.advance(2)
+    assert lst == [1, 2, 'a', 'b', 'end']
+
+def test_parallel_operator():
+    clock = Clock()
+    lst = []
+    action = 0.5 + TimeAppendingAction(lst) | 1 + TimeAppendingAction(lst)
+    action = 2 + TimeAppendingAction(lst) | action | (lambda: lst.append('a'))
+    action |= 3 + TimeAppendingAction(lst)
+    action.chain(lambda: lst.append('end'))
+    clock.schedule(action)
+    assert lst == []
+    clock.advance(3)
+    assert lst == ['a', 0.5, 1, 2, 3, 'end']

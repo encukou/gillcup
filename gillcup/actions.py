@@ -1,17 +1,32 @@
 # Encoding: UTF-8
 
+import numbers
+
 class Action(object):
     """An “event”.
 
-    As any callable, an Action can be scheduled on a clock, either by calling
-    schedule(), or directly in the constructor.
+    As any callable, an Action can be scheduled on a clock, either by
+    clock.schedule(), or directly in the constructor.
 
     Other actions (the lowercase term denotes “arbitrary callables”) may be
     chained to an Action, that is, scheduled to run at some time after the
     Action is run.
 
+    Some Actions may represent a time interval or process rather than a
+    discrete point in time; in these cases, chained actions are run after the
+    interval is over or the process finishes.
+
     Each Action may only be scheduled once. Initializing the class with the
     `clock` and `dt` arguments counts as scheduling.
+
+    Actions may be combined to form larger structures with help of the Delay,
+    Sequence and Parallel actions. As a shorthand, the following operators are
+    available:
+    - `+`: Creates a Sequence of actions; one is run after the other.
+    - `|`: Creates a Parallel construct: all actions are started at once
+
+    The operators can be usd with regular callables (which are wrapped in
+    Actions), and with numbers (which create corresponding delays).
     """
     def __init__(self, clock=None, dt=0):
         super(Action, self).__init__()
@@ -50,6 +65,21 @@ class Action(object):
             self._chain.append((action, dt))
         return action
 
+    @classmethod
+    def coerce(cls, value):
+        """Coerce a value into an action
+
+        Wraps functions in FunctionCallers, and numbers in Delays
+        """
+        if isinstance(value, Action):
+            return value
+        elif callable(value):
+            return FunctionCaller(value)
+        elif isinstance(value, numbers.Real):
+            return Delay(value)
+        else:
+            raise ValueError("%s can't be coerced into Action" % value)
+
     def __call__(self):
         """Run this action.
 
@@ -81,6 +111,34 @@ class Action(object):
             raise RuntimeError('%s was scheduled twice' % self)
         self.clock = clock
         self.scheduled_time = time
+
+    def __add__(self, other):
+        try:
+            other = self.coerce(other)
+        except ValueError:
+            return NotImplemented
+        return Sequence(self, other)
+
+    def __radd__(self, other):
+        try:
+            other = self.coerce(other)
+        except ValueError:
+            return NotImplemented
+        return Sequence(other, self)
+
+    def __or__(self, other):
+        try:
+            other = self.coerce(other)
+        except ValueError:
+            return NotImplemented
+        return Parallel(self, other)
+
+    def __ror__(self, other):
+        try:
+            other = self.coerce(other)
+        except ValueError:
+            return NotImplemented
+        return Parallel(other, self)
 
 class FunctionCaller(Action):
     """An Action that calls the given function, passing it the args and kwargs
@@ -134,16 +192,18 @@ class Parallel(Action):
     Parallel triggers its own chained actions.
     """
     def __init__(self, *actions, **kwargs):
+        self.remaining_actions = actions
         super(Parallel, self).__init__(**kwargs)
-        self.remaining_actions = set(actions)
 
     def __call__(self):
+        print 'Calling', self, self.remaining_actions
         self.expire()
         for action in self.remaining_actions:
             def triggered(action=action):
                 self.triggered(action)
             action.chain(triggered)
             self.clock.schedule(action)
+        self.remaining_actions = set(self.remaining_actions)
 
     def triggered(self, action):
         self.remaining_actions.remove(action)
