@@ -1,6 +1,8 @@
 # Encoding: UTF-8
 
-class Action(object):
+from gillcup.chaining import Chainable
+
+class Action(Chainable):
     """A discrete event.
 
     As any callable, an Action can be scheduled on a clock, either by calling
@@ -17,11 +19,10 @@ class Action(object):
     they override it.
     """
     def __init__(self, clock=None, dt=0):
+        super(Action, self).__init__()
+
         # Set to True once the Action runs
         self.expired = False
-
-        # A list of (dt, action) tuples for chained actions
-        self._chain = []
 
         # The clock
         self.clock = None
@@ -33,13 +34,10 @@ class Action(object):
                 raise ValueError('dt specified without a clock')
 
     def chain(self, action, dt=0):
-        """Schedule an action to run after this Action
+        """Schedule an action to be scheduled after this Action
 
         The dt argument can be given to delay the chained action by the
         specified time.
-
-        For EffectAction, the actions are scheduled after the applied effect
-        ends.
 
         If this action has already been called, the chained action is scheduled
         immediately `dt` units after the current time.
@@ -49,15 +47,14 @@ class Action(object):
         if self.expired:
             self.clock.schedule(action, dt)
         else:
-            self._chain.append((action, dt))
+            super(Action, self).chain(action, dt)
 
     def __call__(self):
         """Run this action."""
         if self.expired:
             raise RuntimeError('An Action is being run twice')
         self.expired = True
-        for dt, chained in self._chain:
-            self.clock.schedule(dt, chained)
+        self.trigger_chain(self.clock)
 
     def schedule_callback(self, clock, time):
         """Called from a clock when this Action is scheduled"""

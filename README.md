@@ -18,3 +18,4 @@ Suggested reading order:
 
 1. clock.py
 2. action.py
+3. chaining.py

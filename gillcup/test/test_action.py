@@ -37,7 +37,7 @@ def test_double_run():
     with pytest.raises(RuntimeError):
         action()
 
-def test_chaining():
+def test_simple_chaining():
     clock = Clock()
     lst = []
     action = TimeAppendingAction(lst, clock, 1)
