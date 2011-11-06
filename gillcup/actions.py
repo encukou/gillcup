@@ -196,7 +196,6 @@ class Parallel(Action):
         super(Parallel, self).__init__(**kwargs)
 
     def __call__(self):
-        print 'Calling', self, self.remaining_actions
         self.expire()
         for action in self.remaining_actions:
             def triggered(action=action):

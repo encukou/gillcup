@@ -118,7 +118,6 @@ def test_parallel():
 def test_sequence_operator():
     clock = Clock()
     lst = []
-    print TimeAppendingAction(lst).__add__
     action = TimeAppendingAction(lst) + 1 + TimeAppendingAction(lst)
     action = 1 + action + 1 + (lambda: lst.append('a'))
     action += lambda: lst.append('b')

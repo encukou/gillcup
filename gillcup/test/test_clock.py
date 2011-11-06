@@ -73,7 +73,6 @@ def test_update_function():
     time_list = [0]
     clock = Clock()
     def update_function():
-        print 'Updating to %s' % clock.time
         time_list[0] = clock.time
     def do_assert():
         assert time_list[0] == clock.time
