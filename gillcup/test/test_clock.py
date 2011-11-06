@@ -68,3 +68,19 @@ def test_integer_times():
     assert lst == [1, 2, 3]
     for time in lst:
         assert type(time) == int
+
+def test_update_function():
+    time_list = [0]
+    clock = Clock()
+    def update_function():
+        print 'Updating to %s' % clock.time
+        time_list[0] = clock.time
+    def do_assert():
+        assert time_list[0] == clock.time
+    clock.schedule_update_function(update_function)
+    do_assert()
+    clock.advance(1)
+    do_assert()
+    clock.schedule(do_assert, 1)
+    clock.advance(2)
+    do_assert()
