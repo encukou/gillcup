@@ -1,8 +1,6 @@
 # Encoding: UTF-8
 
-from gillcup.chaining import Chainable
-
-class Action(Chainable):
+class Action(object):
     """An “event”.
 
     As any callable, an Action can be scheduled on a clock, either by calling
@@ -20,6 +18,9 @@ class Action(Chainable):
 
         # Set to True once the Action runs
         self.expired = False
+
+        # The chained actions
+        self._chain = []
 
         # The clock
         self.clock = None
@@ -45,9 +46,9 @@ class Action(Chainable):
         """
         if self.expired:
             self.clock.schedule(action, dt)
-            return action
         else:
-            return super(Action, self).chain(action, dt)
+            self._chain.append((action, dt))
+        return action
 
     def __call__(self):
         """Run this action.
@@ -61,12 +62,18 @@ class Action(Chainable):
         they're done.
         """
         self.expire()
-        self.trigger_chain(self.clock)
+        self.trigger_chain()
 
     def expire(self):
         if self.expired:
             raise RuntimeError('%s was run twice' % self)
         self.expired = True
+
+    def trigger_chain(self):
+        """Schedule the chained actions.
+        """
+        for dt, chained in self._chain:
+            self.clock.schedule(dt, chained)
 
     def schedule_callback(self, clock, time):
         """Called from a clock when this Action is scheduled"""
@@ -97,7 +104,7 @@ class Delay(Action):
 
     def __call__(self):
         self.expire()
-        self.clock.schedule(lambda: self.trigger_chain(self.clock), self.time)
+        self.clock.schedule(self.trigger_chain, self.time)
 
 class Sequence(Action):
     """An Action that runs a series of Actions one after the other
@@ -115,7 +122,7 @@ class Sequence(Action):
         try:
             action = self.remaining_actions.pop()
         except:
-            self.trigger_chain(self.clock)
+            self.trigger_chain()
         else:
             action.chain(self.call_next)
             self.clock.schedule(action)
@@ -141,4 +148,4 @@ class Parallel(Action):
     def triggered(self, action):
         self.remaining_actions.remove(action)
         if not self.remaining_actions:
-            self.trigger_chain(self.clock)
+            self.trigger_chain()
