@@ -140,3 +140,24 @@ def test_parallel_operator():
     assert lst == []
     clock.advance(3)
     assert lst == ['a', 0.5, 1, 2, 3, 'end']
+
+def test_chain_on_expired():
+    clock = Clock()
+    lst = []
+    action = actions.Delay(3)
+    clock.schedule(action)
+    action.chain(lambda: lst.append('a'), 1)
+    clock.advance(1)
+    assert lst == []
+    action.chain(lambda: lst.append('b'), 1)
+    clock.advance(1)
+    assert lst == []
+    clock.advance(1)
+    assert lst == []
+    clock.advance(1)
+    assert lst == ['a', 'b']
+    action.chain(lambda: lst.append('c'), 1)
+    clock.advance(0)
+    assert lst == ['a', 'b']
+    clock.advance(1)
+    assert lst == ['a', 'b', 'c']

@@ -34,6 +34,9 @@ class Action(object):
         # Set to True once the Action runs
         self.expired = False
 
+        # Set to True once chained actions are scheduled
+        self.chain_triggered = False
+
         # The chained actions
         self._chain = []
 
@@ -54,12 +57,12 @@ class Action(object):
 
         If this action has already been called, the chained action is scheduled
         immediately `dt` units after the current time.
-        To prevent or modify this behavior, the caller can check the `expired`
-        attribute.
+        To prevent or modify this behavior, the caller can check the
+        `chain_triggered` attribute.
 
         Returns the chained action.
         """
-        if self.expired:
+        if self.chain_triggered:
             self.clock.schedule(action, dt)
         else:
             self._chain.append((action, dt))
@@ -102,8 +105,10 @@ class Action(object):
     def trigger_chain(self):
         """Schedule the chained actions.
         """
+        self.chain_triggered = True
         for dt, chained in self._chain:
             self.clock.schedule(dt, chained)
+        self._chain = []
 
     def schedule_callback(self, clock, time):
         """Called from a clock when this Action is scheduled"""
