@@ -45,6 +45,9 @@ class Clock(object):
         # Update functions (see `schedule_update_function`)
         self.update_functions = WeakSet()
 
+        # Recursion guard flag for advance()
+        self.advancing = False
+
     def advance(self, dt):
         """Call to advance the clock's time
 
@@ -55,16 +58,22 @@ class Clock(object):
         """
         if dt < 0:
             raise ValueError('Moving backwards in time')
-        while self.events and self.events[0].time <= self.time + dt:
-            entry = heapq.heappop(self.events)
-            dt -= entry.time - self.time
-            previous_time = self.time
-            self.time = entry.time
-            if previous_time != self.time:
-                self._run_update_functions()
-            entry.action()
-        self.time += dt
-        self._run_update_functions()
+        if self.advancing:
+            raise RuntimeError('Clock.advance called recursively')
+        self.advancing = True
+        try:
+            while self.events and self.events[0].time <= self.time + dt:
+                entry = heapq.heappop(self.events)
+                dt -= entry.time - self.time
+                previous_time = self.time
+                self.time = entry.time
+                if previous_time != self.time:
+                    self._run_update_functions()
+                entry.action()
+            self.time += dt
+            self._run_update_functions()
+        finally:
+            self.advancing = False
 
     def schedule(self, action, dt=0):
         """Schedule an action to be run "dt" time units from the current time

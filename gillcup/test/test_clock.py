@@ -83,3 +83,9 @@ def test_update_function():
     clock.schedule(do_assert, 1)
     clock.advance(2)
     do_assert()
+
+def test_recursive_advance():
+    clock = Clock()
+    clock.schedule(lambda: clock.advance(1))
+    with pytest.raises(RuntimeError):
+        clock.advance(0)
