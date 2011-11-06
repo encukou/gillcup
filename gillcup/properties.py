@@ -14,14 +14,7 @@ class AnimatedProperty(object):
             return self
 
     def __set__(self, instance, value):
-        if isinstance(value, Effect):
-            self.animate(instance, value)
-        else:
-            try:
-                instance._gillcup_effects[self] = ConstantEffect(value)
-            except AttributeError:
-                instance._gillcup_effects = {}
-                instance._gillcup_effects[self] = ConstantEffect(value)
+        self.animate(instance, ConstantEffect(value))
 
     def _get_effect(self, instance):
         try:

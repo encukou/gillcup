@@ -19,6 +19,13 @@ def test_effect():
     assert tone.pitch == 450
     clock.advance(1)
     assert tone.pitch == 450
+    tone.pitch = 440
+    assert tone.pitch == 440
+    clock.schedule(Animation(tone, 'pitch', 450, time=2))
+    clock.advance(1)
+    assert tone.pitch == 445
+    clock.advance(1)
+    assert tone.pitch == 450
 
 def test_effect_scheduling():
     clock = Clock()
