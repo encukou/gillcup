@@ -1,6 +1,5 @@
 
 from gillcup.effect import Effect, ConstantEffect
-from gillcup.animation import Animation
 
 try:
     from functools import lru_cache
