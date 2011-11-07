@@ -68,8 +68,8 @@ class Animation(Effect, Action):
         except AttributeError:
             raise ValueError('%s is not an animated property' % property_name)
         super_new = super(Animation, cls).__new__
-        anim_class = animation_class_factory(cls)
-        instance = super_new(anim_class, object, property_name, *args, **kwargs)
+        ani_class = animation_class_factory(cls)
+        instance = super_new(ani_class, object, property_name, *args, **kwargs)
         instance.property = getattr(type(object), property_name)
         return instance
 
@@ -114,7 +114,7 @@ class Add(Animation):
         return previous + target * t
 
 class Multiply(Animation):
-    """A multiplicative animation: the target value is multiplied to the original
+    """A multiplicative animation: target value is multiplied to the original
     """
     def compute_value(self, previous, target):
         t = self.easing(self.get_time())

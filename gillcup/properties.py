@@ -92,7 +92,8 @@ class _TupleElementProperty(AnimatedProperty):
         self.index = index
 
     def _get_effect(self, instance):
-        return _TupleExtractEffect(self.parent._get_effect(instance), self.index)
+        parent_effect = self.parent._get_effect(instance)
+        return _TupleExtractEffect(parent_effect, self.index)
 
     def animate(self, instance, animation):
         tuple_effect = _TupleMakeEffect(animation, self.index)
