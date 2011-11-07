@@ -2,6 +2,7 @@ from __future__ import division
 
 from gillcup.actions import Action
 from gillcup.effect import Effect
+from gillcup import easing as easing_module
 
 class Animation(Effect, Action):
     """An Animation: Action that modifies an animated property
@@ -26,10 +27,13 @@ class Animation(Effect, Action):
             the 'infinite' option, but zero corresponds to the clock's zero.
             Useful for synchronized periodic animations.
         - function(time, start, duration): apply a custom function
+    - `easing`: An easing function to use. Can be either a one-argument
+        function, or a dotted name which is looked up in the `gillcup.easing`
+        module.
     """
 
     def __init__(self, object, property_name, target, time=1, delay=0,
-            timing=None):
+            easing='linear', timing=None):
         super(Animation, self).__init__()
         self.object = object
         self.target = target
@@ -44,6 +48,14 @@ class Animation(Effect, Action):
         elif timing:
             self.get_time = lambda: timing(
                     self.clock.time, self.start_time, self.time)
+
+        if isinstance(easing, basestring):
+            e = easing_module
+            for attr in easing.split('.'):
+                e = getattr(e, attr)
+            self.easing = e
+        else:
+            self.easing = easing
 
     def __new__(cls, object, property_name, *args, **kwargs):
         # Since descriptors can only be on classes, and we want `target` to
@@ -91,21 +103,21 @@ class Animation(Effect, Action):
         return (self.clock.time - self.start_time) / self.time
 
     def compute_value(self, previous, target):
-        t = self.get_time()
+        t = self.easing(self.get_time())
         return previous * (1 - t) + target * t
 
 class Add(Animation):
     """An additive animation: the target value is added to the original
     """
     def compute_value(self, previous, target):
-        t = self.get_time()
+        t = self.easing(self.get_time())
         return previous + target * t
 
 class Multiply(Animation):
     """A multiplicative animation: the target value is multiplied to the original
     """
     def compute_value(self, previous, target):
-        t = self.get_time()
+        t = self.easing(self.get_time())
         return previous * ((1 - t) + target * t)
 
 class Computed(Animation):

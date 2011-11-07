@@ -4,6 +4,7 @@ import pytest
 
 from gillcup import (Clock, AnimatedProperty, TupleProperty, Animation,
         actions, animation)
+from gillcup import easing as easing_mod
 
 class Tone(object):
     pitch = AnimatedProperty(440)
@@ -199,3 +200,26 @@ def test_infinite_timing():
     assert tone.pitch == 470
     clock.advance(0.5)
     assert tone.pitch == 475
+
+def test_easing():
+    easings = []
+    for easing in 'linear quad cubic quart quint sin exp circ'.split():
+        easings.append(easing)
+        for mod in [''] + '.in_ .out .in_out .out_in'.split():
+            easings.append(easing + mod)
+        easings.append(getattr(easing_mod, easing))
+    for easing in (easing_mod.linear, easing_mod.exp, easing_mod.bounce(2)):
+        easings.append(easing)
+        for mod in 'in_ out in_out out_in'.split():
+            easings.append(getattr(easing, mod))
+    for easing in easings:
+        print easing
+        clock = Clock()
+        tone = Tone()
+        action = Animation(tone, 'pitch', 450, time=2, easing=easing)
+        clock.schedule(action)
+        for i in xrange(20):
+            clock.advance(0.05)
+            assert 440 < tone.pitch < 450
+        clock.advance(1)
+        assert tone.pitch == 450
