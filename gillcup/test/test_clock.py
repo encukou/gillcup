@@ -2,7 +2,7 @@ from __future__ import division
 
 import pytest
 
-from gillcup import Clock, Subclock
+from gillcup import Clock, Subclock, Animation
 
 def dummy_function():
     pass
@@ -115,3 +115,39 @@ def test_subclock():
     subclock.schedule(append_const(lst, 'c'), 2)
     clock.advance(1)
     assert lst == ['a', 'b', 'c']
+
+def test_subclock_speedup():
+    clock = Clock()
+    subclock = Subclock(clock)
+    assert subclock.time == 0
+    clock.advance(1)
+    assert subclock.time == 1
+    subclock.speed = 2
+    clock.advance(1)
+    assert subclock.time == 3
+
+def test_subclock_speed_arg():
+    clock = Clock()
+    subclock = Subclock(clock, speed=2)
+    assert subclock.time == 0
+    clock.advance(1)
+    assert subclock.time == 2
+
+def test_subclock_animated_speed():
+    # Slow down time itself -- but only in discrete intervals
+    # User shouldn't rely on this. The test is here to catch possible
+    # backwards-incompatible behavior (which would need a version bump).
+    clock = Clock()
+    subclock = Subclock(clock)
+    subclock.schedule(Animation(subclock, 'speed', 0, time=2))
+    clock.advance(1)
+    assert subclock.time == 1
+    clock.advance(1)
+    assert subclock.time == 1.5
+    clock.advance(1)
+    assert subclock.time == 1.75
+    clock.advance(1)
+    assert subclock.time == 1.875
+    for i in range(1000):
+        clock.advance(1)
+    assert subclock.time == 2

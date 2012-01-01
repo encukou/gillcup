@@ -66,7 +66,13 @@ class Clock(object):
             event = subclock._next_event
             if event:
                 remain, index, clock, event = event
-                events.append((remain / subclock.speed, index, clock, event))
+                try:
+                    remain /= subclock.speed
+                except ZeroDivisionError:
+                    # zero speed – events never happen
+                    pass
+                else:
+                    events.append((remain, index, clock, event))
         try:
             return min(events)
         except:
@@ -93,16 +99,16 @@ class Clock(object):
                 event_dt, index, clock, event = event
                 if event_dt > dt:
                     break
-                self._advance(event_dt)
                 if dt:
+                    self._advance(event_dt)
                     self._run_update_functions()
                 dt -= event_dt
                 _evt = heapq.heappop(clock.events)
                 assert _evt is event and clock.time == event.time
                 clock.time = event.time
                 event.action()
-            self._advance(dt)
             if dt:
+                self._advance(dt)
                 self._run_update_functions()
         finally:
             self.advancing = False
@@ -162,6 +168,23 @@ class Clock(object):
             subclock._run_update_functions()
 
 class Subclock(Clock):
+    """A Clock that advances in sync with another Clock
+
+    A Subclock advances whenever its parent clock does.
+    It has a `speed` attribute, which specifies the relative speed relative to
+    the parent clock. For example, if speed==2, the subclock will run twice as
+    fast as its parent clock.
+
+    Unlike clocks synchronized via actions or update functions, the actions
+    scheduled on a parent Clock and all subclocks are run in the correct
+    sequence, with all clocks at the correct times when each action is run.
+
+    The speed is an AnimatedProperty. When changing, beware that it is only
+    checked when advance() is called and when a scheduled action is run,
+    so speed animations will be only approximate.
+    For better accuracy, call update() with small intervals, or schedule
+    a periodic dummy action at small inervals.
+    """
     speed = AnimatedProperty(1)
 
     def __init__(self, parent, speed=1):
