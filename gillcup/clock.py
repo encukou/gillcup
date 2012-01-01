@@ -6,6 +6,10 @@ import heapq
 
 _HeapEntry = collections.namedtuple('EventHeapEntry', 'time index action')
 
+# Next action index; used to keep FIFO ordering for actions scheduled
+# for the same time
+next_index = 0
+
 class Clock(object):
     """Keeps track of time.
 
@@ -34,10 +38,6 @@ class Clock(object):
     def __init__(self, time=0):
         # Time on the clock
         self.time = time
-
-        # Next action index; used to keep FIFO ordering for actions scheduled
-        # for the same time
-        self.next_index = 0
 
         # Heap queue of scheduled actions
         self.events = []
@@ -86,11 +86,12 @@ class Clock(object):
         If the scheduled callable has a “schedule_callback” method, it will
         be called with the clock and the time it'd been scheduled at.
         """
+        global next_index
         if dt < 0:
             raise ValueError('Scheduling an action in the past')
-        self.next_index += 1
+        next_index += 1
         scheduled_time = self.time + dt
-        entry = _HeapEntry(scheduled_time, self.next_index, action)
+        entry = _HeapEntry(scheduled_time, next_index, action)
         heapq.heappush(self.events, entry)
         try:
             schedule_callback = action.schedule_callback
