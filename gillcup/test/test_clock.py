@@ -2,7 +2,7 @@ from __future__ import division
 
 import pytest
 
-from gillcup import Clock
+from gillcup import Clock, Subclock
 
 def dummy_function():
     pass
@@ -89,3 +89,29 @@ def test_recursive_advance():
     clock.schedule(lambda: clock.advance(1))
     with pytest.raises(RuntimeError):
         clock.advance(0)
+
+def test_subclock():
+    clock = Clock()
+    subclock = Subclock(clock)
+    subclock.advance(1)
+    assert clock.time == 0
+    assert subclock.time == 1
+    clock.advance(1)
+    assert clock.time == 1
+    assert subclock.time == 2
+    subclock.speed = 2
+    clock.advance(1)
+    assert clock.time == 2
+    assert subclock.time == 4
+
+    lst = []
+    def append_const(lst, c):
+        def append():
+            print c, clock.time, subclock.time
+            lst.append(c)
+        return append
+    subclock.schedule(append_const(lst, 'a'), 1)
+    clock.schedule(append_const(lst, 'b'), 1)
+    subclock.schedule(append_const(lst, 'c'), 2)
+    clock.advance(1)
+    assert lst == ['a', 'b', 'c']

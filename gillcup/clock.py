@@ -1,8 +1,12 @@
 # Encoding: UTF-8
 
+from __future__ import division
+
 import collections
 import weakref
 import heapq
+
+from gillcup.properties import AnimatedProperty
 
 _HeapEntry = collections.namedtuple('EventHeapEntry', 'time index action')
 
@@ -48,6 +52,26 @@ class Clock(object):
         # Recursion guard flag for advance()
         self.advancing = False
 
+        # List of dependent clocks
+        self._subclocks = set()
+
+    @property
+    def _next_event(self):
+        try:
+            event = self.events[0]
+            events = [(event.time - self.time, event.index, self, event)]
+        except IndexError:
+            events = []
+        for subclock in self._subclocks:
+            event = subclock._next_event
+            if event:
+                remain, index, clock, event = event
+                events.append((remain / subclock.speed, index, clock, event))
+        try:
+            return min(events)
+        except:
+            return None
+
     def advance(self, dt):
         """Call to advance the clock's time
 
@@ -62,18 +86,31 @@ class Clock(object):
             raise RuntimeError('Clock.advance called recursively')
         self.advancing = True
         try:
-            while self.events and self.events[0].time <= self.time + dt:
-                entry = heapq.heappop(self.events)
-                dt -= entry.time - self.time
-                previous_time = self.time
-                self.time = entry.time
-                if previous_time != self.time:
+            while True:
+                event = self._next_event
+                if not event:
+                    break
+                event_dt, index, clock, event = event
+                if event_dt > dt:
+                    break
+                self._advance(event_dt)
+                if dt:
                     self._run_update_functions()
-                entry.action()
-            self.time += dt
-            self._run_update_functions()
+                dt -= event_dt
+                _evt = heapq.heappop(clock.events)
+                assert _evt is event and clock.time == event.time
+                clock.time = event.time
+                event.action()
+            self._advance(dt)
+            if dt:
+                self._run_update_functions()
         finally:
             self.advancing = False
+
+    def _advance(self, dt):
+        self.time += dt
+        for subclock in self._subclocks:
+            subclock._advance(dt * subclock.speed)
 
     def schedule(self, action, dt=0):
         """Schedule an action to be run "dt" time units from the current time
@@ -121,6 +158,16 @@ class Clock(object):
     def _run_update_functions(self):
         for update_function in list(self.update_functions):
             update_function()
+        for subclock in self._subclocks:
+            subclock._run_update_functions()
+
+class Subclock(Clock):
+    speed = AnimatedProperty(1)
+
+    def __init__(self, parent, speed=1):
+        super(Subclock, self).__init__()
+        self.speed = speed
+        parent._subclocks.add(self)
 
 try:
     WeakSet = weakref.WeakSet
