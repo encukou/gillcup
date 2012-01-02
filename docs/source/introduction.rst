@@ -14,7 +14,7 @@ The gillcup-graphics package includes a more accessible demo and a tutorial.
 
 
 The Project
-===========
+-----------
 
 Gillcup is a MIT-licensed, `Github-hosted <https://github.com/encukou/gillcup>`_
 project striving to uphold best practices of the Python craft, from PEP8_ to

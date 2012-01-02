@@ -9,8 +9,10 @@ except ImportError:
 class AnimatedProperty(object):
     """A scalar animated property
     """
-    def __init__(self, default):
+    def __init__(self, default, docstring=None):
         self.default = default
+        if docstring:
+            self.__doc__ = docstring
 
     @lru_cache()
     def animation_class_factory(self, superclass):

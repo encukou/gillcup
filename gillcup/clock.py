@@ -15,33 +15,18 @@ _HeapEntry = collections.namedtuple('EventHeapEntry', 'time index action')
 next_index = 0
 
 class Clock(object):
-    """Keeps track of time.
+    """Keeps track of time and schedules events.
 
-    In Gillcup, animation means two things: running code at specified times,
-    and changing object properties with time.
+    Attributes:
 
-    You will notice that the preceding sentence mentions time quite a lot. But
-    what is this time?
+        .. attribute:: time
 
-    You could determine time by looking at the computer's clock, but that would
-    only work with real-time animations. When you'd want to render a movie,
-    where each frame takes 2 seconds to draw and there are 25 frames per
-    second, you'd be stuck.
-
-    That's why Gillcup introduces a flexible source of time: the Clock. This is
-    an objects with three basic attributes:
-
-    -  time, which gives the current time (“now”) on the clock,
-    -  advance(dt), which advances the timer by “dt” units, and
-    -  schedule(dt, action), which schedules “action” to be called “dt” time
-       units from the current time.
-
-    What a “time unit” means is entirely up to the application – it could be
-    seconds, movie/simulation frames, etc.
+            The current time on the clock. Never assign to it directly;
+            use :meth:`~gillcup.Clock.advance()` instead.
     """
-    def __init__(self, time=0):
+    def __init__(self):
         # Time on the clock
-        self.time = time
+        self.time = 0
 
         # Heap queue of scheduled actions
         self.events = []
@@ -127,7 +112,7 @@ class Clock(object):
         Scheduling an action in the past (dt<0) will raise an error.
 
         If the scheduled callable has a “schedule_callback” method, it will
-        be called with the clock and the time it'd been scheduled at.
+        be called with the clock and the time it's been scheduled at.
         """
         global next_index
         if dt < 0:
@@ -170,7 +155,7 @@ class Clock(object):
 class Subclock(Clock):
     """A Clock that advances in sync with another Clock
 
-    A Subclock advances whenever its parent clock does.
+    A Subclock advances whenever its *parent* clock does.
     It has a `speed` attribute, which specifies the relative speed relative to
     the parent clock. For example, if speed==2, the subclock will run twice as
     fast as its parent clock.
@@ -178,14 +163,15 @@ class Subclock(Clock):
     Unlike clocks synchronized via actions or update functions, the actions
     scheduled on a parent Clock and all subclocks are run in the correct
     sequence, with all clocks at the correct times when each action is run.
+    """
+    speed = AnimatedProperty(1, docstring="""Speed of the clock.
 
     The speed is an AnimatedProperty. When changing, beware that it is only
-    checked when advance() is called and when a scheduled action is run,
+    checked when advance() is called or when a scheduled action is run,
     so speed animations will be only approximate.
-    For better accuracy, call update() with small intervals, or schedule
-    a periodic dummy action at small inervals.
-    """
-    speed = AnimatedProperty(1)
+    For better accuracy, call :meth:`~gillcup.Clock.advance`
+    with small *dt*, or schedule a periodic dummy action at small inervals.
+    """)
 
     def __init__(self, parent, speed=1):
         super(Subclock, self).__init__()
