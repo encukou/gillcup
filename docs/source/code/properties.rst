@@ -1,6 +1,8 @@
 gillcup.properties
 ==================
 
+.. module:: gillcup.properties
+
 To animate Python objects, we need to change values of their attributes over
 time.
 There are two kinds of changes we can make: *discrete* and *continuous*.

@@ -1,6 +1,8 @@
 gillcup.clock
 =============
 
+.. module:: gillcup.clock
+
 In Gillcup, animation means two things: running code at specified times,
 and changing object properties with time.
 

@@ -7,29 +7,55 @@ from gillcup import easing as easing_module
 class Animation(Effect, Action):
     """An Animation: Action that modifies an animated property
 
-    Init arguments:
-    - `object`: The object whose property is animated
-    - `property_name`: Name of the animated property
-    - `target`: Value at which the animation should arrive (tuple properties
-        accept more arguments, i.e. `Animation(obj, 'position', 1, 2, 3)`)
-    - `time`: The duration of the animation
-    - `delay`: Delay between the time the animation is scheduled and its start
-    - `timing`: A function that maps global time to animation's time.
+    Positional init arguments:
+
+    :argument object:
+
+        The object whose property is animated
+
+    :argument property_name:
+
+        Name of the animated property
+
+    :argument target:
+
+        Value at which the animation should arrive (tuple properties
+        accept more arguments, i.e. ``Animation(obj, 'position', 1, 2, 3)``)
+
+    :argument time:
+
+        The duration of the animation
+
+    Keyword init arguments:
+
+    :argument delay:
+
+        Delay between the time the animation is scheduled and its actual start
+
+    :argument timing:
+
+        A function that maps global time to animation's time.
+
         Possible values:
-        - None: normalizes time so that 0 corresponds to the start of the
+
+        *   ``None``: normalizes time so that 0 corresponds to the start of the
             animation, and 1 to the end (i.e. start + `time`); clamps to [0, 1]
-        - 'infinite': same as above, but doesn't clamp: the animation goes
-            forever on (in both directions; it only starts to take effect when
-            it's scheduled, but a `delay` can cause negative local times).
+        *   ``'infinite'``: same as above, but doesn't clamp: the animation
+            goes forever on (in both directions; it only starts to take effect
+            when it's scheduled, but a `delay` can cause negative local times).
             The animation's time is normalized to 0 at the start and
             1 at start + `time`.
-        - 'absolute': the animation is infinite, with the same speed as with
-            the 'infinite' option, but zero corresponds to the clock's zero.
+        *   ``'absolute'``: the animation is infinite, with the same speed as
+            with the 'infinite' option, but zero corresponds to the clock's
+            zero.
             Useful for synchronized periodic animations.
-        - function(time, start, duration): apply a custom function
-    - `easing`: An easing function to use. Can be either a one-argument
-        function, or a dotted name which is looked up in the `gillcup.easing`
-        module.
+        * `function(time, start, duration)`: apply a custom function
+
+    :argument easing:
+
+        An easing function to use. Can be either a one-argument
+        function, or a dotted name which is looked up in the
+        :mod:`gillcup.easing` module.
     """
 
     def __init__(self, object, property_name, target, time=1, delay=0,
@@ -123,9 +149,9 @@ class Multiply(Animation):
 class Computed(Animation):
     """A custom-valued animation: the target is computed by a function
 
-    Pass a `func` keyword argument with the function to the constructor.
+    Pass a **func** keyword argument with the function to the constructor.
 
-    The function will getone argument, the time elapsed, normalized by the
+    The function will get one argument: the time elapsed, normalized by the
     animation's `timing` function.
     """
     def __init__(self, *args, **kwargs):
