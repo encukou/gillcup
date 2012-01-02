@@ -5,3 +5,4 @@ Module Reference
 
     clock
     actions
+    properties

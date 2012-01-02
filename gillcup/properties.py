@@ -8,6 +8,15 @@ except ImportError:
 
 class AnimatedProperty(object):
     """A scalar animated property
+
+    Define animated properties as follows::
+
+        class Tone(object):
+            pitch = AnimatedProperty(440)
+            volume = AnimatedProperty(0)
+
+    Now, Tone instances will have `pitch` and `volume` set to the corresponding
+    defaults, and can be animated.
     """
     def __init__(self, default, docstring=None):
         self.default = default
@@ -56,15 +65,13 @@ class TupleProperty(AnimatedProperty):
     """A tuple animated property
 
     Iterating this yields sub-properties that can be animated individually.
-    The intended idiom for declaring a tuple property is:
+    The intended idiom for declaring a tuple property is::
 
-        x, y, z = position = TupleProperty(3, (0, 0, 0))
+        x, y, z = position = TupleProperty(0, 0, 0)
     """
-    def __init__(self, size, default):
-        if len(default) != size:
-            raise ValueError('Default is not of the correct size')
-        super(TupleProperty, self).__init__(default)
-        self.size = size
+    def __init__(self, *default, **kwargs):
+        super(TupleProperty, self).__init__(default, **kwargs)
+        self.size = len(default)
         self.subproperties = [_TupleElementProperty(self, i)
                 for i in xrange(self.size)]
 

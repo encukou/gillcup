@@ -9,7 +9,7 @@ from gillcup import easing as easing_mod
 class Tone(object):
     pitch = AnimatedProperty(440)
     volume = AnimatedProperty(0)
-    x, y, z = position = TupleProperty(3, (0, 0, 0))
+    x, y, z = position = TupleProperty(0, 0, 0)
 
 def test_effect():
     clock = Clock()

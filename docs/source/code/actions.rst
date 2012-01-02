@@ -1,6 +1,8 @@
 gillcup.actions
 ===============
 
+.. module:: gillcup.actions
+
 Although arbitrary callables can be scheduled on a Gillcup
 :class:`~gillcup.Clock`, one frequently schedules objects that are specifically
 made for this purpose.

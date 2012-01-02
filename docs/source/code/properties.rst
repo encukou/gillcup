@@ -1,0 +1,27 @@
+gillcup.properties
+==================
+
+To animate Python objects, we need to change values of their attributes over
+time.
+There are two kinds of changes we can make: *discrete* and *continuous*.
+A discrete change happens at a single point in time: for example, an object
+is shown, some output is written, a sound starts playing.
+:mod:`Actions <gillcup.actions>` are used for effecting
+discrete changes.
+
+Continuous changes happen over a period of time: an object smoothly moves
+to the left, or a sound fades out.
+These changes are made by animating special properties on objects.
+
+Animated properties use Python's `descriptor interface
+<http://docs.python.org/howto/descriptor.html>`_ to provide efficient access to
+animated properties.
+
+Assigning to an animated attribute causes it to get set to that value,
+and cancels any running animations on it.
+
+See :mod:`gillcup.animation` for information on how to actually do animations.
+
+.. autoclass:: gillcup.AnimatedProperty
+
+.. autoclass:: gillcup.TupleProperty
