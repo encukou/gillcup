@@ -3,10 +3,12 @@
 import numbers
 
 class Action(object):
-    """An “event”.
+    """A chainable “event” designed for being scheduled.
 
     As any callable, an Action can be scheduled on a clock, either by
-    clock.schedule(), or directly in the constructor.
+    :meth:`~gillcup.Clock.schedule()`, or, as a shortcut, directly from the
+    constructor with the `clock` and `dt` arguments, or by chaining.
+    Each Action may only be scheduled *once*.
 
     Other actions (the lowercase term denotes “arbitrary callables”) may be
     chained to an Action, that is, scheduled to run at some time after the
@@ -16,17 +18,18 @@ class Action(object):
     discrete point in time; in these cases, chained actions are run after the
     interval is over or the process finishes.
 
-    Each Action may only be scheduled once. Initializing the class with the
-    `clock` and `dt` arguments counts as scheduling.
+    Actions may be combined to form larger structures using
+    :ref:`helper Action subclasses <action-building-blocks>` as building blocks.
+    As a shorthand, the following operators are available:
 
-    Actions may be combined to form larger structures with help of the Delay,
-    Sequence and Parallel actions. As a shorthand, the following operators are
-    available:
-    - `+`: Creates a Sequence of actions; one is run after the other.
-    - `|`: Creates a Parallel construct: all actions are started at once
+        *   ``+`` creates a :class:`~gillcup.actions.Sequence` of actions;
+            one is run after the other.
+        *   ``|`` creates a :class:`~gillcup.actions.Parallel` construct:
+            all actions are started at once.
 
-    The operators can be usd with regular callables (which are wrapped in
-    Actions), and with numbers (which create corresponding delays).
+    The operators can be used with regular callables (which are :class:`wrapped
+    in Actions <gillcup.actions.FunctionCaller>`), or with numbers
+    (which create corresponding :class:`delays <gillcup.actions.Delay>`).
     """
     # The states an Animation goes through are:
     # - unscheduled (self.clock is unset)
@@ -49,10 +52,9 @@ class Action(object):
         self.clock = None
         if clock:
             clock.schedule(self, dt)
-        else:
-            if dt != 0:
-                # We're not scheduling yet, so dt would be ignored
-                raise ValueError('dt specified without a clock')
+        elif dt != 0:
+            # We're not scheduling yet, so dt would be ignored
+            raise ValueError('dt specified without a clock')
 
     def chain(self, action, dt=0):
         """Schedule an action to be scheduled after this Action
@@ -60,10 +62,10 @@ class Action(object):
         The dt argument can be given to delay the chained action by the
         specified time.
 
-        If this action has already been called, the chained action is scheduled
+        If this Action has already been called, the chained action is scheduled
         immediately `dt` units after the current time.
         To prevent or modify this behavior, the caller can check the
-        `chain_triggered` attribute.
+        :attr:`~gillcup.Action.chain_triggered` attribute.
 
         Returns the chained action.
         """
@@ -75,7 +77,7 @@ class Action(object):
 
     @classmethod
     def coerce(cls, value):
-        """Coerce a value into an action
+        """Coerce a value into an action. Called on operands of ``+`` and ``|``.
 
         Wraps functions in FunctionCallers, and numbers in Delays
         """
@@ -96,19 +98,27 @@ class Action(object):
 
         Subclasses that represent time intervals (there's a delay between
         the moment they are called and when they trigger chained actions)
-        should call `expire()` when they are called, and `triggr_chain()` when
-        they're done.
+        should call :meth:`~gillcup.Action.expire` when they are called,
+        and :meth:`~gillcup.Action.trigger_chain` when they're done.
         """
         self.expire()
         self.trigger_chain()
 
     def expire(self):
+        """Marks the Action as run.
+
+        Subclasses must call this method at the start of
+        :meth:`~gillcup.Action.__call__`.
+        """
         if self.expired:
             raise RuntimeError('%s was run twice' % self)
         self.expired = True
 
     def trigger_chain(self):
         """Schedule the chained actions.
+
+        Subclasses must call this method after the Action runs; see
+        :meth:`~gillcup.Action.__call__`.
         """
         self.chain_triggered = True
         for dt, chained in self._chain:
@@ -151,7 +161,9 @@ class Action(object):
         return Parallel(other, self)
 
 class FunctionCaller(Action):
-    """An Action that calls the given function, passing it the args and kwargs
+    """An Action that calls the given `function`, passing `args` and `kwargs` to it
+
+    `function` can be any callable.
     """
     def __init__(self, function, *args, **kwargs):
         super(FunctionCaller, self).__init__()
@@ -165,9 +177,11 @@ class FunctionCaller(Action):
 
 class Delay(Action):
     """An Action that triggers chained actions after a given delay
+
+    The `kwargs` are passed to :class:`gillcup.Action`'s initializer.
     """
-    def __init__(self, time):
-        super(Delay, self).__init__()
+    def __init__(self, time, **kwargs):
+        super(Delay, self).__init__(**kwargs)
         self.time = time
 
     def __call__(self):
@@ -176,6 +190,11 @@ class Delay(Action):
 
 class Sequence(Action):
     """An Action that runs a series of Actions one after the other
+
+    Actions chained to a Sequence are triggered after the last Action in the
+    sequence.
+
+    The `kwargs` are passed to :class:`gillcup.Action`'s initializer.
     """
     def __init__(self, *actions, **kwargs):
         super(Sequence, self).__init__(**kwargs)
@@ -200,6 +219,8 @@ class Parallel(Action):
 
     That is, after all the given actions have triggered their chained actions,
     Parallel triggers its own chained actions.
+
+    The `kwargs` are passed to :class:`gillcup.Action`'s initializer.
     """
     def __init__(self, *actions, **kwargs):
         self.remaining_actions = actions
