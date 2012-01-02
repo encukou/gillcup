@@ -9,12 +9,3 @@ Run `setup.py install` to install.
 
 Run `setup.py test` (or `pytest`, if you have it already) to test.  
 Install and run `tox` to test under various Pythons.
-
-Documentation
-=============
-
-Dedicated docs are not yet written, but the code is kept well commented.
-Suggested reading order:
-
-1. clock.py
-2. actions.py
