@@ -7,3 +7,4 @@ Module Reference
     actions
     properties
     animation
+    easing

@@ -40,13 +40,14 @@ POSSIBILITY OF SUCH DAMAGE.
 
 from __future__ import division
 
+import sys
 import functools
 import math
 
 def normalized(func):
-    """Decorator to normalize another easing function
+    """Decorator that normalizes an easing function
 
-    Normalizing is done so that f(0) == 0 and f(1) == 1.
+    Normalizing is done so that func(0) == 0 and func(1) == 1.
     """
     min = func(0)
     max = func(1)
@@ -83,7 +84,7 @@ def ease_out_in(func):
             return (1 - func(1 - 2 * t)) / 2
         else:
             return func(2 * (t - .5)) / 2 + .5
-    _add_postfix(ease_out_in, func, 'outIn')
+    _add_postfix(ease_out_in, func, 'out_in')
     return ease_out_in
 
 def ease_in_out(func):
@@ -92,17 +93,22 @@ def ease_in_out(func):
             return func(2 * t) / 2
         else:
             return 1 - func(1 - 2 * (t - .5)) / 2
-    _add_postfix(ease_in_out, func, 'outIn')
+    _add_postfix(ease_in_out, func, 'in_out')
     return ease_in_out
 
-def tweenfunc(func):
+def easefunc(func):
+    """Decorator for easing functions.
+
+    Adds the **in_**, **out**, **in_out** and **out_in** attributes to
+    an easing function.
+    """
     func.in_ = ease_in(func)
     func.out = ease_out(func)
     func.in_out = ease_in_out(func)
     func.out_in = ease_out_in(func)
     return func
 
-@tweenfunc
+@easefunc
 def linear(t):
     u"""Linear interpolation
 
@@ -110,15 +116,15 @@ def linear(t):
     """
     return t
 
-@tweenfunc
-def quad(t):
+@easefunc
+def quadratic(t):
     u"""Quadratic easing
 
     t → t**2
     """
     return t ** 2
 
-@tweenfunc
+@easefunc
 def cubic(t):
     u"""Cubic easing
 
@@ -126,32 +132,32 @@ def cubic(t):
     """
     return t ** 3
 
-@tweenfunc
-def quart(t):
+@easefunc
+def quartic(t):
     u"""Quartic easing
 
     t → t**4
     """
     return t ** 4
 
-@tweenfunc
-def quint(t):
+@easefunc
+def quintic(t):
     u"""Quintic easing
 
     t → t**5
     """
     return t ** 5
 
-@tweenfunc
-def sin(t):
+@easefunc
+def sine(t):
     u"""Sinusoidal easing
 
     Quarter of a cosine wave
     """
     return (-math.cos(t / 2 * math.pi) + 1)
 
-@tweenfunc
-def exp(t):
+@easefunc
+def exponential(t):
     u"""Exponential easing
     """
     if t in (0, 1):
@@ -159,8 +165,8 @@ def exp(t):
     else:
         return 2.0 ** (10 * (t - 1)) - 0.001
 
-@tweenfunc
-def circ(t):
+@easefunc
+def circular(t):
     u"""Circular easing
     """
     try:
@@ -171,39 +177,40 @@ def circ(t):
 def elastic(period, amplitude=1):
     u"""Elastic easing factory
     """
-    @tweenfunc
+    @easefunc
     def elastic(t):
-        return exp(t) * math.cos((1 - t) * 2 * math.pi / period) * amplitude
+        b = exponential(t) * math.cos((1 - t) * 2 * math.pi / period)
+        return b * amplitude
     return elastic
 
 def overshoot(amount):
     u"""Overshoot easing factory
     """
-    @tweenfunc
+    @easefunc
     def overshoot(t):
-        t = 1 - t
-        return 1 - t * t * ((amount + 1) * t - amount)
+        return t * t * ((amount + 1) * t - amount)
     return overshoot
 
 def _bounce_helper(t, c, a):
+    t = 1 - t
     if t == 1:
-        return c
+        return 1 - c
     if t < 4 / 11:
-        return c * (7.5625 * t * t)
+        return 1 - c * (7.5625 * t * t)
     elif t < 8 / 11:
         t -= 6 / 11.0
-        return -a * (1. - (7.5625 * t * t + .75)) + c
+        return 1 + a * (1. - (7.5625 * t * t + .75)) - c
     elif t < 10 / 11:
         t -= 9 / 11
-        return -a * (1. - (7.5625 * t * t + .9375)) + c
+        return 1 + a * (1. - (7.5625 * t * t + .9375)) - c
     else:
         t -= 21 / 22
-        return -a * (1. - (7.5625 * t * t + .984375)) + c
+        return 1 + a * (1. - (7.5625 * t * t + .984375)) - c
 
 def bounce(amplitude):
     u"""Bounce easing factory
     """
-    @tweenfunc
+    @easefunc
     def bounce(t):
         return _bounce_helper(t, 1, amplitude)
     return bounce
@@ -216,31 +223,48 @@ overshoot_example = overshoot(1)
 bounce_example = bounce(1)
 
 def showcase(
-        items='(poly) sin exp circ elastic_example overshoot_example '
-        'bounce_example'.split()
+        items='(poly) sine exponential circular elastic_example '
+        'overshoot_example bounce_example'.split(),
+        filename=None,
     ):
     """Show graphs of the easing functions in this module
     """
     import pylab
+    from matplotlib import pyplot
+    from matplotlib.ticker import MultipleLocator
+
+    pyplot.figure(figsize=(7, 7))
+    pyplot.subplots_adjust(wspace=0.3, hspace=0.7)
 
     time = pylab.arange(0.0, 1.01, 0.01)
     for i, n in enumerate(items):
         if n == '(poly)':
-            funcs = 'linear quad cubic quart quint'.split()
+            funcs = 'linear quadratic cubic quartic quintic'.split()
         else:
             funcs = [n]
-        for j, a in enumerate((ease_in, ease_out, ease_in_out, ease_out_in)):
-            pylab.subplot(len(items), 4, i * 4 + 1 + j)
+        for j, a in enumerate('in_ out in_out out_in'.split()):
+            ax = pylab.subplot(len(items), 4, i * 4 + 1 + j)
+            ax.xaxis.set_major_locator(MultipleLocator(1))
+            ax.yaxis.set_major_locator(MultipleLocator(1))
             for funcname in funcs:
-                func = a(globals()[funcname])
+                func = getattr(globals()[funcname], a)
                 s = [func(t) for t in time]
                 pylab.plot(time, s, linewidth=1.0)
                 if i == 0:
-                    pylab.title(a.__name__.replace('ease_', '.'))
+                    pylab.title('.' + a)
                 if j == 0:
                     title, sep, end = n.partition('_example')
+                    #if not sep:
+                    #    title = '\n'.join(funcs)
                     pylab.ylabel(title)
-    pylab.show()
+    if filename:
+        pylab.savefig(filename, transparent=True)
+    else:
+        pylab.show()
 
 if __name__ == '__main__':
-    showcase()
+    try:
+        filename = sys.argv[1]
+    except IndexError:
+        filename = None
+    showcase(filename=filename)

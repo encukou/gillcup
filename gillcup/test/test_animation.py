@@ -203,12 +203,12 @@ def test_infinite_timing():
 
 def test_easing():
     easings = []
-    for easing in 'linear quad cubic quart quint sin exp circ'.split():
+    for easing in 'linear quadratic cubic quartic quintic sine exponential circular'.split():
         easings.append(easing)
         for mod in [''] + '.in_ .out .in_out .out_in'.split():
             easings.append(easing + mod)
         easings.append(getattr(easing_mod, easing))
-    for easing in (easing_mod.linear, easing_mod.exp, easing_mod.bounce(2)):
+    for easing in (easing_mod.linear, easing_mod.exponential, easing_mod.bounce(2)):
         easings.append(easing)
         for mod in 'in_ out in_out out_in'.split():
             easings.append(getattr(easing, mod))

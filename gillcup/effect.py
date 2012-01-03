@@ -1,4 +1,9 @@
 
+"""Effect
+
+Moved to a separate module to solve dependency/import order problems
+"""
+
 class Effect(object):
     """Object that changes an AnimatedProperty
 
