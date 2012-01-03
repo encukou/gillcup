@@ -6,12 +6,16 @@ from gillcup import (Clock, AnimatedProperty, TupleProperty, Animation,
         actions, animation)
 from gillcup import easing as easing_mod
 
-class Tone(object):
+class ToneWithProperties(object):
     pitch = AnimatedProperty(440)
     volume = AnimatedProperty(0)
     x, y, z = position = TupleProperty(0, 0, 0)
 
-def test_effect():
+def pytest_generate_tests(metafunc):
+    if "Tone" in metafunc.funcargnames:
+        metafunc.parametrize("Tone", [ToneWithProperties])
+
+def test_effect(Tone):
     clock = Clock()
     tone = Tone()
     clock.schedule(Animation(tone, 'pitch', 450, time=5))
@@ -32,7 +36,7 @@ def test_effect():
     clock.advance(1)
     assert tone.pitch == 450
 
-def test_effect_scheduling():
+def test_effect_scheduling(Tone):
     clock = Clock()
     tone = Tone()
     tone.volume = 60
@@ -53,7 +57,7 @@ def test_effect_scheduling():
     clock.advance(1)
     assert tone.pitch == 450 and tone.volume == 0
 
-def test_tuple_property():
+def test_tuple_property(Tone):
     clock = Clock()
     tone = Tone()
     action = Animation(tone, 'x', 2, time=2)
@@ -75,7 +79,7 @@ def test_tuple_property():
     tone.z = 3
     assert (tone.x, tone.y, tone.z) == tone.position == (1, 2, 3)
 
-def test_target_animation():
+def test_target_animation(Tone):
     clock = Clock()
     tone = Tone()
     action = Animation(tone, 'volume', 2, time=2, dynamic=True)
@@ -90,7 +94,7 @@ def test_target_animation():
     clock.advance(1)
     assert tone.volume == 0
 
-def test_tuple_target_animation():
+def test_tuple_target_animation(Tone):
     clock = Clock()
     tone = Tone()
     action = Animation(tone, 'position', 2, 4, 6, time=2, dynamic=True)
@@ -105,7 +109,7 @@ def test_tuple_target_animation():
     clock.advance(1)
     assert tone.position == (-2, -4, -6)
 
-def test_additive_animation():
+def test_additive_animation(Tone):
     clock = Clock()
     tone = Tone()
     base_action = Animation(tone, 'pitch', 420, delay=3, time=2)
@@ -123,7 +127,7 @@ def test_additive_animation():
     clock.advance(1)
     assert tone.pitch == 440
 
-def test_multiplicative_animation():
+def test_multiplicative_animation(Tone):
     clock = Clock()
     tone = Tone()
     base_action = Animation(tone, 'pitch', 220, time=2, delay=3)
@@ -141,7 +145,7 @@ def test_multiplicative_animation():
     clock.advance(1)
     assert tone.pitch == 220 * 2
 
-def test_computed_animation():
+def test_computed_animation(Tone):
     clock = Clock()
     tone = Tone()
     def compute(t):
@@ -157,7 +161,7 @@ def test_computed_animation():
     clock.advance(1)
     assert tone.pitch == 440 + math.sin(1)
 
-def test_delay():
+def test_delay(Tone):
     clock = Clock()
     tone = Tone()
     action = Animation(tone, 'pitch', 450, time=2, delay=1)
@@ -171,7 +175,7 @@ def test_delay():
     clock.advance(1)
     assert tone.pitch == 450
 
-def test_infinite_timing():
+def test_infinite_timing(Tone):
     clock = Clock()
     tone = Tone()
     action = Animation(tone, 'pitch', 450, time=1, timing='infinite')
@@ -186,7 +190,7 @@ def test_infinite_timing():
     clock.advance(0.5)
     assert tone.pitch == 475
 
-def test_infinite_timing():
+def test_infinite_timing(Tone):
     clock = Clock()
     tone = Tone()
     clock.advance(1)
@@ -201,7 +205,7 @@ def test_infinite_timing():
     clock.advance(0.5)
     assert tone.pitch == 475
 
-def test_easing():
+def test_easing(Tone):
     easings = []
     for easing in 'linear quadratic cubic quartic quintic sine exponential circular'.split():
         easings.append(easing)
