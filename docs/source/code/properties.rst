@@ -26,4 +26,10 @@ See :mod:`gillcup.animation` for information on how to actually do animations.
 
 .. autoclass:: gillcup.AnimatedProperty
 
+    .. automethod:: gillcup.AnimatedProperty.adjust_value
+    .. automethod:: gillcup.AnimatedProperty.map
+
 .. autoclass:: gillcup.TupleProperty
+
+    .. automethod:: gillcup.TupleProperty.adjust_value
+    .. automethod:: gillcup.TupleProperty.map

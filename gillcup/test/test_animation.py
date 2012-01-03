@@ -78,7 +78,7 @@ def test_tuple_property():
 def test_target_animation():
     clock = Clock()
     tone = Tone()
-    action = Animation(tone, 'volume', 2, time=2)
+    action = Animation(tone, 'volume', 2, time=2, dynamic=True)
     action.chain(Animation(action, 'target', 0, time=2))
     clock.schedule(action)
     clock.advance(1)
@@ -93,7 +93,7 @@ def test_target_animation():
 def test_tuple_target_animation():
     clock = Clock()
     tone = Tone()
-    action = Animation(tone, 'position', 2, 4, 6, time=2)
+    action = Animation(tone, 'position', 2, 4, 6, time=2, dynamic=True)
     action.chain(Animation(action, 'target', -2, -4, -6, time=2))
     clock.schedule(action)
     clock.advance(1)

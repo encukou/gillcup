@@ -1,10 +1,6 @@
+# Encoding: UTF-8
 
 from gillcup.effect import Effect, ConstantEffect
-
-try:
-    from functools import lru_cache
-except ImportError:
-    lru_cache = lambda n=100: lambda func: func
 
 class AnimatedProperty(object):
     """A scalar animated property
@@ -17,17 +13,28 @@ class AnimatedProperty(object):
 
     Now, Tone instances will have `pitch` and `volume` set to the corresponding
     defaults, and can be animated.
+
+    The **docstring** argument becomes the property's ``__doc__`` attribute.
     """
     def __init__(self, default, docstring=None):
         self.default = default
         if docstring:
             self.__doc__ = docstring
 
-    @lru_cache()
-    def animation_class_factory(self, superclass):
-        class CustomAnimation(superclass):
-            target = self
-        return CustomAnimation
+    def adjust_value(self, values):
+        """Convert an animation's ``*args`` values into a property value
+
+        For scalar properties, this converts a 1-tuple into its only element
+        """
+        [value] = values
+        return value
+
+    def get_target_property(self):
+        """Return a property used for a dynamic animation's target
+        """
+        # Since AnimatedProperty doesn't care about its name, we can just
+        # reuse it
+        return self
 
     def __get__(self, instance, owner):
         if instance:
@@ -56,15 +63,14 @@ class AnimatedProperty(object):
 
     def map(self, function, parent_value, value):
         """Call a scalar tween function on two values.
-
-        Reimplemented in TupleProperty
         """
         return function(parent_value, value)
 
 class TupleProperty(AnimatedProperty):
     """A tuple animated property
 
-    Iterating this yields sub-properties that can be animated individually.
+    Iterating the TupleProperty itself yields sub-properties that can be
+    animated individually.
     The intended idiom for declaring a tuple property is::
 
         x, y, z = position = TupleProperty(0, 0, 0)
@@ -75,20 +81,22 @@ class TupleProperty(AnimatedProperty):
         self.subproperties = [_TupleElementProperty(self, i)
                 for i in xrange(self.size)]
 
-    @lru_cache()
-    def animation_class_factory(self, superclass):
-        super_factory = super(TupleProperty, self).animation_class_factory
-        anim_class = super_factory(superclass)
-        def init(self, object, property_name, *target, **kwargs):
-            super(anim_class, self).__init__(object,
-                    property_name, target, **kwargs)
-        anim_class.__init__ = init
-        return anim_class
+    def adjust_value(self, value):
+        """Convert an animation's ``*args`` values into a property value
+
+        For tuple properties, return the tuple unchanged
+        """
+        return value
 
     def __iter__(self):
         return iter(self.subproperties)
 
     def map(self, function, parent_value, value):
+        """Call a scalar tween function on two values.
+
+        Calls the function on corresponding pairs of elements, returns
+        the tuple of results
+        """
         return tuple(map(function, parent_value, value))
 
 class _TupleElementProperty(AnimatedProperty):

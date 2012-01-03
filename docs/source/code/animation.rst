@@ -14,9 +14,10 @@ the Animation's **target** value.
 The tween parameters can be set by the **timing** and **easing** keyword
 arguments.
 
-An animation's **target** is an :class:`~gillcup.AnimatedProperty` itself.
-Also, the “original value” of a property is not fixed: it is whatever the
+The “original value” of a property is not fixed: it is whatever the
 value would have been if this animation wasn't applied.
+Also, if you set the **dynamic** argument to Animation, the animation's
+*target* becomes an :class:`~gillcup.AnimatedProperty`.
 Animating these allows one to create very complex effects in a modular way.
 
 .. autoclass:: gillcup.Animation

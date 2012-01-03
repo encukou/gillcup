@@ -2,10 +2,11 @@ from __future__ import division
 
 from gillcup.actions import Action
 from gillcup.effect import Effect
+from gillcup.properties import AnimatedProperty
 from gillcup import easing as easing_module
 
 class Animation(Effect, Action):
-    """An Animation: Action that modifies an animated property
+    """An Animation that modifies a scalar animated property
 
     Positional init arguments:
 
@@ -22,11 +23,11 @@ class Animation(Effect, Action):
         Value at which the animation should arrive (tuple properties
         accept more arguments, i.e. ``Animation(obj, 'position', 1, 2, 3)``)
 
+    Keyword init arguments:
+
     :argument time:
 
         The duration of the animation
-
-    Keyword init arguments:
 
     :argument delay:
 
@@ -56,16 +57,34 @@ class Animation(Effect, Action):
         An easing function to use. Can be either a one-argument
         function, or a dotted name which is looked up in the
         :mod:`gillcup.easing` module.
+
+    :argument dynamic:
+
+        If true, the **target** atribute becomes an AnimatedProperty, allowing
+        for more complex animations.
     """
 
-    def __init__(self, object, property_name, target, time=1, delay=0,
-            easing='linear', timing=None):
+    def __init__(self, object, property_name, *target, **kwargs):
         super(Animation, self).__init__()
         self.object = object
-        self.target = target
-        self.time = time
-        self.parent = None
-        self.delay = delay
+        self.property = self.get_property(object, property_name)
+
+        try:
+            new_target = kwargs.pop('target')
+        except KeyError:
+            pass
+        else:
+            if target:
+                raise ValueError('Target specified as both positional and ' +
+                    'keyword arguments')
+            target = new_target
+
+        self.target = self.property.adjust_value(target)
+
+        self.time = kwargs.pop('time', 1)
+        self.delay = kwargs.pop('delay', 0)
+        easing = kwargs.pop('easing', 'linear')
+        timing = kwargs.pop('timing', None)
 
         if timing == 'infinite':
             self.get_time = self._infinite_timing
@@ -83,21 +102,25 @@ class Animation(Effect, Action):
         else:
             self.easing = easing
 
+    @classmethod
+    def get_property(self, object, property_name):
+        return getattr(type(object), property_name)
+
     def __new__(cls, object, property_name, *args, **kwargs):
-        # Since descriptors can only be on classes, and we want `target` to
-        # match whatever we're animating, we use a special subclass with
-        # `target` set.
-        # Also, tuple properties can be animated with *args.
-        property = getattr(type(object), property_name)
-        try:
-            animation_class_factory = property.animation_class_factory
-        except AttributeError:
-            raise ValueError('%s is not an animated property' % property_name)
+        if kwargs.pop('dynamic', False):
+            # We need the target to act the same as the animated property
+            # (wrt adjust_value: being scalar/tuple, etc).
+            # An AnimatedProperty needs to be on a class, we can't just put
+            # a descriptor on an instance.
+            # So, we create a trivial subclass that has the target property.
+            class AnimatedAnimation(cls):
+                prop = cls.get_property(object, property_name)
+                target = prop.get_target_property()
+            ani_class = AnimatedAnimation
+        else:
+            ani_class = cls
         super_new = super(Animation, cls).__new__
-        ani_class = animation_class_factory(cls)
-        instance = super_new(ani_class, object, property_name, *args, **kwargs)
-        instance.property = getattr(type(object), property_name)
-        return instance
+        return super_new(ani_class, object, property_name, *args, **kwargs)
 
     def __call__(self):
         self.expire()
@@ -154,10 +177,11 @@ class Computed(Animation):
     The function will get one argument: the time elapsed, normalized by the
     animation's `timing` function.
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, object, property_name, **kwargs):
         self.func = kwargs.pop('func')
-        kwargs.setdefault('target', self.property.default)
-        super(Computed, self).__init__(*args, **kwargs)
+        prop = self.get_property(object, property_name)
+        kwargs.setdefault('target', [prop.default])
+        super(Computed, self).__init__(object, property_name, **kwargs)
 
     def compute_value(self, previous, target):
         t = self.get_time()
