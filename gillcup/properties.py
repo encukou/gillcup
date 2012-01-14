@@ -88,6 +88,9 @@ class TupleProperty(AnimatedProperty):
         """
         return value
 
+    def __set__(self, instance, value):
+        self.animate(instance, ConstantEffect(self.adjust_value(value)))
+
     def __iter__(self):
         return iter(self.subproperties)
 
@@ -147,3 +150,92 @@ class _TupleMakeEffect(Effect):
         return tuple(parent.value if i == self.index else val
             for i, val in enumerate(self.previous.value))
         return self.parent.value[self.index]
+
+class ScaleProperty(TupleProperty):
+    """A TupleProperty used for scales or sizes in multiple dimensions
+
+    Instead of a default value, __init__ takes the number of dimensions;
+    the default value will be ``(1,) * num_dimensions``.
+
+    Acts as a regular TupleProperty, but supports scalars or short tuples in
+    assignment or animation.
+
+    If a scalar, or a tuple with only one element, is given, the value is
+    repeated across all dimensions.
+    If another short tuple is given, the remaining dimensions are set to 1.
+
+    For example, given::
+
+        size = ScaleProperty(3)
+
+    the following pairs are equivalent::
+
+        obj.size = 2
+        obj.size = 2, 2, 2
+
+        obj.size = 2, 3
+        obj.size = 2, 3, 1
+
+        obj.size = 2,
+        obj.size = 2, 2, 2
+
+    Similarly, ``Animation(obj, 'size', 2)`` is equivalent to
+    ``Animation(obj, 'size', 2, 2, 2)``.
+    """
+    def __init__(self, num_dimensions, **kwargs):
+        super(ScaleProperty, self).__init__(*(1, ) * num_dimensions, **kwargs)
+
+    def adjust_value(self, value):
+        """Expand the given tuple or scalar to a tuple of len=num_dimensions
+        """
+        try:
+            size = len(value)
+        except TypeError:
+            return (value, ) * self.size
+        if size == self.size:
+            return value
+        elif size == 1:
+            return value * self.size
+        elif size < self.size:
+            return value + (1, ) * (self.size - size)
+        else:
+            raise ValueError('Too many dimensions for ScaleProperty')
+
+class VectorProperty(TupleProperty):
+    """A TupleProperty used for vectors
+
+    Instead of a default value, __init__ takes the number of dimensions;
+    the default value will be ``(0,) * num_dimensions``.
+
+    Acts as a regular TupleProperty, but supports scalars or short tuples in
+    assignment or animation by setting all remaining dimensions to 0.
+
+    For example, given::
+
+        position = VectorProperty(3)
+
+    the following pairs are equivalent::
+
+        obj.position = 2, 3
+        obj.position = 2, 3, 0
+
+        obj.position = 2,
+        obj.position = 2, 0, 0
+
+    Similarly, ``Animation(obj, 'position', 1, 2)`` is equivalent to
+    ``Animation(obj, 'position', 1, 2, 0)``.
+    """
+    def __init__(self, num_dimensions, **kwargs):
+        super(VectorProperty, self).__init__(*(0, ) * num_dimensions, **kwargs)
+
+    def adjust_value(self, value):
+        """Expand the given tuple to the correct number of dimensions
+        """
+        size = len(value)
+        if size == self.size:
+            return value
+        elif size < self.size:
+            return value + (0, ) * (self.size - size)
+        else:
+            raise ValueError('Too many dimensions for VectorProperty')
+

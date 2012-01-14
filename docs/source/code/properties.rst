@@ -19,8 +19,8 @@ Animated properties use Python's `descriptor interface
 <http://docs.python.org/howto/descriptor.html>`_ to provide efficient access to
 animated properties.
 
-Assigning to an animated attribute causes it to get set to that value,
-and cancels any running animations on it.
+Assigment to an animated attribute causes the property to get set to the given
+value and cancels any running animations on it.
 
 See :mod:`gillcup.animation` for information on how to actually do animations.
 
@@ -33,3 +33,11 @@ See :mod:`gillcup.animation` for information on how to actually do animations.
 
     .. automethod:: gillcup.TupleProperty.adjust_value
     .. automethod:: gillcup.TupleProperty.map
+
+.. autoclass:: gillcup.properties.ScaleProperty
+
+    .. automethod:: gillcup.properties.ScaleProperty.adjust_value
+
+.. autoclass:: gillcup.properties.VectorProperty
+
+    .. automethod:: gillcup.properties.VectorProperty.adjust_value
