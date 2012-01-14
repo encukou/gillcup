@@ -45,7 +45,7 @@ class GlTransformation(BaseTransformation):
     def pop(self, *junk):
         gl.glPopMatrix()
 
-    def translate(self, x, y, z=0):
+    def translate(self, x=0, y=0, z=0):
         gl.glTranslatef(x, y, z)
 
     def rotate(self, angle, x=0, y=0, z=1):
