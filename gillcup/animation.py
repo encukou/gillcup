@@ -10,7 +10,7 @@ class Animation(Effect, Action):
 
     Positional init arguments:
 
-    :argument object:
+    :argument instance:
 
         The object whose property is animated
 
@@ -64,10 +64,10 @@ class Animation(Effect, Action):
         for more complex animations.
     """
 
-    def __init__(self, object, property_name, *target, **kwargs):
+    def __init__(self, instance, property_name, *target, **kwargs):
         super(Animation, self).__init__()
-        self.object = object
-        self.property = self.get_property(object, property_name)
+        self.instance = instance
+        self.property = self.get_property(instance, property_name)
 
         try:
             new_target = kwargs.pop('target')
@@ -103,28 +103,28 @@ class Animation(Effect, Action):
             self.easing = easing
 
     @classmethod
-    def get_property(self, object, property_name):
-        return getattr(type(object), property_name)
+    def get_property(self, instance, property_name):
+        return getattr(type(instance), property_name)
 
-    def __new__(cls, object, property_name, *args, **kwargs):
-        if kwargs.pop('dynamic', False):
+    def __new__(cls, instance, property_name, *args, **kwargs):
+        if kwargs.get('dynamic', False):
             # We need the target to act the same as the animated property
             # (wrt adjust_value: being scalar/tuple, etc).
             # An AnimatedProperty needs to be on a class, we can't just put
             # a descriptor on an instance.
             # So, we create a trivial subclass that has the target property.
+            prop = cls.get_property(instance, property_name)
             class AnimatedAnimation(cls):
-                prop = cls.get_property(object, property_name)
                 target = prop.get_target_property()
             ani_class = AnimatedAnimation
         else:
             ani_class = cls
         super_new = super(Animation, cls).__new__
-        return super_new(ani_class, object, property_name, *args, **kwargs)
+        return super_new(ani_class, instance, property_name, *args, **kwargs)
 
     def __call__(self):
         self.expire()
-        self.parent = self.property.animate(self.object, self)
+        self.parent = self.property.animate(self.instance, self)
         self.start_time = self.clock.time + self.delay
         self.clock.schedule(self.trigger_chain, self.time + self.delay)
 
@@ -176,11 +176,11 @@ class Computed(Animation):
     The function will get one argument: the time elapsed, normalized by the
     animation's `timing` function.
     """
-    def __init__(self, object, property_name, **kwargs):
+    def __init__(self, instance, property_name, **kwargs):
         self.func = kwargs.pop('func')
-        prop = self.get_property(object, property_name)
+        prop = self.get_property(instance, property_name)
         kwargs.setdefault('target', [prop.default])
-        super(Computed, self).__init__(object, property_name, **kwargs)
+        super(Computed, self).__init__(instance, property_name, **kwargs)
 
     def compute_value(self, previous, target):
         t = self.get_time()
