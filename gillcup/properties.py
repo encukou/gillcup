@@ -61,6 +61,15 @@ class AnimatedProperty(object):
         instance._gillcup_effects[self] = animation
         return parent
 
+    def do_replacements(self, instance):
+        try:
+            _gillcup_effects = instance._gillcup_effects
+            current_effect = _gillcup_effects[self]
+        except (AttributeError, KeyError):
+            pass
+        else:
+            _gillcup_effects[self] = current_effect.get_replacement()
+
     def map(self, function, parent_value, value):
         """Call a scalar tween function on two values.
         """

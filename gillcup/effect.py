@@ -10,7 +10,13 @@ class Effect(object):
     Effects should have a `value` attribute that provides a value for the
     property.
     """
-    pass
+    def get_replacement(self):
+        """Return an equivalent effect
+
+        When it's sure that the effect's value won't change any more, this
+        method can return a ConstantEffect to free resources.
+        """
+        return self
 
 class ConstantEffect(Effect):
     """An Effect that provides a constant value

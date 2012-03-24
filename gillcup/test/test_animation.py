@@ -1,4 +1,6 @@
 import math
+import weakref
+import gc
 
 import pytest
 
@@ -227,3 +229,44 @@ def test_easing(Tone):
             assert 440 < tone.pitch < 450
         clock.advance(1)
         assert tone.pitch == 450
+
+def test_simple_resource_freeing(Tone):
+    """Assert unneeded animations don't linger around"""
+    clock = Clock()
+    tone = Tone()
+    anim = Animation(tone, 'pitch', 450, time=1)
+    clock.schedule(anim)
+    ref = weakref.ref(anim)
+    del anim
+    clock.advance(1)
+    gc.collect()
+    assert tone.pitch == 450
+    assert ref() is None
+
+def test_resource_freeing_of_parent(Tone):
+    """Assert unneeded animations don't linger around if shadowed"""
+    clock = Clock()
+    tone = Tone()
+    anim = Animation(tone, 'pitch', 450, time=1)
+    clock.schedule(anim)
+    clock.schedule(Animation(tone, 'pitch', 460, time=1))
+    ref = weakref.ref(anim)
+    del anim
+    clock.advance(1)
+    gc.collect()
+    assert tone.pitch == 460
+    assert ref() is None
+
+def test_resource_freeing_of_add_parent(Tone):
+    """Assert unneeded animations don't linger around if shadowed by Add"""
+    clock = Clock()
+    tone = Tone()
+    anim = Animation(tone, 'pitch', 450, time=1)
+    clock.schedule(anim)
+    clock.schedule(animation.Add(tone, 'pitch', 50, time=10))
+    ref = weakref.ref(anim)
+    del anim
+    clock.advance(1)
+    gc.collect()
+    assert tone.pitch == 455
+    assert ref() is None

@@ -1,7 +1,9 @@
+# Encoding: UTF-8
+
 from __future__ import division
 
 from gillcup.actions import Action
-from gillcup.effect import Effect
+from gillcup.effect import Effect, ConstantEffect
 from gillcup.properties import AnimatedProperty
 from gillcup import easing as easing_module
 
@@ -79,6 +81,7 @@ class Animation(Effect, Action):
         This includes cases where the value depends on the value of the
         previous (parent) animation.
     """
+    dynamic = False
 
     def __init__(self, instance, property_name, *target, **kwargs):
         super(Animation, self).__init__()
@@ -96,6 +99,11 @@ class Animation(Effect, Action):
             target = new_target
 
         self.target = self.property.adjust_value(target)
+
+        self.dynamic = (self.dynamic or 'timing' in kwargs or
+            kwargs.pop('dynamic', False))
+        if not self.dynamic:
+            self.chain(lambda: self.property.do_replacements(instance))
 
         self.time = kwargs.pop('time', 1)
         self.delay = kwargs.pop('delay', 0)
@@ -152,9 +160,9 @@ class Animation(Effect, Action):
 
     def get_time(self):
         elapsed = self.clock.time - self.start_time
-        if elapsed < 0:
+        if elapsed <= 0:
             return 0
-        if elapsed > self.time:
+        if elapsed >= self.time:
             return 1
         else:
             return elapsed / self.time
@@ -170,9 +178,19 @@ class Animation(Effect, Action):
         t = self.easing(self.get_time())
         return previous * (1 - t) + target * t
 
+    def get_replacement(self):
+        self.parent = self.parent.get_replacement()
+        if not self.dynamic and self.get_time() >= 1:
+            # Not gonna change from now on
+            return ConstantEffect(self.value)
+        else:
+            return self
+
 class Add(Animation):
     """An additive animation: the target value is added to the original
     """
+    dynamic = True
+
     def compute_value(self, previous, target):
         t = self.easing(self.get_time())
         return previous + target * t
@@ -180,6 +198,8 @@ class Add(Animation):
 class Multiply(Animation):
     """A multiplicative animation: target value is multiplied to the original
     """
+    dynamic = True
+
     def compute_value(self, previous, target):
         t = self.easing(self.get_time())
         return previous * ((1 - t) + target * t)
