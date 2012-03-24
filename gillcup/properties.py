@@ -154,11 +154,11 @@ class _TupleMakeEffect(Effect):
 class ScaleProperty(TupleProperty):
     """A TupleProperty used for scales or sizes in multiple dimensions
 
+    It acts as a regular TupleProperty, but supports scalars or short tuples in
+    assignment or animation.
+
     Instead of a default value, __init__ takes the number of dimensions;
     the default value will be ``(1,) * num_dimensions``.
-
-    Acts as a regular TupleProperty, but supports scalars or short tuples in
-    assignment or animation.
 
     If a scalar, or a tuple with only one element, is given, the value is
     repeated across all dimensions.
@@ -166,7 +166,7 @@ class ScaleProperty(TupleProperty):
 
     For example, given::
 
-        size = ScaleProperty(3)
+        width, height, length = size = ScaleProperty(3)
 
     the following pairs are equivalent::
 
@@ -204,15 +204,15 @@ class ScaleProperty(TupleProperty):
 class VectorProperty(TupleProperty):
     """A TupleProperty used for vectors
 
+    It acts as a regular TupleProperty, but supports short tuples in
+    assignment or animation by setting all remaining dimensions to 0.
+
     Instead of a default value, __init__ takes the number of dimensions;
     the default value will be ``(0,) * num_dimensions``.
 
-    Acts as a regular TupleProperty, but supports scalars or short tuples in
-    assignment or animation by setting all remaining dimensions to 0.
-
     For example, given::
 
-        position = VectorProperty(3)
+        x, y, z = position = VectorProperty(3)
 
     the following pairs are equivalent::
 

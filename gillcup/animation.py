@@ -6,7 +6,7 @@ from gillcup.properties import AnimatedProperty
 from gillcup import easing as easing_module
 
 class Animation(Effect, Action):
-    """An Animation that modifies a scalar animated property
+    u"""An Animation that modifies a scalar animated property
 
     Positional init arguments:
 
@@ -62,6 +62,22 @@ class Animation(Effect, Action):
 
         If true, the **target** atribute becomes an AnimatedProperty, allowing
         for more complex animations.
+
+    .. note::
+
+        In order to conserve resources, ordinary Animations are released when
+        they are “done”. This is done by effectively replacing them with
+        an animation whose value is constant.
+        When using arguments such as ``timing`` and ``dynamic``, or the
+        :class:`~gillcup.animation.Add` or :class:`~gillcup.animation.Multiply`
+        animations, which allow the value to be modified after the ``time``
+        elapses, turns this behavior off by setting the ``dynamic`` attibute
+        to true.
+
+        When subclassing Animation, remember to do the same if your subclass
+        needs to change its value after ``time`` elapses.
+        This includes cases where the value depends on the value of the
+        previous (parent) animation.
     """
 
     def __init__(self, instance, property_name, *target, **kwargs):
@@ -176,8 +192,8 @@ class Computed(Animation):
     The function will get one argument: the time elapsed, normalized by the
     animation's `timing` function.
     """
-    def __init__(self, instance, property_name, **kwargs):
-        self.func = kwargs.pop('func')
+    def __init__(self, instance, property_name, func, **kwargs):
+        self.func = func
         prop = self.get_property(instance, property_name)
         kwargs.setdefault('target', [prop.default])
         super(Computed, self).__init__(instance, property_name, **kwargs)

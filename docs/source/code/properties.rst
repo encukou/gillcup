@@ -15,8 +15,8 @@ Continuous changes happen over a period of time: an object smoothly moves
 to the left, or a sound fades out.
 These changes are made by animating special properties on objects.
 
-Animated properties use Python's `descriptor interface
-<http://docs.python.org/howto/descriptor.html>`_ to provide efficient access to
+Gillcup uses Python's `descriptor interface
+<http://docs.python.org/howto/descriptor.html>`_ to provide efficient
 animated properties.
 
 Assigment to an animated attribute causes the property to get set to the given

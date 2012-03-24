@@ -6,8 +6,8 @@ class Action(object):
     """A chainable “event” designed for being scheduled.
 
     As any callable, an Action can be scheduled on a clock, either by
-    :meth:`~gillcup.Clock.schedule()`, or, as a shortcut, directly from the
-    constructor with the `clock` and `dt` arguments, or by chaining.
+    :meth:`~gillcup.Clock.schedule()`, or by chaining, or, as a shortcut,
+    directly from the constructor with the `clock` and `dt` arguments.
     Each Action may only be scheduled *once*.
 
     Other actions (the lowercase term denotes “arbitrary callables”) may be
@@ -15,7 +15,7 @@ class Action(object):
     Action is run.
 
     Some Actions may represent a time interval or process rather than a
-    discrete point in time; in these cases, chained actions are run after the
+    discrete point in time. In these cases, chained actions are run after the
     interval is over or the process finishes.
 
     Actions may be combined to form larger structures using
@@ -28,7 +28,7 @@ class Action(object):
             all actions are started at once.
 
     The operators can be used with regular callables (which are :class:`wrapped
-    in Actions <gillcup.actions.FunctionCaller>`), or with numbers
+    <gillcup.actions.FunctionCaller>`), or with numbers
     (which create corresponding :class:`delays <gillcup.actions.Delay>`).
     """
     # The states an Animation goes through are:
@@ -214,6 +214,8 @@ class Sequence(Action):
             action.chain(self.call_next)
             self.clock.schedule(action)
 
+    # XXX: Overload __add__, __radd__?
+
 class Parallel(Action):
     """Starts the given Actions, and triggers chained ones after all are done
 
@@ -239,3 +241,5 @@ class Parallel(Action):
         self.remaining_actions.remove(action)
         if not self.remaining_actions:
             self.trigger_chain()
+
+    # XXX: Overload __or__, __ror__?
