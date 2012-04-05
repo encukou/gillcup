@@ -38,7 +38,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 """
 
-from __future__ import division
+from __future__ import unicode_literals, division, print_function
 
 import sys
 import functools
@@ -65,8 +65,8 @@ def normalized(func):
 
 def _add_postfix(decorated, func, postfix):
     try:
-        decorated.__name__ = func.__name__ + '_' + postfix
-    except AttributeError:
+        decorated.__name__ = str(func.__name__ + '_' + postfix)
+    except AttributeError:  # pragma: no cover
         pass
 
 def ease_in(func):
@@ -110,7 +110,7 @@ def easefunc(func):
 
 @easefunc
 def linear(t):
-    u"""Linear interpolation
+    """Linear interpolation
 
     t → t
     """
@@ -118,7 +118,7 @@ def linear(t):
 
 @easefunc
 def quadratic(t):
-    u"""Quadratic easing
+    """Quadratic easing
 
     t → t**2
     """
@@ -126,7 +126,7 @@ def quadratic(t):
 
 @easefunc
 def cubic(t):
-    u"""Cubic easing
+    """Cubic easing
 
     t → t**3
     """
@@ -134,7 +134,7 @@ def cubic(t):
 
 @easefunc
 def quartic(t):
-    u"""Quartic easing
+    """Quartic easing
 
     t → t**4
     """
@@ -142,7 +142,7 @@ def quartic(t):
 
 @easefunc
 def quintic(t):
-    u"""Quintic easing
+    """Quintic easing
 
     t → t**5
     """
@@ -150,7 +150,7 @@ def quintic(t):
 
 @easefunc
 def sine(t):
-    u"""Sinusoidal easing
+    """Sinusoidal easing
 
     Quarter of a cosine wave
     """
@@ -158,7 +158,7 @@ def sine(t):
 
 @easefunc
 def exponential(t):
-    u"""Exponential easing
+    """Exponential easing
     """
     if t in (0, 1):
         return t
@@ -167,7 +167,7 @@ def exponential(t):
 
 @easefunc
 def circular(t):
-    u"""Circular easing
+    """Circular easing
     """
     try:
         return 1 - math.sqrt(1 - t * t)
@@ -175,7 +175,7 @@ def circular(t):
         return 0
 
 def elastic(period, amplitude=1):
-    u"""Elastic easing factory
+    """Elastic easing factory
     """
     @easefunc
     def elastic(t):
@@ -184,7 +184,7 @@ def elastic(period, amplitude=1):
     return elastic
 
 def overshoot(amount):
-    u"""Overshoot easing factory
+    """Overshoot easing factory
     """
     @easefunc
     def overshoot(t):
@@ -208,7 +208,7 @@ def _bounce_helper(t, c, a):
         return 1 + a * (1. - (7.5625 * t * t + .984375)) - c
 
 def bounce(amplitude):
-    u"""Bounce easing factory
+    """Bounce easing factory
     """
     @easefunc
     def bounce(t):

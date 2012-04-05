@@ -9,8 +9,7 @@ setup(
     description="""An animation framework for Python""",
     author='Petr Viktorin',
     author_email='encukou@gmail.com',
-    install_requires=[],
-    use_2to3=True,
+    install_requires=['six'],
     classifiers=[
             'Intended Audience :: Developers',
             'License :: OSI Approved :: MIT License',

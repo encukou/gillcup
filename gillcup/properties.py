@@ -1,5 +1,7 @@
 # Encoding: UTF-8
 
+from __future__ import unicode_literals, division, print_function
+
 from gillcup.effect import Effect, ConstantEffect
 
 class AnimatedProperty(object):
@@ -88,7 +90,7 @@ class TupleProperty(AnimatedProperty):
         super(TupleProperty, self).__init__(default, **kwargs)
         self.size = len(default)
         self.subproperties = [_TupleElementProperty(self, i)
-                for i in xrange(self.size)]
+                for i in range(self.size)]
 
     def adjust_value(self, value):
         """Convert an animation's ``*args`` values into a property value

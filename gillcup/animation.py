@@ -1,6 +1,8 @@
 # Encoding: UTF-8
 
-from __future__ import division
+from __future__ import unicode_literals, division, print_function
+
+from six import string_types
 
 from gillcup.actions import Action
 from gillcup.effect import Effect, ConstantEffect
@@ -8,7 +10,7 @@ from gillcup.properties import AnimatedProperty
 from gillcup import easing as easing_module
 
 class Animation(Effect, Action):
-    u"""An Animation that modifies a scalar animated property
+    """An Animation that modifies a scalar animated property
 
     Positional init arguments:
 
@@ -118,7 +120,7 @@ class Animation(Effect, Action):
             self.get_time = lambda: timing(
                     self.clock.time, self.start_time, self.time)
 
-        if isinstance(easing, basestring):
+        if isinstance(easing, string_types):
             e = easing_module
             for attr in easing.split('.'):
                 e = getattr(e, attr)

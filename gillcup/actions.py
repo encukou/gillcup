@@ -1,6 +1,18 @@
 # Encoding: UTF-8
+"""Gillcup Actions
+
+Although arbitrary callables can be scheduled on a Gillcup
+:class:`~gillcup.Clock`, one frequently schedules objects that are specifically
+made for this purpose.
+Using :class:`gillcup.Action` allows one to chain actions together in various
+ways, allowing the developer to create complex effects.
+"""
+
+from __future__ import unicode_literals, division, print_function
 
 import numbers
+
+from six import callable  # pylint: disable=W0622
 
 class Action(object):
     """A chainable “event” designed for being scheduled.

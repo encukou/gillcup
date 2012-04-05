@@ -13,12 +13,15 @@ a better solution than the following hack.
 
 import unittest
 import os
+import sys
 
 import pytest
 
 def run():
     class PytestWrapper(unittest.TestCase):
+        """TestCase that wraps pytest & pylint"""
         def test_wraper(self):
+            """Run pytest"""
             errno = pytest.main([os.path.dirname(__file__)])
             assert not errno, 'pytest failed'
     return unittest.TestSuite([PytestWrapper('test_wraper')])

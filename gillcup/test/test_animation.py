@@ -1,3 +1,7 @@
+"""Tests for the gillcup.animations module"""
+
+from __future__ import unicode_literals, division, print_function
+
 import math
 import weakref
 import gc
@@ -219,12 +223,12 @@ def test_easing(Tone):
         for mod in 'in_ out in_out out_in'.split():
             easings.append(getattr(easing, mod))
     for easing in easings:
-        print easing
+        print(easing)
         clock = Clock()
         tone = Tone()
         action = Animation(tone, 'pitch', 450, time=2, easing=easing)
         clock.schedule(action)
-        for i in xrange(20):
+        for dummy in range(21):
             clock.advance(0.05)
             assert 440 < tone.pitch < 450
         clock.advance(1)

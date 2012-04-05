@@ -1,4 +1,6 @@
-from __future__ import division
+"""Tests for the gillcup.clock module"""
+
+from __future__ import unicode_literals, division, print_function
 
 import pytest
 
@@ -63,7 +65,7 @@ def test_integer_times():
     clock.schedule(append_time(lst, clock), 1)
     clock.schedule(append_time(lst, clock), 2)
     clock.schedule(append_time(lst, clock), 3)
-    for i in xrange(30):
+    for dummy in range(30):
         clock.advance(0.3)
     assert lst == [1, 2, 3]
     for time in lst:
@@ -107,7 +109,7 @@ def test_subclock():
     lst = []
     def append_const(lst, c):
         def append():
-            print c, clock.time, subclock.time
+            print(c, clock.time, subclock.time)
             lst.append(c)
         return append
     subclock.schedule(append_const(lst, 'a'), 1)
