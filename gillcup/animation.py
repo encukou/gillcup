@@ -145,7 +145,6 @@ class Animation(Effect, Action):
     get_time.finite = True
 
     def _absolute_timing(self):
-        print self.clock.time, self.time
         return self.clock.time / self.time
 
     def _infinite_timing(self):
