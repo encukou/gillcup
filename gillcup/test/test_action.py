@@ -1,6 +1,6 @@
 """Tests for the gillcup.action module"""
 
-from pytest import raises
+from pytest import raises, mark
 
 from gillcup import Clock, Action, actions
 
@@ -203,3 +203,30 @@ def test_chain_on_expired():
     assert lst == ['a', 'b']
     clock.advance(1)
     assert lst == ['a', 'b', 'c']
+
+
+@mark.parametrize(('maker'), [
+        lambda g: Action.coerce(g()),
+        lambda g: actions.process_generator(g)(),
+    ])
+def test_generator(maker):
+    """Test actions.Generator"""
+    clock = Clock()
+    lst = []
+    def _generator():
+        yield 1
+        lst.append('a')
+        yield 1
+        lst.append('b')
+        yield TimeAppendingAction(lst)
+        yield 1
+    action = maker(_generator)
+    clock.schedule(action)
+    action.chain(TimeAppendingAction(lst))
+    assert lst == []
+    clock.advance(1)
+    assert lst == ['a']
+    clock.advance(1)
+    assert lst == ['a', 'b', 2]
+    clock.advance(1)
+    assert lst == ['a', 'b', 2, 3]

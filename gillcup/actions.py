@@ -12,8 +12,9 @@ ways, allowing the developer to create complex effects.
 from __future__ import unicode_literals, division, print_function
 
 import numbers
+import functools
 
-from six import callable  # pylint: disable=W0622
+from six import callable, advance_iterator  # pylint: disable=W0622
 
 
 class Action(object):
@@ -42,9 +43,10 @@ class Action(object):
         *   ``|`` creates a :class:`~gillcup.actions.Parallel` construct:
             all actions are started at once.
 
-    The operators can be used with regular callables (which are :class:`wrapped
-    <gillcup.actions.FunctionCaller>`), or with numbers
-    (which create corresponding :class:`delays <gillcup.actions.Delay>`).
+    The operators can be used with regular callables (which are wrapped in
+    :class:`~gillcup.actions.FunctionCaller`), or with numbers
+    (which create corresponding :class:`delays <gillcup.actions.Delay>`), or
+    with iterables (which get wrapped in :class:`~gillcup.actions.Process`).
     """
     # The states an Animation goes through are:
     # - unscheduled (self.clock is unset)
@@ -105,7 +107,12 @@ class Action(object):
         elif isinstance(value, numbers.Real):
             return Delay(value)
         else:
-            raise ValueError("%s can't be coerced into Action" % value)
+            try:
+                iterator = iter(value)
+            except TypeError:
+                raise ValueError("%s can't be coerced into Action" % value)
+            else:
+                return Process(iterator)
 
     def __call__(self):
         """Run this action.
@@ -264,3 +271,51 @@ class Parallel(Action):
             self.trigger_chain()
 
     # XXX: Overload __or__, __ror__?
+
+
+class Process(Action):
+    """Wraps the given iterable
+
+    When triggered, takes an item from the iterable and schedules it, then
+    chains the scheduling of the next item, and so on.
+    When the underlying iterator is exhausted, chained actions are run.
+
+    The items in the underlying iterable can be callables, numbers or other
+    iterables, as for :class:`~gillcup.actions.Action`'s ``+`` and ``|``
+    operators.
+
+    The `kwargs` are passed to :class:`gillcup.Action`'s initializer.
+
+    See :func:`process_generator` for a simple way to create Processes.
+    """
+    def __init__(self, iterable, **kwargs):
+        self.iterator = iter(iterable)
+        super(Process, self).__init__(**kwargs)
+
+    def __call__(self):
+        self.expire()
+        self.do_next()
+
+    def do_next(self):
+        """Schedule the next thing from the iterable"""
+        try:
+            value = advance_iterator(self.iterator)
+        except StopIteration:
+            self.trigger_chain()
+        else:
+            action = self.coerce(value)
+            action.chain(self.do_next)
+            self.clock.schedule(action)
+
+
+def process_generator(func):
+    """Decorator for creating :class:`~gillcup.actions.Process`\ es
+
+    Used as a decorator on a generator function, it allows writing in a
+    declarative style instead of callbacks, with ``yield`` statements for
+    "asynchronousness".
+    """
+    @functools.wraps(func)
+    def _f(*args, **kwargs):
+        return Process(func(*args, **kwargs))
+    return _f

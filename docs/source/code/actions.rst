@@ -30,3 +30,5 @@ Building blocks for complex actions
 .. autoclass:: gillcup.actions.Delay
 .. autoclass:: gillcup.actions.Sequence
 .. autoclass:: gillcup.actions.Parallel
+.. autoclass:: gillcup.actions.Process
+.. autoclass:: gillcup.actions.process_generator
