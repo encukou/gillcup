@@ -1,4 +1,5 @@
 # Encoding: UTF-8
+
 """Gillcup Actions
 
 Although arbitrary callables can be scheduled on a Gillcup
@@ -13,6 +14,7 @@ from __future__ import unicode_literals, division, print_function
 import numbers
 
 from six import callable  # pylint: disable=W0622
+
 
 class Action(object):
     """A chainable “event” designed for being scheduled.
@@ -31,7 +33,8 @@ class Action(object):
     interval is over or the process finishes.
 
     Actions may be combined to form larger structures using
-    :ref:`helper Action subclasses <action-building-blocks>` as building blocks.
+    :ref:`helper Action subclasses <action-building-blocks>` as building
+    blocks.
     As a shorthand, the following operators are available:
 
         *   ``+`` creates a :class:`~gillcup.actions.Sequence` of actions;
@@ -48,6 +51,8 @@ class Action(object):
     # - scheduled
     # - in progress (self.expired == True)
     # - done (self.chain_triggered == True)
+    scheduled_time = None
+
     def __init__(self, clock=None, dt=0):
         super(Action, self).__init__()
 
@@ -89,7 +94,7 @@ class Action(object):
 
     @classmethod
     def coerce(cls, value):
-        """Coerce a value into an action. Called on operands of ``+`` and ``|``.
+        """Coerce value into an action. Called on operands of ``+`` and ``|``.
 
         Wraps functions in FunctionCallers, and numbers in Delays
         """
@@ -172,8 +177,9 @@ class Action(object):
             return NotImplemented
         return Parallel(other, self)
 
+
 class FunctionCaller(Action):
-    """An Action that calls the given `function`, passing `args` and `kwargs` to it
+    """An Action that calls given `function`, passing `args` and `kwargs` to it
 
     `function` can be any callable.
     """
@@ -187,6 +193,7 @@ class FunctionCaller(Action):
         self.function(*self.args, **self.kwargs)
         super(FunctionCaller, self).__call__()
 
+
 class Delay(Action):
     """An Action that triggers chained actions after a given delay
 
@@ -199,6 +206,7 @@ class Delay(Action):
     def __call__(self):
         self.expire()
         self.clock.schedule(self.trigger_chain, self.time)
+
 
 class Sequence(Action):
     """An Action that runs a series of Actions one after the other
@@ -215,18 +223,19 @@ class Sequence(Action):
 
     def __call__(self):
         self.expire()
-        self.call_next()
+        self._call_next()
 
-    def call_next(self):
+    def _call_next(self):
         try:
             action = self.remaining_actions.pop()
-        except:
+        except IndexError:
             self.trigger_chain()
         else:
-            action.chain(self.call_next)
+            action.chain(self._call_next)
             self.clock.schedule(action)
 
     # XXX: Overload __add__, __radd__?
+
 
 class Parallel(Action):
     """Starts the given Actions, and triggers chained ones after all are done
@@ -243,13 +252,13 @@ class Parallel(Action):
     def __call__(self):
         self.expire()
         for action in self.remaining_actions:
-            def triggered(action=action):
-                self.triggered(action)
-            action.chain(triggered)
+            def _triggered(action=action):
+                self._triggered(action)
+            action.chain(_triggered)
             self.clock.schedule(action)
         self.remaining_actions = set(self.remaining_actions)
 
-    def triggered(self, action):
+    def _triggered(self, action):
         self.remaining_actions.remove(action)
         if not self.remaining_actions:
             self.trigger_chain()

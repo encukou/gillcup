@@ -3,6 +3,7 @@ from __future__ import division
 
 import gillcup
 
+
 class GraphicsObject(object):
     """Base class for gillcup_graphics objects
     """

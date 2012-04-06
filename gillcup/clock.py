@@ -1,4 +1,23 @@
 # Encoding: UTF-8
+"""Gillcup's Clock Class
+
+In Gillcup, animation means two things: running code at specified times,
+and changing object properties with time.
+
+You will notice that the preceding sentence mentions time quite a lot. But
+what is this time?
+
+You could determine time by looking at the computer's clock, but that would
+only work with real-time animations. When you'd want to render a movie,
+where each frame takes 2 seconds to draw and there are 25 frames per
+second, you'd be stuck.
+That's why Gillcup introduces a flexible source of time, the Clock, which
+keeps track of time and schedules actions.
+
+Time is measured in “time units”.
+What a time unit means is entirely up to the application – it could be
+seconds, movie/simulation frames, etc.
+"""
 
 from __future__ import unicode_literals, division, print_function
 
@@ -13,6 +32,7 @@ _HeapEntry = collections.namedtuple('EventHeapEntry', 'time index action')
 # Next action index; used to keep FIFO ordering for actions scheduled
 # for the same time
 next_index = 0
+
 
 class Clock(object):
     """Keeps track of time and schedules events.
@@ -48,7 +68,7 @@ class Clock(object):
         except IndexError:
             events = []
         for subclock in self._subclocks:
-            event = subclock._next_event
+            event = subclock._next_event  # pylint: disable=W0212
             if event:
                 remain, index, clock, event = event
                 try:
@@ -60,7 +80,7 @@ class Clock(object):
                     events.append((remain, index, clock, event))
         try:
             return min(events)
-        except:
+        except ValueError:
             return None
 
     def advance(self, dt):
@@ -81,7 +101,7 @@ class Clock(object):
                 event = self._next_event
                 if not event:
                     break
-                event_dt, index, clock, event = event
+                event_dt, _index, clock, event = event
                 if event_dt > dt:
                     break
                 if dt:
@@ -101,7 +121,7 @@ class Clock(object):
     def _advance(self, dt):
         self.time += dt
         for subclock in self._subclocks:
-            subclock._advance(dt * subclock.speed)
+            subclock._advance(dt * subclock.speed)  # pylint: disable=W0212
 
     def schedule(self, action, dt=0):
         """Schedule an action to be run "dt" time units from the current time
@@ -150,7 +170,8 @@ class Clock(object):
         for update_function in list(self.update_functions):
             update_function()
         for subclock in self._subclocks:
-            subclock._run_update_functions()
+            subclock._run_update_functions()  # pylint: disable=W0212
+
 
 class Subclock(Clock):
     """A Clock that advances in sync with another Clock
@@ -176,18 +197,22 @@ class Subclock(Clock):
     def __init__(self, parent, speed=1):
         super(Subclock, self).__init__()
         self.speed = speed
-        parent._subclocks.add(self)
+        parent._subclocks.add(self)  # pylint: disable=W0212
 
-try:
-    WeakSet = weakref.WeakSet
-except AttributeError:
+
+try:  # pragma: no cover
+    WeakSet = weakref.WeakSet  # pylint: disable=E1101
+except AttributeError:  # pragma: no cover
+
     class WeakSet(weakref.WeakKeyDictionary):
         """Stripped-down WeakSet implementation for Python 2.6
 
         (only defines the methods we need)
         """
         def add(self, item):
+            """Add an item to the set"""
             self[item] = None
 
         def discard(self, item):
+            """Remove an item from the set"""
             self.pop(item)

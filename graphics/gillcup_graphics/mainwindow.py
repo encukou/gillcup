@@ -2,12 +2,13 @@
 from __future__ import division
 
 import pyglet
-from pyglet.gl import *
+from pyglet import gl
 
 import gillcup
 from gillcup_graphics.transformation import GlTransformation
 
 run = pyglet.app.run
+
 
 class Window(pyglet.window.Window):
     """A main window
@@ -19,12 +20,12 @@ class Window(pyglet.window.Window):
         self.layer = layer
 
     def on_draw(self):
-        glClearColor(0, 0, 0, 0)
+        gl.glClearColor(0, 0, 0, 0)
         self.clear()
-        glEnable(GL_LINE_SMOOTH)
-        glEnable(GL_BLEND)
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        glClear(GL_COLOR_BUFFER_BIT)
+        gl.glEnable(gl.GL_LINE_SMOOTH)
+        gl.glEnable(gl.GL_BLEND)
+        gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT)
         transformation = GlTransformation()
         transformation.reset()
         self.layer.do_draw(window=self, transformation=transformation)
@@ -33,6 +34,7 @@ class Window(pyglet.window.Window):
         super(Window, self).on_resize(width, height)
         layer = self.layer
         layer.scale = width / layer.width, height / layer.height, 1
+
 
 class RealtimeClock(gillcup.Clock):
     def __init__(self):

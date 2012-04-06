@@ -1,7 +1,9 @@
 
+import sys
+
 from setuptools import setup, find_packages
 
-setup(
+setup_args = dict(
     name='gillcup',
     version='0.2.0-alpha.0',  # XXX: Duplicated in __init__.py
     packages=find_packages(),
@@ -9,7 +11,7 @@ setup(
     description="""An animation framework for Python""",
     author='Petr Viktorin',
     author_email='encukou@gmail.com',
-    install_requires=['six'],
+    install_requires=['six>=1.1'],
     classifiers=[
             'Intended Audience :: Developers',
             'License :: OSI Approved :: MIT License',
@@ -24,6 +26,13 @@ setup(
             'Topic :: Software Development :: Libraries',
         ],
 
-    tests_require=["pytest"],
+    tests_require=['pytest>=2.2', 'pytest-pep8'],
+    package_data={'': ['.pylintrc']},
     test_suite='gillcup.test.run',
 )
+
+if sys.version_info < (3, 0):
+    setup_args['tests_require'].append('pylint')
+
+if __name__ == '__main__':
+    setup(**setup_args)

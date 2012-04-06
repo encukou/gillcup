@@ -6,22 +6,28 @@ import math
 import weakref
 import gc
 
-import pytest
+from pytest import raises
 
 from gillcup import (Clock, AnimatedProperty, TupleProperty, Animation,
-        actions, animation)
+        animation)
 from gillcup import easing as easing_mod
 
+
 class ToneWithProperties(object):
+    """Test class with some animated properties"""
     pitch = AnimatedProperty(440)
     volume = AnimatedProperty(0)
     x, y, z = position = TupleProperty(0, 0, 0)
 
+
 def pytest_generate_tests(metafunc):
+    """Let Tone be injected in all tests!"""
     if "Tone" in metafunc.funcargnames:
         metafunc.parametrize("Tone", [ToneWithProperties])
 
-def test_effect(Tone):
+
+def test_animation(Tone):
+    """Test a simple animation"""
     clock = Clock()
     tone = Tone()
     clock.schedule(Animation(tone, 'pitch', 450, time=5))
@@ -36,13 +42,20 @@ def test_effect(Tone):
     assert tone.pitch == 450
     tone.pitch = 440
     assert tone.pitch == 440
-    clock.schedule(Animation(tone, 'pitch', 450, time=2))
-    clock.advance(1)
-    assert tone.pitch == 445
+    clock.schedule(Animation(tone, 'pitch', 480, time=4))
     clock.advance(1)
     assert tone.pitch == 450
+    clock.advance(1)
+    assert tone.pitch == 460
+    tone.pitch = 440
+    assert tone.pitch == 440
 
-def test_effect_scheduling(Tone):
+    with raises(ValueError):
+        Animation(tone, 'pitch', 450, target=460)
+
+
+def test_animation_scheduling(Tone):
+    """Test the scheduling of animations"""
     clock = Clock()
     tone = Tone()
     tone.volume = 60
@@ -63,7 +76,9 @@ def test_effect_scheduling(Tone):
     clock.advance(1)
     assert tone.pitch == 450 and tone.volume == 0
 
+
 def test_tuple_property(Tone):
+    """Test animating a TupleProperty"""
     clock = Clock()
     tone = Tone()
     action = Animation(tone, 'x', 2, time=2)
@@ -85,7 +100,9 @@ def test_tuple_property(Tone):
     tone.z = 3
     assert (tone.x, tone.y, tone.z) == tone.position == (1, 2, 3)
 
+
 def test_target_animation(Tone):
+    """Test animating the targer of an animation... Meta!"""
     clock = Clock()
     tone = Tone()
     action = Animation(tone, 'volume', 2, time=2, dynamic=True)
@@ -100,7 +117,9 @@ def test_target_animation(Tone):
     clock.advance(1)
     assert tone.volume == 0
 
+
 def test_tuple_target_animation(Tone):
+    """Test animating the targer of a TupleAnimation"""
     clock = Clock()
     tone = Tone()
     action = Animation(tone, 'position', 2, 4, 6, time=2, dynamic=True)
@@ -115,7 +134,9 @@ def test_tuple_target_animation(Tone):
     clock.advance(1)
     assert tone.position == (-2, -4, -6)
 
+
 def test_additive_animation(Tone):
+    """Test the animation.Add flavor of animation"""
     clock = Clock()
     tone = Tone()
     base_action = Animation(tone, 'pitch', 420, delay=3, time=2)
@@ -133,7 +154,9 @@ def test_additive_animation(Tone):
     clock.advance(1)
     assert tone.pitch == 440
 
+
 def test_multiplicative_animation(Tone):
+    """Test the animation.Multiply flavor of animation"""
     clock = Clock()
     tone = Tone()
     base_action = Animation(tone, 'pitch', 220, time=2, delay=3)
@@ -151,12 +174,14 @@ def test_multiplicative_animation(Tone):
     clock.advance(1)
     assert tone.pitch == 220 * 2
 
+
 def test_computed_animation(Tone):
+    """Test the animation.Computed flavor of animation"""
+    def _compute(t):
+        return math.sin(t) + 440
     clock = Clock()
     tone = Tone()
-    def compute(t):
-        return math.sin(t) + 440
-    action = animation.Computed(tone, 'pitch', func=compute, time=2)
+    action = animation.Computed(tone, 'pitch', func=_compute, time=2)
     clock.schedule(action)
     clock.advance(0)
     assert tone.pitch == 440
@@ -167,7 +192,9 @@ def test_computed_animation(Tone):
     clock.advance(1)
     assert tone.pitch == 440 + math.sin(1)
 
+
 def test_delay(Tone):
+    """Test the delay argument"""
     clock = Clock()
     tone = Tone()
     action = Animation(tone, 'pitch', 450, time=2, delay=1)
@@ -181,7 +208,9 @@ def test_delay(Tone):
     clock.advance(1)
     assert tone.pitch == 450
 
+
 def test_infinite_timing(Tone):
+    """Test timing='infinite'"""
     clock = Clock()
     tone = Tone()
     action = Animation(tone, 'pitch', 450, time=1, timing='infinite')
@@ -196,7 +225,9 @@ def test_infinite_timing(Tone):
     clock.advance(0.5)
     assert tone.pitch == 475
 
-def test_infinite_timing(Tone):
+
+def test_absolute_timing(Tone):
+    """Test timing='absolute'"""
     clock = Clock()
     tone = Tone()
     clock.advance(1)
@@ -211,14 +242,36 @@ def test_infinite_timing(Tone):
     clock.advance(0.5)
     assert tone.pitch == 475
 
+
+def test_custom_timing(Tone):
+    """Test custom timing"""
+    clock = Clock()
+    tone = Tone()
+    clock.advance(1)
+    action = Animation(tone, 'pitch', 450, time=1,
+            timing=lambda t, s, d: (t - s) / d / 2)
+    clock.schedule(action)
+    clock.advance(0)
+    assert tone.pitch == 440
+    clock.advance(1)
+    assert tone.pitch == 445
+    clock.advance(1)
+    assert tone.pitch == 450
+    clock.advance(1)
+    assert tone.pitch == 455
+
+
 def test_easing(Tone):
+    """Test all kinds of easing functions"""
     easings = []
-    for easing in 'linear quadratic cubic quartic quintic sine exponential circular'.split():
+    for easing in ['linear', 'quadratic', 'cubic', 'quartic', 'quintic',
+            'sine', 'exponential', 'circular']:
         easings.append(easing)
         for mod in [''] + '.in_ .out .in_out .out_in'.split():
             easings.append(easing + mod)
         easings.append(getattr(easing_mod, easing))
-    for easing in (easing_mod.linear, easing_mod.exponential, easing_mod.bounce(2)):
+    for easing in (easing_mod.linear, easing_mod.exponential,
+            easing_mod.bounce(2)):
         easings.append(easing)
         for mod in 'in_ out in_out out_in'.split():
             easings.append(getattr(easing, mod))
@@ -233,6 +286,29 @@ def test_easing(Tone):
             assert 440 < tone.pitch < 450
         clock.advance(1)
         assert tone.pitch == 450
+    for parameter in 0.5, 1, 2, 3:
+        for easing in easings + [
+                easing_mod.bounce(parameter),
+                easing_mod.overshoot(parameter),
+                easing_mod.elastic(parameter),
+            ]:
+            print(easing)
+            clock = Clock()
+            tone = Tone()
+            action = Animation(tone, 'pitch', 450, time=1, easing=easing)
+            clock.schedule(action)
+            assert tone.pitch == 440
+            clock.advance(1)
+            assert tone.pitch == 450
+    assert easing_mod.circular(2) == 1  # possible sqrt of neg. number
+
+
+def test_easing_normalization():
+    """Test easingfunc normalization works as advertised"""
+    for base_func in (lambda t: t * 4 + 3), (lambda t: t):
+        f = easing_mod.normalized(base_func)
+        assert [t / 16 for t in range(20)] == [f(t / 16) for t in range(20)]
+
 
 def test_simple_resource_freeing(Tone):
     """Assert unneeded animations don't linger around"""
@@ -247,6 +323,7 @@ def test_simple_resource_freeing(Tone):
     assert tone.pitch == 450
     assert ref() is None
 
+
 def test_resource_freeing_of_parent(Tone):
     """Assert unneeded animations don't linger around if shadowed"""
     clock = Clock()
@@ -260,6 +337,7 @@ def test_resource_freeing_of_parent(Tone):
     gc.collect()
     assert tone.pitch == 460
     assert ref() is None
+
 
 def test_resource_freeing_of_add_parent(Tone):
     """Assert unneeded animations don't linger around if shadowed by Add"""

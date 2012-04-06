@@ -13,7 +13,10 @@ but pass the NumPy module to it.
 # The more crazy matrix stuff is partly based on the GameObjects library by
 #  Will McGugan, which is today, unfortunately, without a licence, but
 #  the author wishes it to be used without restrictions:
-# http://www.willmcgugan.com/blog/tech/2007/6/7/game-objects-commandments/#comment146
+# http://www.willmcgugan.com/blog/tech/2007/6/7/game-objects-commandments/
+#   #comment146
+
+# pylint: disable=E225, E241
 
 from math import sin, cos, pi
 import contextlib
@@ -22,6 +25,7 @@ from pyglet import gl
 
 tau = 2 * pi
 deg_to_rad = tau / 360
+
 
 class BaseTransformation(object):
     @property
@@ -32,6 +36,7 @@ class BaseTransformation(object):
             yield
         finally:
             self.pop()
+
 
 class GlTransformation(BaseTransformation):
     """OpenGL implementation
@@ -56,6 +61,7 @@ class GlTransformation(BaseTransformation):
 
     def multiply(self, values):
         gl.glMultMatrixf(*matrix)
+
 
 class MatrixTransformation(BaseTransformation):
     """Implementation that uses tuples. Slow.
@@ -118,6 +124,7 @@ class MatrixTransformation(BaseTransformation):
             ))
 
     def premultiply(self, values):
+        # pylint: disable=E241
         (
                 m1_0,  m1_1,  m1_2,  m1_3,
                 m1_4,  m1_5,  m1_6,  m1_7,
@@ -155,6 +162,7 @@ class MatrixTransformation(BaseTransformation):
             )
 
     def transform_point(self, x=0, y=0, z=0):
+        # pylint: disable=E241
         (
                 m1_0,  m1_1,  m1_2,  m1_3,
                 m1_4,  m1_5,  m1_6,  m1_7,
@@ -181,7 +189,7 @@ class MatrixTransformation(BaseTransformation):
                 i12, i13, i14, i15,
             ) = self.matrix
 
-        negpos=[0., 0.]
+        negpos = [0., 0.]
         temp = i0 * i5 * i10
         negpos[temp > 0.] += temp
 

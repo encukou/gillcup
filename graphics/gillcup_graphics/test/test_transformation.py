@@ -3,14 +3,17 @@ import math
 
 from gillcup_graphics.transformation import MatrixTransformation
 
+
 def assert_almost_equal(a, b):
     assert abs(a - b) < 0.00001
+
 
 def assert_sequences_almost_equal(a_seq, b_seq):
     print a_seq, b_seq
     assert len(a_seq) == len(b_seq)
     for a_item, b_item in zip(a_seq, b_seq):
         assert_almost_equal(a_item, b_item)
+
 
 class TestMatrixTransformation(object):
     def setup(self):
@@ -112,8 +115,8 @@ class TestMatrixTransformation(object):
             )
         self.t.rotate(45)
         self.assert_matrix(
-                math.sqrt(2)/2, -math.sqrt(2)/2, 0, 0,
-                math.sqrt(2)/2, math.sqrt(2)/2, 0, 0,
+                math.sqrt(2) / 2, -math.sqrt(2) / 2, 0, 0,
+                math.sqrt(2) / 2, math.sqrt(2) / 2, 0, 0,
                 0, 0, 1, 0,
                 0, 0, 0, 1,
             )
@@ -136,9 +139,9 @@ class TestMatrixTransformation(object):
             )
         self.t.rotate(45, 0, 1, 0)
         self.assert_matrix(
-                math.sqrt(2)/2, 0, math.sqrt(2)/2, 0,
+                math.sqrt(2) / 2, 0, math.sqrt(2) / 2, 0,
                 0, 1, 0, 0,
-                -math.sqrt(2)/2, 0, math.sqrt(2)/2, 0,
+                -math.sqrt(2) / 2, 0, math.sqrt(2) / 2, 0,
                 0, 0, 0, 1,
             )
 

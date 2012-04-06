@@ -44,24 +44,25 @@ import sys
 import functools
 import math
 
+
 def normalized(func):
     """Decorator that normalizes an easing function
 
     Normalizing is done so that func(0) == 0 and func(1) == 1.
     """
-    min = func(0)
-    max = func(1)
-    if (min, max) == (0, 1):
+    minimum = func(0)
+    maximum = func(1)
+    if (minimum, maximum) == (0, 1):
         return func
-    range = max - min
+    range_ = maximum - minimum
+
     @functools.wraps(func)
-    def normalized(t):
-        return min + func(t) / range
-    try:
-        normalized.__name__ = func.__name__ + '_normalized'
-    except AttributeError:
-        pass
-    return normalized
+    def _normalized(t):
+        return (func(t) - minimum) / range_
+    _add_postfix(_normalized, func, 'normalized')
+
+    return _normalized
+
 
 def _add_postfix(decorated, func, postfix):
     try:
@@ -69,32 +70,41 @@ def _add_postfix(decorated, func, postfix):
     except AttributeError:  # pragma: no cover
         pass
 
-def ease_in(func):
-    return func
 
 def ease_out(func):
-    def ease_out(t):
+    """Given an "in" easing function, return corresponding "out" function"""
+    def _ease_out(t):
         return 1 - func(1 - t)
-    _add_postfix(ease_out, func, 'out')
-    return ease_out
+    _add_postfix(_ease_out, func, 'out')
+    return _ease_out
+
 
 def ease_out_in(func):
-    def ease_out_in(t):
+    """Given an "in" easing function, return corresponding "out-in" function"""
+    def _ease_out_in(t):
         if t < 0.5:
             return (1 - func(1 - 2 * t)) / 2
         else:
             return func(2 * (t - .5)) / 2 + .5
-    _add_postfix(ease_out_in, func, 'out_in')
-    return ease_out_in
+    _add_postfix(_ease_out_in, func, 'out_in')
+    return _ease_out_in
+
 
 def ease_in_out(func):
-    def ease_in_out(t):
+    """Given an "in" easing function, return corresponding "in-out" function"""
+    def _ease_in_out(t):
         if t < 0.5:
             return func(2 * t) / 2
         else:
             return 1 - func(1 - 2 * (t - .5)) / 2
-    _add_postfix(ease_in_out, func, 'in_out')
-    return ease_in_out
+    _add_postfix(_ease_in_out, func, 'in_out')
+    return _ease_in_out
+
+
+def ease_in(func):
+    """Return ``func`` itself. Included for symmetry."""
+    return func
+
 
 def easefunc(func):
     """Decorator for easing functions.
@@ -108,6 +118,7 @@ def easefunc(func):
     func.out_in = ease_out_in(func)
     return func
 
+
 @easefunc
 def linear(t):
     """Linear interpolation
@@ -115,6 +126,7 @@ def linear(t):
     t → t
     """
     return t
+
 
 @easefunc
 def quadratic(t):
@@ -124,6 +136,7 @@ def quadratic(t):
     """
     return t ** 2
 
+
 @easefunc
 def cubic(t):
     """Cubic easing
@@ -131,6 +144,7 @@ def cubic(t):
     t → t**3
     """
     return t ** 3
+
 
 @easefunc
 def quartic(t):
@@ -140,6 +154,7 @@ def quartic(t):
     """
     return t ** 4
 
+
 @easefunc
 def quintic(t):
     """Quintic easing
@@ -148,6 +163,7 @@ def quintic(t):
     """
     return t ** 5
 
+
 @easefunc
 def sine(t):
     """Sinusoidal easing
@@ -155,6 +171,7 @@ def sine(t):
     Quarter of a cosine wave
     """
     return (-math.cos(t / 2 * math.pi) + 1)
+
 
 @easefunc
 def exponential(t):
@@ -165,6 +182,7 @@ def exponential(t):
     else:
         return 2.0 ** (10 * (t - 1)) - 0.001
 
+
 @easefunc
 def circular(t):
     """Circular easing
@@ -172,24 +190,27 @@ def circular(t):
     try:
         return 1 - math.sqrt(1 - t * t)
     except ValueError:
-        return 0
+        return 1
+
 
 def elastic(period, amplitude=1):
     """Elastic easing factory
     """
     @easefunc
-    def elastic(t):
+    def _elastic(t):
         b = exponential(t) * math.cos((1 - t) * 2 * math.pi / period)
         return b * amplitude
-    return elastic
+    return _elastic
+
 
 def overshoot(amount):
     """Overshoot easing factory
     """
     @easefunc
-    def overshoot(t):
+    def _overshoot(t):
         return t * t * ((amount + 1) * t - amount)
-    return overshoot
+    return _overshoot
+
 
 def _bounce_helper(t, c, a):
     t = 1 - t
@@ -207,13 +228,14 @@ def _bounce_helper(t, c, a):
         t -= 21 / 22
         return 1 + a * (1. - (7.5625 * t * t + .984375)) - c
 
+
 def bounce(amplitude):
     """Bounce easing factory
     """
     @easefunc
-    def bounce(t):
+    def _bounce(t):
         return _bounce_helper(t, 1, amplitude)
-    return bounce
+    return _bounce
 
 
 # Execute the file for a gallery of easing funcs (matplotlib must be installed)
@@ -222,11 +244,12 @@ elastic_example = elastic(.15)
 overshoot_example = overshoot(1)
 bounce_example = bounce(1)
 
+
 def showcase(
         items='(poly) sine exponential circular elastic_example '
         'overshoot_example bounce_example'.split(),
         filename=None,
-    ):
+    ):  # pragma: no cover; pylint: disable=R0914, W0621, W0404, F0401
     """Show graphs of the easing functions in this module
     """
     import pylab
@@ -253,14 +276,13 @@ def showcase(
                 if i == 0:
                     pylab.title('.' + a)
                 if j == 0:
-                    title, sep, end = n.partition('_example')
-                    #if not sep:
-                    #    title = '\n'.join(funcs)
+                    title, sep, _end = n.partition('_example')
                     pylab.ylabel(title)
     if filename:
         pylab.savefig(filename, transparent=True)
     else:
         pylab.show()
+
 
 if __name__ == '__main__':
     try:

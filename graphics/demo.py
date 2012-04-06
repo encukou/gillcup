@@ -6,15 +6,21 @@ from gillcup_graphics.rectangle import Rectangle
 
 clock = RealtimeClock()
 
+
 def makeColorrect(parent, i, speed, color):
-    colorrect = Rectangle(parent, position=(.5, .5), anchor=(.5, .5), color=color)
+    colorrect = Rectangle(parent, position=(.5, .5),
+            anchor=(.5, .5), color=color)
     colorrect.scale = 0, 0, 0
     colorrect.opacity = 0
-    anim = gillcup.Animation(colorrect, 'rotation', speed, time=1, timing='infinite')
-    anim |= gillcup.Animation(colorrect, 'scale', .5, .5, .5, delay=i, time=5, easing='sine.out')
-    anim |= gillcup.Animation(colorrect, 'opacity', 1 - i / 15, delay=i, time=5, easing='cubic.out')
+    anim = gillcup.Animation(colorrect, 'rotation', speed, time=1,
+            timing='infinite')
+    anim |= gillcup.Animation(colorrect, 'scale', .5, .5, .5,
+            delay=i, time=5, easing='sine.out')
+    anim |= gillcup.Animation(colorrect, 'opacity', 1 - i / 15,
+            delay=i, time=5, easing='cubic.out')
     clock.schedule(anim)
     return colorrect
+
 
 def demo():
     rootLayer = Layer()
@@ -31,5 +37,6 @@ def demo():
     Window(rootLayer, resizable=True)
 
     run()
+
 
 demo()

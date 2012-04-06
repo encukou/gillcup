@@ -1,8 +1,32 @@
 # Encoding: UTF-8
+"""Gillcup's Animated Properties
+
+To animate Python objects, we need to change values of their attributes over
+time.
+There are two kinds of changes we can make: *discrete* and *continuous*.
+A discrete change happens at a single point in time: for example, an object
+is shown, some output is written, a sound starts playing.
+:mod:`Actions <gillcup.actions>` are used for effecting
+discrete changes.
+
+Continuous changes happen over a period of time: an object smoothly moves
+to the left, or a sound fades out.
+These changes are made by animating special properties on objects.
+
+Gillcup uses Python's `descriptor interface
+<http://docs.python.org/howto/descriptor.html>`_ to provide efficient
+animated properties.
+
+Assigment to an animated attribute causes the property to get set to the given
+value and cancels any running animations on it.
+
+See :mod:`gillcup.animation` for information on how to actually do animations.
+"""
 
 from __future__ import unicode_literals, division, print_function
 
 from gillcup.effect import Effect, ConstantEffect
+
 
 class AnimatedProperty(object):
     """A scalar animated property
@@ -40,42 +64,49 @@ class AnimatedProperty(object):
 
     def __get__(self, instance, owner):
         if instance:
-            return self._get_effect(instance).value
+            return self.get_effect(instance).value
         else:
             return self
 
     def __set__(self, instance, value):
         self.animate(instance, ConstantEffect(value))
 
-    def _get_effect(self, instance):
+    def get_effect(self, instance):
+        """Get the current effect; possibly create a default one beforehand"""
+        # pylint: disable=W0212
         try:
-            _gillcup_effects = instance._gillcup_effects
+            effects = instance.__gillcup_effects
         except AttributeError:
-            _gillcup_effects = instance._gillcup_effects = {}
+            effects = instance.__gillcup_effects = {}
         try:
-            effect = _gillcup_effects[self]
+            effect = effects[self]
         except KeyError:
-            effect = _gillcup_effects[self] = ConstantEffect(self.default)
+            effect = effects[self] = ConstantEffect(self.default)
         return effect
 
     def animate(self, instance, animation):
-        parent = self._get_effect(instance)
-        instance._gillcup_effects[self] = animation
+        """Set a new effect on this property; return the old one"""
+        # pylint: disable=W0212
+        parent = self.get_effect(instance)
+        instance.__gillcup_effects[self] = animation
         return parent
 
     def do_replacements(self, instance):
+        """Possibly replace current effect w/ a more lightweight equivalent"""
+        # pylint: disable=W0212
         try:
-            _gillcup_effects = instance._gillcup_effects
-            current_effect = _gillcup_effects[self]
+            effects = instance.__gillcup_effects
+            current_effect = effects[self]
         except (AttributeError, KeyError):
             pass
         else:
-            _gillcup_effects[self] = current_effect.get_replacement()
+            effects[self] = current_effect.get_replacement()
 
-    def map(self, function, parent_value, value):
+    def tween_values(self, function, parent_value, value):
         """Call a scalar tween function on two values.
         """
         return function(parent_value, value)
+
 
 class TupleProperty(AnimatedProperty):
     """A tuple animated property
@@ -105,13 +136,14 @@ class TupleProperty(AnimatedProperty):
     def __iter__(self):
         return iter(self.subproperties)
 
-    def map(self, function, parent_value, value):
+    def tween_values(self, function, parent_value, value):
         """Call a scalar tween function on two values.
 
         Calls the function on corresponding pairs of elements, returns
         the tuple of results
         """
         return tuple(map(function, parent_value, value))
+
 
 class _TupleElementProperty(AnimatedProperty):
     """Animated property for one element of a TupleProperty
@@ -121,8 +153,8 @@ class _TupleElementProperty(AnimatedProperty):
         self.parent = parent
         self.index = index
 
-    def _get_effect(self, instance):
-        parent_effect = self.parent._get_effect(instance)
+    def get_effect(self, instance):
+        parent_effect = self.parent.get_effect(instance)
         return _TupleExtractEffect(parent_effect, self.index)
 
     def animate(self, instance, animation):
@@ -136,12 +168,15 @@ class _TupleExtractEffect(Effect):
     """Effect that extracts one element of a tuple
     """
     def __init__(self, parent, index):
+        super(_TupleExtractEffect, self).__init__()
         self.parent = parent
         self.index = index
 
     @property
     def value(self):
+        """Value to be used for the property this effect is on"""
         return self.parent.value[self.index]
+
 
 class _TupleMakeEffect(Effect):
     """Effect that recombines one changed element of a tuple with the rest
@@ -151,16 +186,20 @@ class _TupleMakeEffect(Effect):
     The `previous` attribute has the Effect with the original, full tuple.
     This attribute must be set after instantiation.
     """
+    previous = None
+
     def __init__(self, parent, index):
+        super(_TupleMakeEffect, self).__init__()
         self.parent = parent
         self.index = index
 
     @property
     def value(self):
+        """Value to be used for the property this effect is on"""
         parent = self.parent
         return tuple(parent.value if i == self.index else val
             for i, val in enumerate(self.previous.value))
-        return self.parent.value[self.index]
+
 
 class ScaleProperty(TupleProperty):
     """A TupleProperty used for scales or sizes in multiple dimensions
@@ -212,6 +251,7 @@ class ScaleProperty(TupleProperty):
         else:
             raise ValueError('Too many dimensions for ScaleProperty')
 
+
 class VectorProperty(TupleProperty):
     """A TupleProperty used for vectors
 
@@ -249,4 +289,3 @@ class VectorProperty(TupleProperty):
             return value + (0, ) * (self.size - size)
         else:
             raise ValueError('Too many dimensions for VectorProperty')
-

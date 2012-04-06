@@ -1,4 +1,23 @@
 # Encoding: UTF-8
+"""Gillcup's Animation classes
+
+Animations are :mod:`Actions <gillcup.actions>` that modify
+:mod:`animated properties <gillcup.properties>`.
+To use one, create it and schedule it on a Clock.
+Once an animation is in effect, it will smoothly change a property's value
+over a specified time interval.
+
+The value is computed as a tween between the property's original value and
+the Animation's **target** value.
+The tween parameters can be set by the **timing** and **easing** keyword
+arguments.
+
+The “original value” of a property is not fixed: it is whatever the
+value would have been if this animation wasn't applied.
+Also, if you set the **dynamic** argument to Animation, the animation's
+*target* becomes an :class:`~gillcup.AnimatedProperty`.
+Animating these allows one to create very complex effects in a modular way.
+"""
 
 from __future__ import unicode_literals, division, print_function
 
@@ -6,8 +25,8 @@ from six import string_types
 
 from gillcup.actions import Action
 from gillcup.effect import Effect, ConstantEffect
-from gillcup.properties import AnimatedProperty
 from gillcup import easing as easing_module
+
 
 class Animation(Effect, Action):
     """An Animation that modifies a scalar animated property
@@ -85,6 +104,9 @@ class Animation(Effect, Action):
     """
     dynamic = False
 
+    start_time = None
+    parent = None
+
     def __init__(self, instance, property_name, *target, **kwargs):
         super(Animation, self).__init__()
         self.instance = instance
@@ -129,7 +151,8 @@ class Animation(Effect, Action):
             self.easing = easing
 
     @classmethod
-    def get_property(self, instance, property_name):
+    def get_property(cls, instance, property_name):
+        """Get a property object off an instance's class"""
         return getattr(type(instance), property_name)
 
     def __new__(cls, instance, property_name, *args, **kwargs):
@@ -140,7 +163,9 @@ class Animation(Effect, Action):
             # a descriptor on an instance.
             # So, we create a trivial subclass that has the target property.
             prop = cls.get_property(instance, property_name)
+
             class AnimatedAnimation(cls):
+                """A more dynamic flavor of gillcup.Animation"""
                 target = prop.get_target_property()
             ani_class = AnimatedAnimation
         else:
@@ -156,11 +181,14 @@ class Animation(Effect, Action):
 
     @property
     def value(self):
+        """Value to be used for the property this animation is on"""
         parent_value = self.parent.value
         target = self.target
-        return self.property.map(self.compute_value, parent_value, target)
+        return self.property.tween_values(self.compute_value,
+                parent_value, target)
 
-    def get_time(self):
+    def get_time(self):  # pylint: disable=E0202
+        """Get the local time for tweening, usually in the [0..1] range"""
         elapsed = self.clock.time - self.start_time
         if elapsed <= 0:
             return 0
@@ -177,6 +205,7 @@ class Animation(Effect, Action):
         return (self.clock.time - self.start_time) / self.time
 
     def compute_value(self, previous, target):
+        """Given the previous value and a target, compute value"""
         t = self.easing(self.get_time())
         return previous * (1 - t) + target * t
 
@@ -188,6 +217,7 @@ class Animation(Effect, Action):
         else:
             return self
 
+
 class Add(Animation):
     """An additive animation: the target value is added to the original
     """
@@ -197,6 +227,7 @@ class Add(Animation):
         t = self.easing(self.get_time())
         return previous + target * t
 
+
 class Multiply(Animation):
     """A multiplicative animation: target value is multiplied to the original
     """
@@ -205,6 +236,7 @@ class Multiply(Animation):
     def compute_value(self, previous, target):
         t = self.easing(self.get_time())
         return previous * ((1 - t) + target * t)
+
 
 class Computed(Animation):
     """A custom-valued animation: the target is computed by a function

@@ -15,16 +15,53 @@ import unittest
 import os
 import sys
 
+import six
+
+skip_lint = six.PY3 or hasattr(sys, 'pypy_version_info')
+if not skip_lint:
+    from pylint import lint
+
 import pytest
 
-def run():
+gillcup_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+skipIf = getattr(unittest, 'skipIf', None)
+if skipIf is None:  # pragma: no cover
+    def skipIf(condition, reason):  # pylint: disable=E0102
+        """Replacement for unittest.skipIf for pythons that don't have it"""
+        def _skip(func):
+            if condition:
+                print('skipping test: %s' % reason)
+                return reason
+            else:
+                return func
+        return _skip
+
+
+def run():  # pragma: no cover
+    """Top-level test function"""
     class PytestWrapper(unittest.TestCase):
         """TestCase that wraps pytest & pylint"""
         def test_wraper(self):
             """Run pytest"""
             errno = pytest.main([os.path.dirname(__file__)])
             assert not errno, 'pytest failed'
-    return unittest.TestSuite([PytestWrapper('test_wraper')])
 
-if __name__ == '__main__':
+        @skipIf(skip_lint, 'pylint not supported on this python')
+        def lint_wraper(self):
+            """Run pylint"""
+            rc_path = os.path.join(gillcup_dir, '..', '.pylintrc')
+            try:
+                errno = lint.Run([gillcup_dir, '--rcfile', rc_path])
+            except SystemExit:
+                errno = sys.exc_info()[1].code
+            assert not errno, 'pylint failed'
+
+    return unittest.TestSuite([
+            PytestWrapper('test_wraper'),
+            PytestWrapper('lint_wraper'),
+        ])
+
+
+if __name__ == '__main__':  # pragma: no cover
     run()

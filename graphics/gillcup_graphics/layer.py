@@ -3,6 +3,7 @@ from __future__ import division
 
 from gillcup_graphics.base import GraphicsObject
 
+
 class Layer(GraphicsObject):
 
     def __init__(self, parent=None, **kwargs):
@@ -18,6 +19,7 @@ class Layer(GraphicsObject):
                     )
             ]
 
+
 class DecorationLayer(Layer):
-    def do_hit_test(self):
+    def do_hit_test(self, transformation, **kwargs):
         return ()
