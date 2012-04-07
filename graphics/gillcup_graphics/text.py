@@ -24,8 +24,6 @@ class Text(GraphicsObject):
         super(Text, self).__init__(parent, **kwargs)
         if 'size' not in kwargs:
             getattr(type(self), 'size').animate(self, Autosizer(self))
-        if 'anchor' not in kwargs:
-            getattr(type(self), 'anchor').animate(self, RelativeAnchor(self))
         self.text = text
         self.font_name = font_name
         if font_size is not None:
@@ -42,8 +40,6 @@ class Text(GraphicsObject):
 
     font_size = gillcup.AnimatedProperty(72)
     characters_displayed = gillcup.AnimatedProperty(sys.maxint)
-    relative_anchor = gillcup.TupleProperty(0, 0)
-    relative_anchor_x, relative_anchor_y = relative_anchor
 
     def setup(self):
         if self.font_name:
@@ -71,15 +67,3 @@ class Autosizer(Effect):
         sprite = self.text.sprite
         sprite.text = self.text.text
         return (sprite.content_width, sprite.content_height)
-
-
-class RelativeAnchor(Effect):
-    """Put on text.anchor to make it respect relative_anchor"""
-    def __init__(self, text):
-        super(RelativeAnchor, self).__init__()
-        self.text = text
-
-    @property
-    def value(self):
-        return (self.text.width * self.text.relative_anchor_x,
-            self.text.height * self.text.relative_anchor_y)

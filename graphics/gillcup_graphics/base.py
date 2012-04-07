@@ -2,6 +2,8 @@
 from __future__ import division
 
 import gillcup
+from gillcup import properties
+from gillcup.effect import Effect
 
 
 class GraphicsObject(object):
@@ -10,7 +12,7 @@ class GraphicsObject(object):
     def __init__(self,
             parent=None,
             position=(0, 0, 0),
-            anchor=(0, 0, 0),
+            anchor=None,
             scale=(1, 1, 1),
             size=(1, 1),
             opacity=1,
@@ -18,10 +20,10 @@ class GraphicsObject(object):
             color=(1, 1, 1),
             to_back=False,
             name=None,
+            relative_anchor=(0, 0, 0),
         ):
         super(GraphicsObject, self).__init__()
         self.position = position
-        self.anchor = anchor
         self.rotation = rotation
         self.scale = scale
         self.parent = None
@@ -30,16 +32,23 @@ class GraphicsObject(object):
         self.size = size
         self.opacity = opacity
         self.name = name
+        self.relative_anchor = relative_anchor
         self.children = ()
         self.dead = False
+        if anchor is None:
+            RelativeAnchor(self).apply_to(self, 'anchor')
+        else:
+            self.anchor = anchor
 
-    x, y, z = position = gillcup.TupleProperty(0, 0, 0)
-    anchor_x, anchor_y, anchor_z = anchor = gillcup.TupleProperty(0, 0, 0)
-    scale_x, scale_y, scale_z = scale = gillcup.TupleProperty(1, 1, 1)
-    width, height = size = gillcup.TupleProperty(1, 1)
+    x, y, z = position = properties.VectorProperty(3)
+    anchor_x, anchor_y, anchor_z = anchor = properties.VectorProperty(3)
+    scale_x, scale_y, scale_z = scale = properties.ScaleProperty(3)
+    width, height = size = properties.ScaleProperty(2)
     rotation = gillcup.AnimatedProperty(0)
     opacity = gillcup.AnimatedProperty(1)
-    color = gillcup.TupleProperty(1, 1, 1)
+    color = gillcup.TupleProperty(3)
+    relative_anchor = properties.VectorProperty(3)
+    relative_anchor_x, relative_anchor_y, relative_anchor_z = relative_anchor
 
     @property
     def _hidden(self):
@@ -117,3 +126,15 @@ class GraphicsObject(object):
             else:
                 new_parent.children.append(self)
             self.parent = new_parent
+
+
+class RelativeAnchor(Effect):
+    """Put on text.anchor to make it respect relative_anchor"""
+    def __init__(self, text):
+        super(RelativeAnchor, self).__init__()
+        self.text = text
+
+    @property
+    def value(self):
+        return (self.text.width * self.text.relative_anchor_x,
+            self.text.height * self.text.relative_anchor_y)
