@@ -44,7 +44,7 @@ def run():  # pragma: no cover
         """TestCase that wraps pytest & pylint"""
         def test_wraper(self):
             """Run pytest"""
-            errno = pytest.main([os.path.dirname(__file__)])
+            errno = pytest.main([os.path.dirname(__file__), '-v'])
             assert not errno, 'pytest failed'
 
         @skipIf(skip_lint, 'pylint not supported on this python')
