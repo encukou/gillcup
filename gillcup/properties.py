@@ -71,6 +71,9 @@ class AnimatedProperty(object):
     def __set__(self, instance, value):
         self.animate(instance, ConstantEffect(value))
 
+    def __delete__(self, instance):
+        self.animate(instance, ConstantEffect(self.default))
+
     def get_effect(self, instance):
         """Get the current effect; possibly create a default one beforehand"""
         # pylint: disable=W0212

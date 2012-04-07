@@ -47,7 +47,9 @@ def test_animation(Tone):
     assert tone.pitch == 450
     clock.advance(1)
     assert tone.pitch == 460
-    tone.pitch = 440
+    tone.pitch = 500
+    assert tone.pitch == 500
+    del tone.pitch
     assert tone.pitch == 440
 
     with raises(ValueError):
