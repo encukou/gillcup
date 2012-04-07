@@ -18,6 +18,10 @@ class Effect(object):
         """
         return self
 
+    def apply_to(self, instance, property_name):
+        """Apply this effect to an ``instance``'s AnimatedProperty"""
+        getattr(type(instance), property_name).animate(instance, self)
+
 
 class ConstantEffect(Effect):
     """An Effect that provides a constant value

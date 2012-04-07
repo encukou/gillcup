@@ -9,7 +9,7 @@ import gc
 from pytest import raises
 
 from gillcup import (Clock, AnimatedProperty, TupleProperty, Animation,
-        animation)
+        animation, effect)
 from gillcup import easing as easing_mod
 
 
@@ -354,3 +354,11 @@ def test_resource_freeing_of_add_parent(Tone):
     gc.collect()
     assert tone.pitch == 455
     assert ref() is None
+
+
+def test_effect_apply(Tone):
+    """Test direct application of an Effect"""
+    tone = Tone()
+    assert tone.pitch == 440
+    effect.ConstantEffect(450).apply_to(tone, 'pitch')
+    assert tone.pitch == 450
