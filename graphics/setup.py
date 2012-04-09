@@ -9,7 +9,7 @@ setup(
     description="""Pyglet graphics for Gillcup""",
     author='Petr Viktorin',
     author_email='encukou@gmail.com',
-    install_requires=['pyglet'],
+    install_requires=['gillcup>=0.2', 'pyglet>=1.1.4'],
     use_2to3=True,
     classifiers=[
             'Intended Audience :: Developers',
@@ -25,6 +25,6 @@ setup(
             'Topic :: Software Development :: Libraries',
         ],
 
-    tests_require=["pytest"],
+    tests_require=['pytest', 'numby>=1.6'],
     test_suite='gillcup_graphics.test.run',
 )

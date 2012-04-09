@@ -18,6 +18,11 @@ class Window(pyglet.window.Window):
     def __init__(self, layer, *args, **kwargs):
         super(Window, self).__init__(*args, **kwargs)
         self.layer = layer
+        self.on_resize(self.width, self.height)
+
+    def manual_draw(self):
+        self.on_draw()
+        self.flip()
 
     def on_draw(self):
         gl.glClearColor(0, 0, 0, 0)

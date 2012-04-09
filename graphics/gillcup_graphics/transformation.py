@@ -210,13 +210,13 @@ class MatrixTransformation(BaseTransformation):
 
         det_1 = negpos[0] + negpos[1]
 
-        if (det_1 == 0.) or (abs(det_1 / (negpos[1] - negpos[0])) < \
-                             (2. * 0.00000000000000001) ):
+        if (det_1 == 0.) or (abs(det_1 / (negpos[1] - negpos[0])) <
+                (2. * 0.00000000000000001)):
             raise ValueError("This Matrix44 can not be inverted")
 
         det_1 = 1. / det_1
 
-        m = [ (i5*i10 - i6*i9)*det_1,
+        m = [(i5*i10 - i6*i9)*det_1,
                   -(i1*i10 - i2*i9)*det_1,
                    (i1*i6 - i2*i5 )*det_1,
                    0.0,
@@ -230,8 +230,8 @@ class MatrixTransformation(BaseTransformation):
                    0.0,
                    0.0, 0.0, 0.0, 1.0 ]
 
-        m[12] = - ( i12 * m[0] + i13 * m[4] + i14 * m[8] )
-        m[13] = - ( i12 * m[1] + i13 * m[5] + i14 * m[9] )
-        m[14] = - ( i12 * m[2] + i13 * m[6] + i14 * m[10] )
+        m[12] = - (i12 * m[0] + i13 * m[4] + i14 * m[8])
+        m[13] = - (i12 * m[1] + i13 * m[5] + i14 * m[9])
+        m[14] = - (i12 * m[2] + i13 * m[6] + i14 * m[10])
 
         return tuple(m)
