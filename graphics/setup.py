@@ -1,16 +1,16 @@
 
+import sys
 from setuptools import setup, find_packages
 
-setup(
+setup_args = dict(
     name='gillcup_graphics',
-    version='0.1.0-alpha.0',
+    version='0.2.0-alpha.0',
     packages=find_packages(),
 
     description="""Pyglet graphics for Gillcup""",
     author='Petr Viktorin',
     author_email='encukou@gmail.com',
-    install_requires=['gillcup>=0.2', 'pyglet>=1.1.4'],
-    use_2to3=True,
+    install_requires=['gillcup>=0.2.0-alpha', 'pyglet>=1.1.4'],
     classifiers=[
             'Intended Audience :: Developers',
             'License :: OSI Approved :: MIT License',
@@ -25,6 +25,13 @@ setup(
             'Topic :: Software Development :: Libraries',
         ],
 
-    tests_require=['pytest', 'numby>=1.6'],
+    tests_require=['pytest', 'pytest-pep8'],
     test_suite='gillcup_graphics.test.run',
+    package_data={'': ['.pylintrc', '*.png']},
 )
+
+if sys.version_info < (3, 0):
+    setup_args['tests_require'].append('pylint')
+
+if __name__ == '__main__':
+    setup(**setup_args)

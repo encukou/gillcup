@@ -23,8 +23,6 @@ if not skip_lint:
 
 import pytest
 
-gillcup_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-
 skipIf = getattr(unittest, 'skipIf', None)
 if skipIf is None:  # pragma: no cover
     def skipIf(condition, reason):  # pylint: disable=E0102
@@ -38,21 +36,23 @@ if skipIf is None:  # pragma: no cover
         return _skip
 
 
-def run():  # pragma: no cover
+def run(basefile=__file__):  # pragma: no cover
     """Top-level test function"""
+    test_dir = os.path.abspath(os.path.join(os.path.dirname(basefile), '..'))
+
     class PytestWrapper(unittest.TestCase):
         """TestCase that wraps pytest & pylint"""
         def test_wraper(self):
             """Run pytest"""
-            errno = pytest.main([os.path.dirname(__file__), '-v'])
+            errno = pytest.main([os.path.dirname(basefile), '-v'])
             assert not errno, 'pytest failed'
 
         @skipIf(skip_lint, 'pylint not supported on this python')
         def lint_wraper(self):
             """Run pylint"""
-            rc_path = os.path.join(gillcup_dir, '..', '.pylintrc')
+            rc_path = os.path.join(test_dir, '..', '.pylintrc')
             try:
-                errno = lint.Run([gillcup_dir, '--rcfile', rc_path])
+                errno = lint.Run([test_dir, '--rcfile', rc_path])
             except SystemExit:
                 errno = sys.exc_info()[1].code
             assert not errno, 'pylint failed'
