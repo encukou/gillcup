@@ -1,3 +1,5 @@
+from __future__ import division
+
 import gillcup
 
 from gillcup_graphics.mainwindow import Window, run, RealtimeClock
