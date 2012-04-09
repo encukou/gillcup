@@ -11,34 +11,18 @@ class GraphicsObject(object):
     """
     def __init__(self,
             parent=None,
-            position=(0, 0, 0),
-            anchor=None,
-            scale=(1, 1, 1),
-            size=(1, 1),
-            opacity=1,
-            rotation=0,
-            color=(1, 1, 1),
             to_back=False,
             name=None,
-            relative_anchor=(0, 0, 0),
-        ):
+            **kwargs):
         super(GraphicsObject, self).__init__()
-        self.position = position
-        self.rotation = rotation
-        self.scale = scale
         self.parent = None
         self.reparent(parent, to_back)
-        self.color = color
-        self.size = size
-        self.opacity = opacity
         self.name = name
-        self.relative_anchor = relative_anchor
         self.children = ()
         self.dead = False
-        if anchor is None:
+        if 'anchor' not in kwargs:
             RelativeAnchor(self).apply_to(self, 'anchor')
-        else:
-            self.anchor = anchor
+        self.set_animated_properties(kwargs)
 
     x, y, z = position = properties.VectorProperty(3)
     anchor_x, anchor_y, anchor_z = anchor = properties.VectorProperty(3)
@@ -46,9 +30,26 @@ class GraphicsObject(object):
     width, height = size = properties.ScaleProperty(2)
     rotation = gillcup.AnimatedProperty(0)
     opacity = gillcup.AnimatedProperty(1)
-    color = gillcup.TupleProperty(3)
+    color = red, green, blue = gillcup.TupleProperty(1, 1, 1)
     relative_anchor = properties.VectorProperty(3)
     relative_anchor_x, relative_anchor_y, relative_anchor_z = relative_anchor
+
+    def set_animated_properties(self, kwargs):
+        """Initializes animated properties with keyword arguments"""
+        unknown = []
+        for name, value in kwargs.items():
+            try:
+                prop = getattr(type(self), name)
+            except AttributeError:
+                unknown.append(name)
+            else:
+                if isinstance(prop, gillcup.AnimatedProperty):
+                    setattr(self, name, value)
+                else:
+                    unknown.append(name)
+        if unknown:
+            raise TypeError('Unknown keyword arguments: %s' %
+                    ', '.join(unknown))
 
     @property
     def _hidden(self):

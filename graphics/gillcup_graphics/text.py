@@ -15,27 +15,18 @@ class Text(GraphicsObject):
     def __init__(self,
             parent,
             text,
-            font_size=None,
             font_name=None,
-            characters_displayed=None,
-            relative_anchor=None,
             **kwargs
         ):
         super(Text, self).__init__(parent, **kwargs)
         if 'size' not in kwargs:
-            getattr(type(self), 'size').animate(self, Autosizer(self))
+            Autosizer(self).apply_to(self, 'size')
         self.text = text
         self.font_name = font_name
-        if font_size is not None:
-            self.font_size = font_size
-        if relative_anchor is not None:
-            self.relative_anchor = relative_anchor
-        if characters_displayed is not None:
-            self.characters_displayed = characters_displayed
         self.sprite = pyglet.text.Label(
                 text,
                 font_name=font_name,
-                font_size=font_size,
+                font_size=self.font_size,
             )
 
     font_size = gillcup.AnimatedProperty(72)

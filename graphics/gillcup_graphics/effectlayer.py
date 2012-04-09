@@ -8,20 +8,8 @@ from gillcup_graphics.offscreen import fbo
 
 
 class EffectLayer(Layer):
-    def __init__(self,
-            parent=None,
-            opacity=1,
-            mosaic=(1, 1),
-            color=(1, 1, 1),
-            **kwargs):
-        super(EffectLayer, self).__init__(parent, **kwargs)
-        self.opacity = opacity
-        self.mosaic = mosaic
-        self.color = color
-
     opacity = properties.AnimatedProperty(1)
     mosaic = mosaic_x, mosaic_y = properties.ScaleProperty(2)
-    color = red, green, blue = properties.ScaleProperty(3)
 
     _opacity_data = None
 

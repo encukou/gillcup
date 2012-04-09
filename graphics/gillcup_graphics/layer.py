@@ -5,7 +5,6 @@ from gillcup_graphics.base import GraphicsObject
 
 
 class Layer(GraphicsObject):
-
     def __init__(self, parent=None, **kwargs):
         super(Layer, self).__init__(parent, **kwargs)
         self.children = []
