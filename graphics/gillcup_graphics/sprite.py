@@ -8,6 +8,7 @@ from pyglet import gl
 
 from gillcup_graphics.base import GraphicsObject
 
+
 class Sprite(GraphicsObject):
     def __init__(self, parent, texture, **kwargs):
         self.sprite = pyglet.sprite.Sprite(texture.get_texture())

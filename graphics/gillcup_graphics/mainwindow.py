@@ -26,6 +26,7 @@ class Window(pyglet.window.Window):
         gl.glEnable(gl.GL_BLEND)
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
+        gl.glViewport(0, 0, self.width, self.height)
         transformation = GlTransformation()
         transformation.reset()
         self.layer.do_draw(window=self, transformation=transformation)

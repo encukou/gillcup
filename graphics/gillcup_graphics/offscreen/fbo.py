@@ -5,8 +5,10 @@ import collections
 import pyglet
 from pyglet import gl
 
+
 class _FakeTopFBO(object):
     framebuffer_id = depthbuffer_id = texture_id = ctypes.c_uint(0)
+
 
 class FBO(object):
     """Stackable helper for using FBOs"""
@@ -138,7 +140,7 @@ class FBO(object):
                 # Restore old viewport!
                 gl.glPopAttrib()
 
-    def getTexture(self):
+    def get_image_data(self):
         """Return a pyglet image with the contents of the FBO."""
         # props to pyprocessing!
         self.data = (ctypes.c_ubyte * (self.width * self.height * 4))()
@@ -148,7 +150,7 @@ class FBO(object):
                 0,  # mipmap level
                 gl.GL_RGBA,  # format
                 gl.GL_UNSIGNED_BYTE,  # type,
-                self.data, # image data
+                self.data,  # image data
             )
 
         return pyglet.image.ImageData(self.width, self.height,
