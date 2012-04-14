@@ -1,9 +1,9 @@
-from __future__ import division
-
 """Test helper
 
-When a test module does:
-from gillcup_graphics.test.recordinglayer import pytest_funcarg__layer
+When a test module does::
+
+    from gillcup_graphics.test.recordinglayer import pytest_funcarg__layer
+
 all test functions in it can use the ``layer`` funcarg, which records an image
 of whatever is added to it, and compares it to a reference rendering in
 gillcup_graphics/test/images/expected.
@@ -19,16 +19,17 @@ funcargs, numpy matrix stacking and other such arcane hackery.
 
 """
 
+from __future__ import division
+
 import os
 
 import pyglet.image
 try:
-    import numpy
-except Exception:
+    import numpy  # pylint: disable=F0401
+except ImportError:
     numpy = None
 
-from gillcup_graphics.mainwindow import Window
-from gillcup_graphics.effectlayer import EffectLayer
+from gillcup_graphics.effectlayer import RecordingLayer
 
 expected_dir = os.path.join(os.path.dirname(__file__), 'images', 'expected')
 actual_dir = os.path.join(os.path.dirname(__file__), 'images', 'result')
@@ -38,22 +39,8 @@ image_width = 100
 image_height = 100
 
 
-class RecordingLayer(EffectLayer):
-    def need_offscreen(self):
-        return True
-
-    def blit_buffer(self, framebuffer, **kwargs):
-        self._last_data = framebuffer.get_image_data()
-        super(RecordingLayer, self).blit_buffer(framebuffer=framebuffer,
-            **kwargs)
-
-    def get_image(self, width, height):
-        window = Window(self, width=width, height=height, visible=False)
-        window.manual_draw()
-        return self._last_data
-
-
 def try_unlink(path):
+    """Unlink a file if it exists"""
     try:
         os.unlink(path)
     except OSError:
@@ -61,18 +48,22 @@ def try_unlink(path):
 
 
 def get_data(image):
+    """Retrieve pixel data from an image as 4 lists of bytestrings"""
     array = [list(ord(n) for n in image.get_data(c, image.width))
         for c in 'RGBA']
     return array
 
 
 def write_diff_report(result, expected, filename):
+    """Write an image illustrating differences between result & expected
+
+    Requires numpy
+    """
     # XXX: This is very ad-hoc
     result = numpy.array(result, int)
     expected = numpy.array(expected, int)
     result.shape = expected.shape = 4, image_height, image_width
     difference = abs(expected - result)
-    zeros = numpy.zeros([4, image_width, image_height])
     alphadiff = expected.copy()
     alphadiff[3] = difference.sum(0) * 3 // 4 + 255 // 4
     zdiff = difference.copy()
@@ -106,10 +97,17 @@ def write_diff_report(result, expected, filename):
 
 
 def pytest_funcarg__layer(request):
+    """A Layer funcarg that records its contents and checks them automatically
+
+    A matching file name is auto-generated from the test name, and the result
+    is compared to a reference rendering. If the reference rendering does not
+    exist, or if the images differ, appropriate paths are output for human
+    inspection and/or copying of files.
+    """
     layer = RecordingLayer()
 
     @request.addfinalizer
-    def finalizer():
+    def _finalizer():
         name = request.module.__name__
         if request.cls:
             name += '.' + request.cls.__name__
@@ -122,7 +120,7 @@ def pytest_funcarg__layer(request):
         try:
             expected_image = pyglet.image.load(expected_filename)
             expected = get_data(expected_image)
-        except:
+        except Exception:
             expected = None
         result_image = layer.get_image(image_width, image_height)
         result = get_data(result_image)
@@ -135,9 +133,10 @@ def pytest_funcarg__layer(request):
                 'Actual result: %s\n'
                 '' % (expected_filename, result_filename))
         else:
-            write_diff_report(result, expected, difffilename)
+            if numpy:
+                write_diff_report(result, expected, difffilename)
             # Compare premultiplied images
-            def get_diff(line1, line2):
+            def _get_diff(line1, line2):
                 total = 0
                 for pix1, pix2 in zip(zip(*[iter(line1)] * 4),
                         zip(*[iter(line2)] * 4)):
@@ -145,7 +144,7 @@ def pytest_funcarg__layer(request):
                     total += sum(abs(a * pix1[3] // 255 - b * pix2[3] // 255)
                         for a, b in zip(pix1[:3], pix2[:3])) + alpha_diff
                 return total
-            differences = (get_diff(e, r) for e, r in zip(result, expected))
+            differences = (_get_diff(e, r) for e, r in zip(result, expected))
             maximum_dis = 255 * 4 * image_width * image_height
             dissimilarity = sum(differences) / maximum_dis
             threshold_dis = 0.0025

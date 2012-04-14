@@ -6,10 +6,7 @@ import os
 import pyglet
 import gillcup
 
-from gillcup_graphics.mainwindow import Window, run, RealtimeClock
-from gillcup_graphics.layer import Layer
-from gillcup_graphics.text import Text
-from gillcup_graphics.sprite import Sprite
+from gillcup_graphics import Window, run, RealtimeClock, Layer, Text, Sprite
 
 clock = RealtimeClock()
 

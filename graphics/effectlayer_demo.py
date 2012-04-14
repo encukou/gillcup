@@ -4,10 +4,8 @@ import math
 
 import gillcup
 
-from gillcup_graphics.mainwindow import Window, run, RealtimeClock
-from gillcup_graphics.layer import Layer
-from gillcup_graphics.effectlayer import EffectLayer
-from gillcup_graphics.rectangle import Rectangle
+from gillcup_graphics import Window, run, RealtimeClock, Layer, EffectLayer
+from gillcup_graphics import Rectangle
 
 clock = RealtimeClock()
 

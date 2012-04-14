@@ -2,9 +2,7 @@ from __future__ import division
 
 import gillcup
 
-from gillcup_graphics.mainwindow import Window, run, RealtimeClock
-from gillcup_graphics.layer import Layer
-from gillcup_graphics.rectangle import Rectangle
+from gillcup_graphics import Window, run, RealtimeClock, Layer, Rectangle
 
 clock = RealtimeClock()
 

@@ -1,6 +1,8 @@
+"""Offscreen rendering via the OpenGL framebuffer object extension
+"""
+
 import ctypes
 import contextlib
-import collections
 
 import pyglet
 from pyglet import gl
@@ -11,9 +13,10 @@ class _FakeTopFBO(object):
 
 
 class FBO(object):
-    """Stackable helper for using FBOs"""
+    """Stackable helper for using Frame Buffer Objects (FBOs)"""
 
     _bind_stack = [_FakeTopFBO()]
+    data = None
 
     @staticmethod
     def supported():
@@ -23,7 +26,7 @@ class FBO(object):
                 gl.gl_info.have_extension("GL_ARB_draw_buffers"))
 
     def __init__(self, width, height):
-        """Creates a Frame Buffer Object (FBO)"""
+        """Creates a FBO"""
         self.initialized = False
 
         assert self.supported()
@@ -130,6 +133,7 @@ class FBO(object):
 
     @contextlib.contextmanager
     def bind_draw(self):
+        """Context for drawing into the FBO"""
         with self._bound_context(gl.GL_FRAMEBUFFER_EXT) as parent_fb:
             # Set viewport to the size of the texture
             gl.glPushAttrib(gl.GL_VIEWPORT_BIT)

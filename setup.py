@@ -28,7 +28,7 @@ setup_args = dict(
 
     tests_require=['pytest>=2.2', 'pytest-pep8'],
     package_data={'': ['.pylintrc']},
-    test_suite='gillcup.test.run',
+    test_suite='gillcup.test.test_suite',
 )
 
 if sys.version_info < (3, 0):

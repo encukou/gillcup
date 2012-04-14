@@ -1,22 +1,19 @@
 
-from __future__ import division
-
 """Transformation objects
 
 A graphic object's transform method takes a Transformation object and updates
 it with its transformation. For drawing, use a GlTransformation object, which
 will update the OpenGL state directly. For hit tests, use a
-MatrixTransformation object. For heavy-duty tests, use MatrixTransformation,
-but pass the NumPy module to it.
+MatrixTransformation object.
 """
+
+from __future__ import division
 
 # The more crazy matrix stuff is partly based on the GameObjects library by
 #  Will McGugan, which is today, unfortunately, without a licence, but
 #  the author wishes it to be used without restrictions:
 # http://www.willmcgugan.com/blog/tech/2007/6/7/game-objects-commandments/
 #   #comment146
-
-# pylint: disable=E225, E241
 
 from math import sin, cos, pi
 import contextlib
@@ -28,18 +25,58 @@ deg_to_rad = tau / 360
 
 
 class BaseTransformation(object):
+    """Base for all transformations: contains common functionality
+
+    Transformations are based on a 3D affine transformation matrix (a 4x4
+    matrix where the last column is [0 0 0 1])
+    """
     @property
     @contextlib.contextmanager
     def state(self):
+        """Context manager wrapping push() and pop()"""
         self.push()
         try:
             yield
         finally:
             self.pop()
 
+    def reset(self):
+        """Reset the matrix to identity"""
+        raise NotImplementedError
+
+    def push(self):
+        """Push the matrix state: the corresponding pop() will return here
+
+        You probably want to use ``state`` instead.
+        """
+        raise NotImplementedError
+
+    def pop(self):
+        """Restore matrix saved by the corresponding push() call"""
+        raise NotImplementedError
+
+    def translate(self, x=0, y=0, z=0):
+        """Premultiply a translation matrix to self, in situ"""
+        raise NotImplementedError
+
+    def rotate(self, angle, x=0, y=0, z=1):
+        """Premultiply a rotation matrix to self, in situ"""
+        raise NotImplementedError
+
+    def scale(self, x=1, y=1, z=1):
+        """Premultiply a scaling matrix to self, in situ"""
+        raise NotImplementedError
+
+    def premultiply(self, values):
+        """Premultiply the given matrix to self, in situ
+
+        :param values: An iterable of 16 matrix elements in row-major (C) order
+        """
+        raise NotImplementedError
+
 
 class GlTransformation(BaseTransformation):
-    """OpenGL implementation
+    """OpenGL implementation: affects the OpenGL state directly
     """
     def reset(self):
         gl.glLoadIdentity()
@@ -47,7 +84,7 @@ class GlTransformation(BaseTransformation):
     def push(self):
         gl.glPushMatrix()
 
-    def pop(self, *junk):
+    def pop(self):
         gl.glPopMatrix()
 
     def translate(self, x=0, y=0, z=0):
@@ -59,22 +96,24 @@ class GlTransformation(BaseTransformation):
     def scale(self, x=1, y=1, z=1):
         gl.glScalef(x, y, z)
 
-    def multiply(self, values):
-        gl.glMultMatrixf(*matrix)
+    def premultiply(self, values):
+        gl.glMultMatrixf(*values)
 
 
 class MatrixTransformation(BaseTransformation):
     """Implementation that uses tuples. Slow.
     """
     def __init__(self):
-        self.identity = (
-                1, 0, 0, 0,
-                0, 1, 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1,
-            )
-        self.reset()
+        super(MatrixTransformation, self).__init__()
+        self.matrix = self.identity
         self.stack = []
+
+    identity = (
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1,
+        )
 
     def __len__(self):
         return 16
@@ -93,7 +132,7 @@ class MatrixTransformation(BaseTransformation):
     def push(self):
         self.stack.append(self.matrix)
 
-    def pop(self, *junk):
+    def pop(self):
         self.matrix = self.stack.pop()
 
     def translate(self, x=0, y=0, z=0):
@@ -108,11 +147,17 @@ class MatrixTransformation(BaseTransformation):
         c = cos(angle * deg_to_rad)
         s = sin(angle * deg_to_rad)
         d = 1 - c
+        xs = x * s
+        ys = y * s
+        zs = z * s
+        xd = x * d
+        yd = y * d
+        zd = z * d
         self.premultiply((
-                x*x*d+c,   y*x*d+z*s, x*z*d-y*s, 0,
-                x*y*d-z*s, y*y*d+c,   y*z*d+x*s, 0,
-                x*z*d+y*s, y*z*d-x*s, z*z*d+c,   0,
-                0,         0,         0,         1,
+                x * xd + c,  y * xd + zs, x * zd - ys, 0,
+                x * yd - zs, y * yd + c,  y * zd + xs, 0,
+                x * zd + ys, y * zd - xs, z * zd + c,  0,
+                0, 0, 0, 1,
             ))
 
     def scale(self, x=1, y=1, z=1):
@@ -124,20 +169,17 @@ class MatrixTransformation(BaseTransformation):
             ))
 
     def premultiply(self, values):
-        # pylint: disable=E241
-        (
-                m1_0,  m1_1,  m1_2,  m1_3,
-                m1_4,  m1_5,  m1_6,  m1_7,
-                m1_8,  m1_9,  m1_10, m1_11,
-                m1_12, m1_13, m1_14, m1_15,
-            ) = self.matrix
+        (m1_0,  m1_1,  m1_2,  m1_3,
+         m1_4,  m1_5,  m1_6,  m1_7,
+         m1_8,  m1_9,  m1_10, m1_11,
+         m1_12, m1_13, m1_14, m1_15,
+        ) = self.matrix
 
-        (
-                m2_0,  m2_1,  m2_2,  m2_3,
-                m2_4,  m2_5,  m2_6,  m2_7,
-                m2_8,  m2_9,  m2_10, m2_11,
-                m2_12, m2_13, m2_14, m2_15,
-            ) = values
+        (m2_0,  m2_1,  m2_2,  m2_3,
+         m2_4,  m2_5,  m2_6,  m2_7,
+         m2_8,  m2_9,  m2_10, m2_11,
+         m2_12, m2_13, m2_14, m2_15,
+        ) = values
 
         self.matrix = (
                 m2_0 * m1_0 + m2_1 * m1_4 + m2_2 * m1_8 + m2_3 * m1_12,
@@ -162,13 +204,12 @@ class MatrixTransformation(BaseTransformation):
             )
 
     def transform_point(self, x=0, y=0, z=0):
-        # pylint: disable=E241
-        (
-                m1_0,  m1_1,  m1_2,  m1_3,
-                m1_4,  m1_5,  m1_6,  m1_7,
-                m1_8,  m1_9,  m1_10, m1_11,
-                m1_12, m1_13, m1_14, m1_15,
-            ) = self.inverse
+        """Multiply the given vector by this matrix"""
+        (   m1_0,  m1_1,  m1_2,  m1_3,
+            m1_4,  m1_5,  m1_6,  m1_7,
+            m1_8,  m1_9,  m1_10, m1_11,
+            m1_12, m1_13, m1_14, m1_15,
+        ) = self.inverse
         return (
                 x * m1_0 + y * m1_4 + z * m1_8 + m1_12,
                 x * m1_1 + y * m1_5 + z * m1_9 + m1_13,
@@ -182,53 +223,52 @@ class MatrixTransformation(BaseTransformation):
         N.B. Only works with transformation martices (last column is identity)
         """
 
-        (
-                i0,  i1,  i2,  i3,
-                i4,  i5,  i6,  i7,
-                i8,  i9,  i10, i11,
-                i12, i13, i14, i15,
-            ) = self.matrix
+        (i0,  i1,  i2,  i3,
+         i4,  i5,  i6,  i7,
+         i8,  i9,  i10, i11,
+         i12, i13, i14, i15,
+        ) = self.matrix
 
-        negpos = [0., 0.]
+        negpos = [0, 0]
         temp = i0 * i5 * i10
-        negpos[temp > 0.] += temp
+        negpos[temp > 0] += temp
 
         temp = i1 * i6 * i8
-        negpos[temp > 0.] += temp
+        negpos[temp > 0] += temp
 
         temp = i2 * i4 * i9
-        negpos[temp > 0.] += temp
+        negpos[temp > 0] += temp
 
         temp = -i2 * i5 * i8
-        negpos[temp > 0.] += temp
+        negpos[temp > 0] += temp
 
         temp = -i1 * i4 * i10
-        negpos[temp > 0.] += temp
+        negpos[temp > 0] += temp
 
         temp = -i0 * i6 * i9
-        negpos[temp > 0.] += temp
+        negpos[temp > 0] += temp
 
         det_1 = negpos[0] + negpos[1]
 
-        if (det_1 == 0.) or (abs(det_1 / (negpos[1] - negpos[0])) <
-                (2. * 0.00000000000000001)):
-            raise ValueError("This Matrix44 can not be inverted")
+        if (det_1 == 0) or (abs(det_1 / (negpos[1] - negpos[0])) <
+                (2 * 0.00000000000000001)):
+            raise ValueError("Matrix can not be inverted")
 
-        det_1 = 1. / det_1
+        det_1 = 1 / det_1
 
-        m = [(i5*i10 - i6*i9)*det_1,
-                  -(i1*i10 - i2*i9)*det_1,
-                   (i1*i6 - i2*i5 )*det_1,
-                   0.0,
-                  -(i4*i10 - i6*i8)*det_1,
-                   (i0*i10 - i2*i8)*det_1,
-                  -(i0*i6 - i2*i4)*det_1,
-                   0.0,
-                  (i4*i9 - i5*i8 )*det_1,
-                  -(i0*i9 - i1*i8)*det_1,
-                   (i0*i5 - i1*i4)*det_1,
-                   0.0,
-                   0.0, 0.0, 0.0, 1.0 ]
+        m = [(i5 * i10 - i6 * i9) * det_1,
+            -(i1 * i10 - i2 * i9) * det_1,
+             (i1 * i6 - i2 * i5 ) * det_1,
+            0,
+            -(i4 * i10 - i6 * i8) * det_1,
+             (i0 * i10 - i2 * i8) * det_1,
+            -(i0 * i6 - i2 * i4) * det_1,
+            0,
+             (i4 * i9 - i5 * i8) * det_1,
+            -(i0 * i9 - i1 * i8) * det_1,
+             (i0 * i5 - i1 * i4) * det_1,
+            0,
+            0, 0, 0, 1]
 
         m[12] = - (i12 * m[0] + i13 * m[4] + i14 * m[8])
         m[13] = - (i12 * m[1] + i13 * m[5] + i14 * m[9])

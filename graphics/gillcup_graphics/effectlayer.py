@@ -1,19 +1,45 @@
+# Encoding: UTF-8
+"""A Layer that provides some bling
 
-import pyglet
+With EffectLayer, it is possible to colorize, fade, or pixelate groups of
+graphics objects.
+
+This wors by rendering the layer's contents to a texture, and then drawing the
+texture with effects applied.
+Currently, the framebuffer object OpenGL extension to work.
+"""
+
 from pyglet import gl
 
 from gillcup import properties
-from gillcup_graphics.layer import Layer
+from gillcup_graphics import Layer
 from gillcup_graphics.offscreen import fbo
+
+from gillcup_graphics.mainwindow import Window
 
 
 class EffectLayer(Layer):
-    opacity = properties.AnimatedProperty(1)
-    mosaic = mosaic_x, mosaic_y = properties.ScaleProperty(2)
+    """A Layer that can colorie, fade, or pixelate its contents as a whole
+    """
+    opacity = properties.AnimatedProperty(1,
+        docstring="""Opacity of this layer""")
+    mosaic = mosaic_x, mosaic_y = properties.ScaleProperty(2,
+        docstring=u"""Pixelation of this layer
+
+        For example, if mosaic=(2, 4), the layer will be drawn using 2×4 blocks
+        """)
 
     _opacity_data = None
 
     def need_offscreen(self):
+        """
+
+        Off-screen rendering is only done if needed, i.e. if ``color``,
+        ``opacity`` or ``mosaic`` don't have their default values.
+
+        Subclasses should extend this method if they need off-screen
+        rendering in more circumstances.
+        """
         return (not all(0.99 < n < 1.01 for n in self.mosaic) or
                 self.opacity < 0.99 or
                 not all(0.99 < c < 1.01 for c in self.color)
@@ -27,8 +53,8 @@ class EffectLayer(Layer):
             else:
                 parent_width = window.width
                 parent_height = window.height
-            width = max(1, int(parent_width / self.mosaic_x))
-            height = max(1, int(parent_height / self.mosaic_y))
+            width = max(1, int(parent_width / max(1, self.mosaic_x)))
+            height = max(1, int(parent_height / max(1, self.mosaic_y)))
 
             if self._opacity_data:
                 framebuffer, w, h = self._opacity_data
@@ -68,9 +94,14 @@ class EffectLayer(Layer):
             super(EffectLayer, self).draw(window=window,
                 transformation=transformation, **kwargs)
 
-    def blit_buffer(self, framebuffer, parent_framebuffer,
-            width, height, parent_width, parent_height,
-            **kwargs):
+    def blit_buffer(self, framebuffer, parent_width, parent_height, **kwargs):
+        """Draw the texture into the parent scene
+
+        .. warning:
+
+            This method's arguments are not part of the API yet and may change
+            at any time.
+        """
         gl.glViewport(0, 0, parent_width, parent_height)
 
         gl.glTexParameteri(gl.GL_TEXTURE_2D,
@@ -116,3 +147,27 @@ class EffectLayer(Layer):
             parent_width, parent_height,
             gl.GL_COLOR_BUFFER_BIT, gl.GL_NEAREST)
         gl.glDisable(gl.GL_TEXTURE_2D)
+
+
+class RecordingLayer(EffectLayer):
+    """A layer that records its contents as an image
+
+    After this layer is drawn, the picture is available in the ``last_image``
+    attribute as a pyglet ImageData object.
+    """
+    last_image = None
+
+    def need_offscreen(self):
+        return True
+
+    def blit_buffer(self, framebuffer, **kwargs):
+        self.last_image = framebuffer.get_image_data()
+        super(RecordingLayer, self).blit_buffer(framebuffer=framebuffer,
+            **kwargs)
+
+    def get_image(self, width, height):
+        """Draw this layer in a new invisible window and return the ImageData
+        """
+        window = Window(self, width=width, height=height, visible=False)
+        window.manual_draw()
+        return self.last_image

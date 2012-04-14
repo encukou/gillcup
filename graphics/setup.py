@@ -26,12 +26,15 @@ setup_args = dict(
         ],
 
     tests_require=['pytest', 'pytest-pep8'],
-    test_suite='gillcup_graphics.test.run',
+    test_suite='gillcup_graphics.test.test_suite',
     package_data={'': ['.pylintrc', '*.png']},
 )
 
 if sys.version_info < (3, 0):
     setup_args['tests_require'].append('pylint')
+
+if sys.version_info[:2] == (2, 7) and not hasattr(sys, 'pypy_version_info'):
+    setup_args['tests_require'].append('numpy')
 
 if __name__ == '__main__':
     setup(**setup_args)

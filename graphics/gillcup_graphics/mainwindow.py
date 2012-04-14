@@ -1,3 +1,6 @@
+"""Utilities for interfacing gillcup_graphics with the rest of the world
+
+"""
 
 from __future__ import division
 
@@ -10,7 +13,7 @@ from gillcup_graphics.transformation import GlTransformation
 run = pyglet.app.run
 
 
-class Window(pyglet.window.Window):
+class Window(pyglet.window.Window):  # pylint: disable=W0223
     """A main window
 
     Just a convenience subclass of pyglet.window.Window that shows a Layer
@@ -21,10 +24,11 @@ class Window(pyglet.window.Window):
         self.on_resize(self.width, self.height)
 
     def manual_draw(self):
+        """Draw the contents outside of the main loop"""
         self.on_draw()
         self.flip()
 
-    def on_draw(self):
+    def on_draw(self):  # pylint: disable=W0221
         gl.glClearColor(0, 0, 0, 0)
         self.clear()
         gl.glEnable(gl.GL_LINE_SMOOTH)
@@ -43,6 +47,8 @@ class Window(pyglet.window.Window):
 
 
 class RealtimeClock(gillcup.Clock):
+    """A Clock tied to the system time
+    """
     def __init__(self):
         super(RealtimeClock, self).__init__()
         pyglet.clock.schedule(self.advance)

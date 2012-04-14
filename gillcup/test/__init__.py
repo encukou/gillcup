@@ -36,7 +36,7 @@ if skipIf is None:  # pragma: no cover
         return _skip
 
 
-def run(basefile=__file__):  # pragma: no cover
+def test_suite(basefile=__file__):  # pragma: no cover
     """Top-level test function"""
     test_dir = os.path.abspath(os.path.join(os.path.dirname(basefile), '..'))
 
@@ -52,6 +52,8 @@ def run(basefile=__file__):  # pragma: no cover
             """Run pylint"""
             rc_path = os.path.join(test_dir, '..', '.pylintrc')
             try:
+                print [test_dir, '--rcfile', rc_path]
+                print basefile
                 errno = lint.Run([test_dir, '--rcfile', rc_path])
             except SystemExit:
                 errno = sys.exc_info()[1].code
@@ -61,7 +63,3 @@ def run(basefile=__file__):  # pragma: no cover
             PytestWrapper('test_wraper'),
             PytestWrapper('lint_wraper'),
         ])
-
-
-if __name__ == '__main__':  # pragma: no cover
-    run()

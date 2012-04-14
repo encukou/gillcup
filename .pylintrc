@@ -44,8 +44,10 @@ load-plugins=
 # I0011: Locally disabling <message> --yup, that's what the comment's there for
 # W0603: Using the global statement -- well I usually have a reason y'know
 # R0201: Method could be a function -- so?
+# W0142: Used * or ** magic
+# W0703: Catching too general exception
 
-disable=C0103,E0611,I0011,W0603,R0201
+disable=C0103,E0611,I0011,W0603,R0201,W0142,W0703
 
 
 [REPORTS]
@@ -150,7 +152,7 @@ init-import=no
 
 # A regular expression matching the beginning of the name of dummy variables
 # (i.e. not used).
-dummy-variables-rgx=(dummy|sep)$|_
+dummy-variables-rgx=(dummy|sep|kwargs|request)$|_|.*(3|7|11|15)$
 
 # List of additional names supposed to be defined in builtins. Remember that
 # you should avoid to define new builtins when possible.
@@ -209,7 +211,7 @@ int-import-graph=
 [DESIGN]
 
 # Maximum number of arguments for function / method
-max-args=5
+max-args=15
 
 # Argument names that match this expression will be ignored. Default to name
 # with leading underscore
