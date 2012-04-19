@@ -5,6 +5,6 @@
 import gillcup.test
 
 
-def test_suite():
+def test_suite():  # pragma: no cover
     """Call the Gillcup test runner on gillcup_graphics"""
     return gillcup.test.test_suite(basefile=__file__)

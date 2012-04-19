@@ -23,10 +23,11 @@ from __future__ import division
 
 import os
 
+import pytest
 import pyglet.image
 try:
     import numpy  # pylint: disable=F0401
-except ImportError:
+except ImportError:  # pragma: no cover
     numpy = None
 
 from gillcup_graphics.effectlayer import RecordingLayer
@@ -48,7 +49,7 @@ def try_unlink(path):
 
 
 def get_data(image):
-    """Retrieve pixel data from an image as 4 lists of bytestrings"""
+    """Retrieve pixel data from an image as 4 lists of ints"""
     array = [list(ord(n) for n in image.get_data(c, image.width))
         for c in 'RGBA']
     return array
@@ -72,7 +73,7 @@ def write_diff_report(result, expected, filename):
     by_channel = None
     for current_channel in range(4):
         diff = difference.copy()
-        diff[:4] = diff[current_channel]
+        diff[:3] = diff[current_channel]
         diff[3] = 255
         if by_channel is None:
             by_channel = diff
@@ -106,17 +107,23 @@ def pytest_funcarg__layer(request):
     """
     layer = RecordingLayer()
 
-    @request.addfinalizer
-    def _finalizer():
-        name = request.module.__name__
-        if request.cls:
-            name += '.' + request.cls.__name__
-        name += '.' + request.function.__name__
-        expected_filename = os.path.join(expected_dir, name + '.png')
-        result_filename = os.path.join(actual_dir, name + '.png')
-        difffilename = os.path.join(actual_dir, name + '.report.png')
+    name = request.module.__name__
+    if request.cls:
+        name += '.' + request.cls.__name__
+    name += '.' + request.function.__name__
+
+    expected_filename = os.path.join(expected_dir, name + '.png')
+    result_filename = os.path.join(actual_dir, name + '.png')
+    diff_filename = os.path.join(actual_dir, name + '.report.png')
+
+    def clean_up():
+        """Remove existing result images"""
         try_unlink(result_filename)
-        try_unlink(difffilename)
+        try_unlink(diff_filename)
+
+    def finalizer():
+        """Do the image comparison"""
+        clean_up()
         try:
             expected_image = pyglet.image.load(expected_filename)
             expected = get_data(expected_image)
@@ -134,7 +141,7 @@ def pytest_funcarg__layer(request):
                 '' % (expected_filename, result_filename))
         else:
             if numpy:
-                write_diff_report(result, expected, difffilename)
+                write_diff_report(result, expected, diff_filename)
             # Compare premultiplied images
             def _get_diff(line1, line2):
                 total = 0
@@ -147,7 +154,7 @@ def pytest_funcarg__layer(request):
             differences = (_get_diff(e, r) for e, r in zip(result, expected))
             maximum_dis = 255 * 4 * image_width * image_height
             dissimilarity = sum(differences) / maximum_dis
-            threshold_dis = 0.0025
+            threshold_dis = 0.005
             if dissimilarity < threshold_dis:
                 print 'Pass'
             else:
@@ -159,5 +166,16 @@ def pytest_funcarg__layer(request):
                     '' % (
                         dissimilarity * 100,
                         threshold_dis * 100,
-                        expected_filename, result_filename, difffilename))
+                        expected_filename, result_filename, diff_filename))
+
+    if 'raises' in request.keywords:
+        def raising_finalizer():
+            """Wrap the winalizer in a raises context"""
+            with pytest.raises(AssertionError):
+                finalizer()
+            clean_up()
+        request.addfinalizer(raising_finalizer)
+    else:
+        request.addfinalizer(finalizer)
+
     return layer
