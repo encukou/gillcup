@@ -3,7 +3,7 @@
 
 from __future__ import division
 
-import pytest
+from pytest import raises
 
 from gillcup_graphics import Rectangle
 
@@ -13,27 +13,34 @@ from gillcup_graphics.test.test_transformation import (
         almost_equal, sequences_almost_equal, matrix_almost_equal)
 
 
-@pytest.mark.raises
 def test_no_reference(layer):
     """No reference rendering available"""
     Rectangle(layer)
+    with raises(AssertionError):
+        layer.dissimilarity()
 
 
-@pytest.mark.raises
 def test_different_reference(layer):
     """The reference rendering is vastly different"""
     Rectangle(layer)
+    dissimilarity = layer.dissimilarity()
+    assert dissimilarity > 0.1
 
 
 def test_similar_reference(layer):
     """The reference rendering is good enough"""
     Rectangle(layer)
+    dissimilarity = layer.dissimilarity()
+    assert 0.0001 < dissimilarity < 0.001
 
 
 class TestClassBasedTest(object):
+    """Wrapper class"""
     def test_in_class(self, layer):
         """Test works from within a class"""
         Rectangle(layer)
+        dissimilarity = layer.dissimilarity()
+        assert dissimilarity < 0.0005
 
 
 def test_almost_equal():
