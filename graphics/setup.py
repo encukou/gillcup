@@ -33,8 +33,5 @@ setup_args = dict(
 if sys.version_info < (3, 0):
     setup_args['tests_require'].append('pylint')
 
-if sys.version_info[:2] == (2, 7) and not hasattr(sys, 'pypy_version_info'):
-    setup_args['tests_require'].append('numpy')
-
 if __name__ == '__main__':
     setup(**setup_args)
