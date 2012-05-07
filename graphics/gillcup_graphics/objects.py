@@ -16,8 +16,8 @@ screen (relative to its parent), and properties like color and opacity.
 The objects are compatible with 3D transformations, but anything outside the
 xy-plane needs custom OpenGL camera setup.
 
-.. [#f1] To be precise, the root may also be another object. It's just not
-    terribly useful that way.
+.. [#f1] To be precise, the root may be any object. It's just that non-Layers
+    aren't terribly useful here.
 """
 
 from __future__ import division
@@ -29,6 +29,10 @@ from pyglet import gl
 import gillcup
 from gillcup import properties
 from gillcup.effect import Effect
+
+
+color_property = gillcup.TupleProperty(1, 1, 1,
+    docstring="""Color or tint of the object""")
 
 
 class GraphicsObject(object):
@@ -64,8 +68,6 @@ class GraphicsObject(object):
         docstring="""Rotation about the object's anchor""")
     opacity = gillcup.AnimatedProperty(1,
         docstring="""Opacity of the object""")
-    color = red, green, blue = gillcup.TupleProperty(1, 1, 1,
-        docstring="""Color or tint of the object""")
     relative_anchor = properties.VectorProperty(3,
         docstring="""Anchor of the object relative to the object's size
 
@@ -173,15 +175,15 @@ class GraphicsObject(object):
 
 class RelativeAnchor(Effect):
     """Put on an ``anchor`` property to make it respect relative_anchor"""
-    def __init__(self, text):
+    def __init__(self, obj):
         super(RelativeAnchor, self).__init__()
-        self.text = text
+        self.object = obj
 
     @property
     def value(self):
         """Calculate the value"""
-        return (self.text.width * self.text.relative_anchor_x,
-            self.text.height * self.text.relative_anchor_y)
+        return (self.object.width * self.object.relative_anchor_x,
+            self.object.height * self.object.relative_anchor_y)
 
 
 class Layer(GraphicsObject):
@@ -221,6 +223,8 @@ class DecorationLayer(Layer):
 class Rectangle(GraphicsObject):
     """A box of color"""
 
+    color = red, green, blue = color_property
+
     vertices = (gl.GLfloat * 8)(0, 0, 1, 0, 1, 1, 0, 1)
 
     def draw(self, transformation, **kwargs):
@@ -234,6 +238,9 @@ class Rectangle(GraphicsObject):
 
 class Sprite(GraphicsObject):
     """An image"""
+
+    color = red, green, blue = color_property
+
     def __init__(self, parent, texture, **kwargs):
         self.sprite = pyglet.sprite.Sprite(texture.get_texture())
         kwargs.setdefault('size', (self.sprite.width, self.sprite.height))
@@ -261,28 +268,31 @@ class Text(GraphicsObject):
         super(Text, self).__init__(parent, **kwargs)
         self.text = text
         self.font_name = font_name
-        self.sprite = pyglet.text.Label(
+        self.label = pyglet.text.Label(
                 text,
                 font_name=font_name,
                 font_size=self.font_size,
             )
 
-    font_size = gillcup.AnimatedProperty(72)
-    characters_displayed = gillcup.AnimatedProperty(sys.maxint)
+    color = red, green, blue = color_property
+    font_size = gillcup.AnimatedProperty(72,
+        docstring="The size of the font")
+    characters_displayed = gillcup.AnimatedProperty(sys.maxint,
+        docstring="The number of characters displayed")
 
     def setup(self):
         """Assign the properties to the underlying Pyglet label"""
         if self.font_name:
-            self.sprite.font_name = self.font_name
-        self.sprite.font_size = self.font_size
+            self.label.font_name = self.font_name
+        self.label.font_size = self.font_size
 
     def draw(self, **kwargs):
         self.setup()
         color = self.color + (self.opacity, )
-        self.sprite.color = [int(a * 255) for a in color]
-        self.sprite.text = self.text[:int(self.characters_displayed)]
-        self.sprite.draw()
-        self.sprite.text = self.text
+        self.label.color = [int(a * 255) for a in color]
+        self.label.text = self.text[:int(self.characters_displayed)]
+        self.label.draw()
+        self.label.text = self.text
 
     @property
     def size(self):
@@ -293,7 +303,15 @@ class Text(GraphicsObject):
         Returns the size of the entire text, i.e. doesn't take
         ``characters_displayed`` into account.
         """
-        self.text.setup()
-        sprite = self.text.sprite
-        sprite.text = self.text.text
-        return (sprite.content_width, sprite.content_height)
+        self.setup()
+        label = self.label
+        label.text = self.text
+        return (label.content_width, label.content_height)
+
+    @property
+    def height(self):
+        return self.size[0]
+
+    @property
+    def width(self):
+        return self.size[1]

@@ -54,9 +54,29 @@ def test_rectangle_anchors(layer):
     assert dissimilarity < 0.005
 
 
+def test_rectangle_anchors_with_scale(layer):
+    """Test if ``anchor`` works"""
+    kwargs = dict(position=(0.5, 0.5), scale=(0.5, 0.5))
+    Rectangle(layer, anchor=(0, 0), color=(0, 0, 1), **kwargs)
+    Rectangle(layer, anchor=(0.25, 0.25), color=(0, 1, 0), **kwargs)
+    Rectangle(layer, anchor=(0.5, 0.5), color=(1, 0, 0), **kwargs)
+    dissimilarity = layer.dissimilarity()
+    assert dissimilarity < 0.005
+
+
 def test_rectangle_relative_anchors(layer):
     """Test if ``relative_anchor`` works"""
     kwargs = dict(position=(0.5, 0.5), size=(0.5, 0.5))
+    Rectangle(layer, relative_anchor=(0, 0), color=(0, 0, 1), **kwargs)
+    Rectangle(layer, relative_anchor=(0.25, 0.25), color=(0, 1, 0), **kwargs)
+    Rectangle(layer, relative_anchor=(0.5, 0.5), color=(1, 0, 0), **kwargs)
+    dissimilarity = layer.dissimilarity()
+    assert dissimilarity < 0.005
+
+
+def test_rectangle_relative_anchors_with_scale(layer):
+    """Test if ``relative_anchor`` works"""
+    kwargs = dict(position=(0.5, 0.5), scale=(0.5, 0.5))
     Rectangle(layer, relative_anchor=(0, 0), color=(0, 0, 1), **kwargs)
     Rectangle(layer, relative_anchor=(0.25, 0.25), color=(0, 1, 0), **kwargs)
     Rectangle(layer, relative_anchor=(0.5, 0.5), color=(1, 0, 0), **kwargs)

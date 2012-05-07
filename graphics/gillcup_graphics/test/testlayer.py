@@ -118,16 +118,16 @@ class TestLayer(RecordingLayer):
             expected = get_data(expected_image)
         except IOError:
             expected = None
-        if expected is None:
-            raise AssertionError('Expected image not found.\n'
-                'Expected:      %s\n'
-                'Actual result: %s\n'
-                '' % (expected_filename, result_filename))
         result_image = self.get_image(image_width, image_height)
         result = get_data(result_image)
         if expected == result:
             return 0
         result_image.save(result_filename)
+        if expected is None:
+            raise AssertionError('Expected image not found.\n'
+                'Expected:      %s\n'
+                'Actual result: %s\n'
+                '' % (expected_filename, result_filename))
         if numpy:
             write_diff_report(result, expected, diff_filename)
         # Compare premultiplied images

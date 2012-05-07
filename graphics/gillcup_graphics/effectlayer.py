@@ -16,11 +16,13 @@ from gillcup_graphics import Layer
 from gillcup_graphics.offscreen import fbo
 
 from gillcup_graphics.mainwindow import Window
+from gillcup_graphics import objects
 
 
 class EffectLayer(Layer):
     """A Layer that can colorie, fade, or pixelate its contents as a whole
     """
+    color = red, green, blue = objects.color_property
     opacity = properties.AnimatedProperty(1,
         docstring="""Opacity of this layer""")
     mosaic = mosaic_x, mosaic_y = properties.ScaleProperty(2,
