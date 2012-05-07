@@ -149,6 +149,10 @@ class FBO(object):
         # props to pyprocessing!
         self.data = (ctypes.c_ubyte * (self.width * self.height * 4))()
 
+        gl.glBindTexture(
+                gl.GL_TEXTURE_2D,  # target
+                self.texture_id,  # texture id
+            )
         gl.glGetTexImage(
                 gl.GL_TEXTURE_2D,  # target
                 0,  # mipmap level
