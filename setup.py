@@ -11,6 +11,7 @@ setup_args = dict(
     description="""An animation framework for Python""",
     author='Petr Viktorin',
     author_email='encukou@gmail.com',
+    url='http://pypi.python.org/pypi/gillcup/',
     install_requires=['six>=1.1'],
     classifiers=[
             'Intended Audience :: Developers',
