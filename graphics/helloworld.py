@@ -30,14 +30,10 @@ def hello():
 
 def answer(root_layer, hi_world):
     """This one's more advanced"""
-    def load_texture(path):
+    def load_texture(name):
         full_path = os.path.join(
             os.path.dirname(__file__),
-            'gillcup_graphics',
-            'test',
-            'images',
-            'resource',
-            path)
+            'gillcup_graphics', 'test', 'images', 'resource', name)
         return pyglet.image.load(full_path)
     hi_world.characters_displayed = 0
     text_anim = gillcup.Animation(hi_world, 'characters_displayed',
