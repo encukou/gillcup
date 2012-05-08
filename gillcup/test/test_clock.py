@@ -52,6 +52,28 @@ def test_scheduling():
     assert lst == ['a', 'b', 'c', 'd']
 
 
+def test_speed():
+    """Test that the speed property works"""
+    clock = Clock()
+    lst = []
+    clock.schedule(append_const(lst, 'a'), 10)
+    clock.schedule(append_const(lst, 'd'), 30)
+    clock.schedule(append_const(lst, 'b'), 10)
+    clock.schedule(append_const(lst, 'c'), 10)
+    clock.speed = 10
+    clock.advance(0)
+    assert lst == []
+    clock.advance(1)
+    assert lst == ['a', 'b', 'c']
+    clock.advance(1)
+    assert lst == ['a', 'b', 'c']
+    clock.advance(1)
+    assert lst == ['a', 'b', 'c', 'd']
+    clock.speed = -1
+    with raises(ValueError):
+        clock.advance(4)
+
+
 def test_negative_dt():
     """Test that negative advancements are blocked"""
     clock = Clock()

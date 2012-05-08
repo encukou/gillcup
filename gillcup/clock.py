@@ -60,6 +60,17 @@ class Clock(object):
         # List of dependent clocks
         self._subclocks = set()
 
+    speed = AnimatedProperty(1, docstring="""Speed of the clock.
+
+    When calling update(), the interval is multiplied by this value.
+
+    The speed is an AnimatedProperty. When changing, beware that it is only
+    checked when advance() is called or when a scheduled action is run,
+    so speed animations will be only approximate.
+    For better accuracy, call :meth:`~gillcup.Clock.advance`
+    with small *dt*, or schedule a periodic dummy action at small inervals.
+    """)
+
     @property
     def _next_event(self):
         try:
@@ -91,6 +102,7 @@ class Clock(object):
 
         Attempting to move to the past (dt<0) will raise an error.
         """
+        dt *= self.speed
         if dt < 0:
             raise ValueError('Moving backwards in time')
         if self.advancing:
@@ -177,22 +189,14 @@ class Subclock(Clock):
     """A Clock that advances in sync with another Clock
 
     A Subclock advances whenever its *parent* clock does.
-    It has a `speed` attribute, which specifies the relative speed relative to
-    the parent clock. For example, if speed==2, the subclock will run twice as
-    fast as its parent clock.
+    Its `speed` attribute specifies the relative speed relative to the parent
+    clock. For example, if speed==2, the subclock will run twice as fast as its
+    parent clock.
 
     Unlike clocks synchronized via actions or update functions, the actions
     scheduled on a parent Clock and all subclocks are run in the correct
     sequence, with all clocks at the correct times when each action is run.
     """
-    speed = AnimatedProperty(1, docstring="""Speed of the clock.
-
-    The speed is an AnimatedProperty. When changing, beware that it is only
-    checked when advance() is called or when a scheduled action is run,
-    so speed animations will be only approximate.
-    For better accuracy, call :meth:`~gillcup.Clock.advance`
-    with small *dt*, or schedule a periodic dummy action at small inervals.
-    """)
 
     def __init__(self, parent, speed=1):
         super(Subclock, self).__init__()

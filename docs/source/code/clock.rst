@@ -5,6 +5,10 @@ gillcup.clock
 
 .. autoclass:: gillcup.Clock
 
+    Animated Properties:
+
+        .. autoattribute:: gillcup.Clock.speed
+
     Basic methods:
 
         .. automethod:: gillcup.Clock.advance
@@ -16,4 +20,3 @@ gillcup.clock
         .. automethod:: gillcup.Clock.unschedule_update_function
 
 .. autoclass:: gillcup.Subclock
-    :members: speed
