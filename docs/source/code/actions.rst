@@ -11,11 +11,11 @@ gillcup.actions
         Set to true when this Action is finished, i.e. its chained actions have
         been triggered.
 
-    Subclassable methods:
+    Overridable methods:
 
         .. automethod:: gillcup.Action.__call__
 
-    Methods useful for subclassing:
+    Methods useful for subclasses:
 
         .. automethod:: gillcup.Action.expire
         .. automethod:: gillcup.Action.trigger_chain
