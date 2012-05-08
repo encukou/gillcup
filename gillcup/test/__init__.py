@@ -30,7 +30,7 @@ if skipIf is None:  # pragma: no cover
         def _skip(func):
             if condition:
                 print('skipping test: %s' % reason)
-                return reason
+                return(reason)
             else:
                 return func
         return _skip
@@ -52,8 +52,8 @@ def test_suite(basefile=__file__):  # pragma: no cover
             """Run pylint"""
             rc_path = os.path.join(test_dir, '..', '.pylintrc')
             try:
-                print [test_dir, '--rcfile', rc_path]
-                print basefile
+                print([test_dir, '--rcfile', rc_path])
+                print(basefile)
                 errno = lint.Run([test_dir, '--rcfile', rc_path])
             except SystemExit:
                 errno = sys.exc_info()[1].code
