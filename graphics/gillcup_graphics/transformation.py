@@ -154,9 +154,9 @@ class MatrixTransformation(BaseTransformation):
         yd = y * d
         zd = z * d
         self.premultiply((
-                x * xd + c,  y * xd + zs, x * zd - ys, 0,
-                x * yd - zs, y * yd + c,  y * zd + xs, 0,
-                x * zd + ys, y * zd - xs, z * zd + c,  0,
+                x * xd + c, y * xd + zs, x * zd - ys, 0,
+                x * yd - zs, y * yd + c, y * zd + xs, 0,
+                x * zd + ys, y * zd - xs, z * zd + c, 0,
                 0, 0, 0, 1,
             ))
 
@@ -169,15 +169,15 @@ class MatrixTransformation(BaseTransformation):
             ))
 
     def premultiply(self, values):
-        (m1_0,  m1_1,  m1_2,  m1_3,
-         m1_4,  m1_5,  m1_6,  m1_7,
-         m1_8,  m1_9,  m1_10, m1_11,
+        (m1_0, m1_1, m1_2, m1_3,
+         m1_4, m1_5, m1_6, m1_7,
+         m1_8, m1_9, m1_10, m1_11,
          m1_12, m1_13, m1_14, m1_15,
         ) = self.matrix
 
-        (m2_0,  m2_1,  m2_2,  m2_3,
-         m2_4,  m2_5,  m2_6,  m2_7,
-         m2_8,  m2_9,  m2_10, m2_11,
+        (m2_0, m2_1, m2_2, m2_3,
+         m2_4, m2_5, m2_6, m2_7,
+         m2_8, m2_9, m2_10, m2_11,
          m2_12, m2_13, m2_14, m2_15,
         ) = values
 
@@ -205,10 +205,10 @@ class MatrixTransformation(BaseTransformation):
 
     def transform_point(self, x=0, y=0, z=0):
         """Multiply the given vector by this matrix"""
-        (   m1_0,  m1_1,  m1_2,  m1_3,
-            m1_4,  m1_5,  m1_6,  m1_7,
-            m1_8,  m1_9,  m1_10, m1_11,
-            m1_12, m1_13, m1_14, m1_15,
+        (m1_0, m1_1, m1_2, m1_3,
+         m1_4, m1_5, m1_6, m1_7,
+         m1_8, m1_9, m1_10, m1_11,
+         m1_12, m1_13, m1_14, m1_15,
         ) = self.inverse
         return (
                 x * m1_0 + y * m1_4 + z * m1_8 + m1_12,
@@ -223,9 +223,9 @@ class MatrixTransformation(BaseTransformation):
         N.B. Only works with transformation martices (last column is identity)
         """
 
-        (i0,  i1,  i2,  i3,
-         i4,  i5,  i6,  i7,
-         i8,  i9,  i10, i11,
+        (i0, i1, i2, i3,
+         i4, i5, i6, i7,
+         i8, i9, i10, i11,
          i12, i13, i14, i15,
         ) = self.matrix
 
@@ -258,7 +258,7 @@ class MatrixTransformation(BaseTransformation):
 
         m = [(i5 * i10 - i6 * i9) * det_1,
             -(i1 * i10 - i2 * i9) * det_1,
-             (i1 * i6 - i2 * i5 ) * det_1,
+             (i1 * i6 - i2 * i5) * det_1,
             0,
             -(i4 * i10 - i6 * i8) * det_1,
              (i0 * i10 - i2 * i8) * det_1,
