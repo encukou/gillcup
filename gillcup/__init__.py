@@ -22,8 +22,8 @@ from the gillcup package:
 * :class:`~gillcup.Animation` (from :mod:`gillcup.animation`)
 """
 
-__version__ = '0.2.0-beta'
-__version_info__ = (0, 2, 0, 'beta')
+__version__ = '0.2.0-beta.1'
+__version_info__ = (0, 2, 0, 'beta', 1)
 
 from gillcup.clock import Clock, Subclock
 from gillcup.actions import Action
