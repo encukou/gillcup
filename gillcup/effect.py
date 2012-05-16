@@ -10,6 +10,8 @@ class Effect(object):
     Effects should have a `value` attribute that provides a value for the
     property.
     """
+    is_constant = False
+
     def get_replacement(self):
         """Return an equivalent effect
 
@@ -26,6 +28,8 @@ class Effect(object):
 class ConstantEffect(Effect):
     """An Effect that provides a constant value
     """
+    is_constant = True
+
     def __init__(self, value):
         super(ConstantEffect, self).__init__()
         self.value = value
