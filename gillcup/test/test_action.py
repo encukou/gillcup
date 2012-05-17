@@ -207,6 +207,7 @@ def test_chain_on_expired():
 
 @mark.parametrize(('maker'), [
         lambda g: Action.coerce(g()),
+        lambda g: actions.Process(g()),
         lambda g: actions.process_generator(g)(),
     ])
 def test_generator(maker):
@@ -218,7 +219,8 @@ def test_generator(maker):
         lst.append('a')
         yield 1
         lst.append('b')
-        yield TimeAppendingAction(lst)
+        yielded = yield TimeAppendingAction(lst)
+        yielded.chain(lambda: lst.append('c'))
         yield 1
     action = maker(_generator)
     clock.schedule(action)
@@ -227,6 +229,6 @@ def test_generator(maker):
     clock.advance(1)
     assert lst == ['a']
     clock.advance(1)
-    assert lst == ['a', 'b', 2]
+    assert lst == ['a', 'b', 2, 'c']
     clock.advance(1)
-    assert lst == ['a', 'b', 2, 3]
+    assert lst == ['a', 'b', 2, 'c', 3]

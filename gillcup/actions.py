@@ -14,7 +14,7 @@ from __future__ import unicode_literals, division, print_function
 import numbers
 import functools
 
-from six import callable, advance_iterator  # pylint: disable=W0622
+from six import callable  # pylint: disable=W0622
 
 
 class Action(object):
@@ -290,6 +290,7 @@ class Process(Action):
     """
     def __init__(self, iterable, **kwargs):
         self.iterator = iter(iterable)
+        self.next_action = None
         super(Process, self).__init__(**kwargs)
 
     def __call__(self):
@@ -299,11 +300,11 @@ class Process(Action):
     def do_next(self):
         """Schedule the next thing from the iterable"""
         try:
-            value = advance_iterator(self.iterator)
+            value = self.iterator.send(self.next_action)
         except StopIteration:
             self.trigger_chain()
         else:
-            action = self.coerce(value)
+            action = self.next_action = self.coerce(value)
             action.chain(self.do_next)
             self.clock.schedule(action)
 
