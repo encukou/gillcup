@@ -356,6 +356,30 @@ def test_resource_freeing_of_add_parent(Tone):
     assert ref() is None
 
 
+def test_resource_freeing_of_tuple_property(Tone):
+    """Assert unneeded animations don't linger around if shadowed by Add"""
+    clock = Clock()
+    tone = Tone()
+    anim = Animation(tone, 'x', 10, time=1)
+    clock.schedule(anim)
+    ref = weakref.ref(anim)
+    del anim
+    clock.advance(1)
+    gc.collect()
+    assert tone.position == (10, 0, 0)
+    assert ref() is None
+
+
+def test_resource_freeing_of_tuple_property_set(Tone):
+    """Assert unneeded effects don't linger around on direct tuple item set"""
+    tone = Tone()
+    #import pytest; pytest.set_trace()
+    tone.x = 10
+    gc.collect()
+    assert tone.position == (10, 0, 0)
+    assert isinstance(Tone.position.get_effect(tone), effect.ConstantEffect)
+
+
 def test_effect_apply(Tone):
     """Test direct application of an Effect"""
     tone = Tone()

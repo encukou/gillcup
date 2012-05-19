@@ -70,9 +70,11 @@ class AnimatedProperty(object):
 
     def __set__(self, instance, value):
         self.animate(instance, ConstantEffect(value))
+        self.do_replacements(instance)
 
     def __delete__(self, instance):
         self.animate(instance, ConstantEffect(self.default))
+        self.do_replacements(instance)
 
     def get_effect(self, instance):
         """Get the current effect; possibly create a default one beforehand"""
@@ -163,8 +165,11 @@ class _TupleElementProperty(AnimatedProperty):
     def animate(self, instance, animation):
         tuple_effect = _TupleMakeEffect(animation, self.index)
         parent = self.parent.animate(instance, tuple_effect)
-        tuple_effect.previous = parent
+        tuple_effect.parent = parent
         return _TupleExtractEffect(parent, self.index)
+
+    def do_replacements(self, instance):
+        self.parent.do_replacements(instance)
 
 
 class _TupleExtractEffect(Effect):
@@ -180,28 +185,44 @@ class _TupleExtractEffect(Effect):
         """Value to be used for the property this effect is on"""
         return self.parent.value[self.index]
 
+    def get_replacement(self):
+        self.parent = self.parent.get_replacement()
+        if isinstance(self.parent, ConstantEffect):
+            return ConstantEffect(self.value)
+        else:
+            return self
+
 
 class _TupleMakeEffect(Effect):
     """Effect that recombines one changed element of a tuple with the rest
 
-    `parent` is an Effect whose `value` is used for the changed element
+    `element_effect` is an Effect whose `value` is used for the changed element
 
-    The `previous` attribute has the Effect with the original, full tuple.
+    The `parent` attribute has the Effect with the original, full tuple.
     This attribute must be set after instantiation.
     """
-    previous = None
+    element_effect = parent = None
 
-    def __init__(self, parent, index):
+    def __init__(self, element_effect, index):
         super(_TupleMakeEffect, self).__init__()
-        self.parent = parent
+        self.element_effect = element_effect
         self.index = index
 
     @property
     def value(self):
         """Value to be used for the property this effect is on"""
-        parent = self.parent
-        return tuple(parent.value if i == self.index else val
-            for i, val in enumerate(self.previous.value))
+        element_effect = self.element_effect
+        return tuple(element_effect.value if i == self.index else val
+            for i, val in enumerate(self.parent.value))
+
+    def get_replacement(self):
+        self.parent = self.parent.get_replacement()
+        self.element_effect = self.element_effect.get_replacement()
+        if (isinstance(self.parent, ConstantEffect) and
+                isinstance(self.element_effect, ConstantEffect)):
+            return ConstantEffect(self.value)
+        else:
+            return self
 
 
 class ScaleProperty(TupleProperty):
