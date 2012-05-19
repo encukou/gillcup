@@ -6,7 +6,7 @@ import math
 import weakref
 import gc
 
-from pytest import raises
+from pytest import raises, mark
 
 from gillcup import (Clock, AnimatedProperty, TupleProperty, Animation,
         animation, effect)
@@ -356,7 +356,7 @@ def test_resource_freeing_of_add_parent(Tone):
     assert ref() is None
 
 
-def test_resource_freeing_of_tuple_property(Tone):
+def test_resource_freeing_of_tuple_property_parent(Tone):
     """Assert unneeded animations don't linger around if shadowed by Add"""
     clock = Clock()
     tone = Tone()
@@ -370,6 +370,29 @@ def test_resource_freeing_of_tuple_property(Tone):
     assert ref() is None
 
 
+@mark.parametrize('_base_param', [('position', 3), ('x', 1)])
+@mark.parametrize('_add_param', [('position', 3), ('x', 1)])
+def test_resource_freeing_of_tuple_add_parent(Tone, _base_param, _add_param):
+    """Assert unneeded animations don't linger around if shadowed by Add
+
+    Test with all combinations of whole tuple and single element
+    """
+    clock = Clock()
+    tone = Tone()
+    base_attr, base_num = _base_param
+    add_attr, add_num = _add_param
+
+    anim = Animation(tone, base_attr, *[10] * base_num, time=1)
+    clock.schedule(anim)
+    clock.schedule(animation.Add(tone, add_attr, *[100] * add_num, time=10))
+    ref = weakref.ref(anim)
+    del anim
+    clock.advance(1)
+    gc.collect()
+    assert tone.x == 20
+    assert ref() is None
+
+
 def test_resource_freeing_of_tuple_property_set(Tone):
     """Assert unneeded effects don't linger around on direct tuple item set"""
     tone = Tone()
@@ -378,6 +401,37 @@ def test_resource_freeing_of_tuple_property_set(Tone):
     gc.collect()
     assert tone.position == (10, 0, 0)
     assert isinstance(Tone.position.get_effect(tone), effect.ConstantEffect)
+
+
+def test_resource_freeing_of_tuple_property_delete(Tone):
+    """Assert unneeded effects don't linger around on direct tuple item set"""
+    tone = Tone()
+    #import pytest; pytest.set_trace()
+    tone.position = 10, 10, 10
+    del tone.x
+    gc.collect()
+    assert tone.position == (0, 10, 10)
+    assert isinstance(Tone.position.get_effect(tone), effect.ConstantEffect)
+
+
+def test_elementwise_tuple_animation(Tone):
+    """Test animating each element of a tuple independently"""
+    tone = Tone()
+    clock = Clock()
+    clock.schedule(Animation(tone, 'x', 10, time=10))
+    clock.schedule(Animation(tone, 'y', 20, time=10))
+    clock.schedule(Animation(tone, 'z', 30, time=10))
+    assert tone.position == (tone.x, tone.y, tone.z) == (0, 0, 0)
+    clock.advance(1)
+    assert tone.position == (tone.x, tone.y, tone.z) == (1, 2, 3)
+    clock.schedule(Animation(tone, 'x', 0, time=8))
+    clock.schedule(Animation(tone, 'y', 0, time=8))
+    clock.schedule(Animation(tone, 'z', 0, time=8))
+    clock.advance(4)
+    # Both animations are halfway through
+    assert tone.position == (tone.x, tone.y, tone.z) == (5 / 2, 10 / 2, 15 / 2)
+    clock.advance(4)
+    assert tone.position == (tone.x, tone.y, tone.z) == (0, 0, 0)
 
 
 def test_effect_apply(Tone):

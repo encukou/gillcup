@@ -89,3 +89,8 @@ def test_scale_animation():
     assert box.size == (2, 3, 4)
     with raises(ValueError):
         Animation(box, 'size', 1, 2, 3, 4)
+
+
+def test_no_error_in_do_replacements():
+    """Test no error occurs when calling do_replacements on bogus object"""
+    Box.size.do_replacements(None)
