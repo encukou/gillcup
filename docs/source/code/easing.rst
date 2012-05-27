@@ -6,7 +6,7 @@ gillcup.easing
 The easing module defines a number of functions usable in
 :class:`gillcup.Animation`.
 
-The functions are based on Robert Penner's `Motion, Tweening, and Easing
+The functions are partly based on Robert Penner's `Motion, Tweening, and Easing
 <http://robertpenner.com/easing/>`_, and on Qt's `QEasingCurve
 <http://developer.qt.nokia.com/doc/qt-4.8/qeasingcurve.html>`_.
 See their pages for more background.

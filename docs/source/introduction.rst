@@ -10,7 +10,7 @@ influenced by user input.
 
 The Gillcup core is only concerned with animations; it's not tied to
 any particular graphics library.
-The gillcup-graphics package includes a more accessible demo and a tutorial.
+The gillcup_graphics_ package includes a more accessible demo and a tutorial.
 
 
 The Project
@@ -24,3 +24,4 @@ Please report any bugs, style issues and suggestions on the `bug tracker`_!
 .. _PEP8: http://www.python.org/dev/peps/pep-0008/
 .. _semantic versioning: http://semver.org/
 .. _bug tracker: https://github.com/encukou/gillcup/issues
+.. _gillcup_graphics: http://gillcup-graphics.readthedocs.org/

@@ -13,7 +13,9 @@ The tween parameters can be set by the **timing** and **easing** keyword
 arguments.
 
 The “original value” of a property is not fixed: it is whatever the
-value would have been if this animation wasn't applied.
+value would have been if this animation wasn't applied (in other words,
+it's determined by the :mod:`~gillcup.effect` that was originally on the
+property).
 Also, if you set the **dynamic** argument to Animation, the animation's
 *target* becomes an :class:`~gillcup.AnimatedProperty`.
 Animating these allows one to create very complex effects in a modular way.
@@ -88,14 +90,14 @@ class Animation(Effect, Action):
 
     .. note::
 
-        In order to conserve resources, ordinary Animations are released when
-        they are “done”. This is done by effectively replacing them with
-        an animation whose value is constant.
-        When using arguments such as ``timing`` and ``dynamic``, or the
+        In order to conserve resources, ordinary Animations are released
+        (replaced by a simple :class:`~gillcup.ConstantEffect`) when
+        they are “done”.
+        Arguments such as ``timing`` and ``dynamic``, or the
         :class:`~gillcup.animation.Add` or :class:`~gillcup.animation.Multiply`
-        animations, which allow the value to be modified after the ``time``
-        elapses, turns this behavior off by setting the ``dynamic`` attibute
-        to true.
+        animation subclasses, which allow the value to be modified after the
+        ``time`` elapses, turns this behavior off by setting the ``dynamic``
+        attibute to true.
 
         When subclassing Animation, remember to do the same if your subclass
         needs to change its value after ``time`` elapses.

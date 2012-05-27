@@ -1,6 +1,11 @@
 """Effect base & helper classes
 
-Moved to a separate module mainly to solve dependency/import order problems
+The Effect is the base class that modify an AnimatedProperty.
+:class:`~gillcup.Animation` is Effect's most important subclass.
+
+Each Effect can be applied to one or more properties on one or more objects.
+The value of these properties is then provided by the Effect's ``value``
+property.
 """
 
 
@@ -16,7 +21,7 @@ class Effect(object):
         """Return an equivalent effect
 
         When it's sure that the effect's value won't change any more, this
-        method can return a ConstantEffect to free resources.
+        method can return a :class:`~gillcup.ConstantEffect` to free resources.
         """
         return self
 
@@ -26,8 +31,7 @@ class Effect(object):
 
 
 class ConstantEffect(Effect):
-    """An Effect that provides a constant value
-    """
+    """An Effect that provides a constant value"""
     is_constant = True
 
     def __init__(self, value):

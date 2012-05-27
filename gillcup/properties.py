@@ -11,16 +11,16 @@ discrete changes.
 
 Continuous changes happen over a period of time: an object smoothly moves
 to the left, or a sound fades out.
-These changes are made by animating special properties on objects.
+These changes are made by animating special properties on objects,
+using :mod:`Animation <gillcup.animation>` classes on so-called
+:mod:`animated properties <gillcup.properties>`.
 
-Gillcup uses Python's `descriptor interface
+Under the hood, Gillcup uses Python's `descriptor interface
 <http://docs.python.org/howto/descriptor.html>`_ to provide efficient
 animated properties.
 
 Assigment to an animated attribute causes the property to get set to the given
 value and cancels any running animations on it.
-
-See :mod:`gillcup.animation` for information on how to actually do animations.
 """
 
 from __future__ import unicode_literals, division, print_function
@@ -31,7 +31,7 @@ from gillcup.effect import Effect, ConstantEffect
 class AnimatedProperty(object):
     """A scalar animated property
 
-    Define animated properties as follows::
+    The idiomatic way to define animated properties is as follows::
 
         class Tone(object):
             pitch = AnimatedProperty(440)
