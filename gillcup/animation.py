@@ -31,7 +31,7 @@ from gillcup import easing as easing_module
 
 
 class Animation(Effect, Action):
-    """An Animation that modifies a scalar animated property
+    """An object that modifies an AnimatedProperty based on Clock time
 
     Positional init arguments:
 
@@ -93,10 +93,10 @@ class Animation(Effect, Action):
         In order to conserve resources, ordinary Animations are released
         (replaced by a simple :class:`~gillcup.ConstantEffect`) when
         they are “done”.
-        Arguments such as ``timing`` and ``dynamic``, or the
+        Arguments such as ``timing``, or the
         :class:`~gillcup.animation.Add` or :class:`~gillcup.animation.Multiply`
         animation subclasses, which allow the value to be modified after the
-        ``time`` elapses, turns this behavior off by setting the ``dynamic``
+        ``time`` elapses, turn this behavior off by setting the ``dynamic``
         attibute to true.
 
         When subclassing Animation, remember to do the same if your subclass
