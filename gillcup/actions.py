@@ -300,7 +300,12 @@ class Process(Action):
     def do_next(self):
         """Schedule the next thing from the iterable"""
         try:
-            value = self.iterator.send(self.next_action)
+            try:
+                send = self.iterator.send
+            except AttributeError:
+                value = next(self.iterator)
+            else:
+                value = send(self.next_action)
         except StopIteration:
             self.trigger_chain()
         else:

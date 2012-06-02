@@ -217,7 +217,7 @@ def test_generator(maker):
     def _generator():
         yield 1
         lst.append('a')
-        yield 1
+        yield [1, TimeAppendingAction(lst)]
         lst.append('b')
         yielded = yield TimeAppendingAction(lst)
         yielded.chain(lambda: lst.append('c'))
@@ -229,6 +229,6 @@ def test_generator(maker):
     clock.advance(1)
     assert lst == ['a']
     clock.advance(1)
-    assert lst == ['a', 'b', 2, 'c']
+    assert lst == ['a', 2, 'b', 2, 'c']
     clock.advance(1)
-    assert lst == ['a', 'b', 2, 'c', 3]
+    assert lst == ['a', 2, 'b', 2, 'c', 3]
