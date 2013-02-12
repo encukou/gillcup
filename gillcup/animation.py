@@ -120,14 +120,14 @@ class Animation(Effect, Action):
             pass
         else:
             if target:
-                raise ValueError('Target specified as both positional and ' +
-                    'keyword arguments')
+                raise ValueError(
+                    'Target specified as both positional and keyword argument')
             target = new_target
 
         self.target = self.property.adjust_value(target)
 
-        self.dynamic = (self.dynamic or 'timing' in kwargs or
-            kwargs.pop('dynamic', False))
+        self.dynamic = (
+            self.dynamic or 'timing' in kwargs or kwargs.pop('dynamic', False))
         if not self.dynamic:
             self.chain(lambda: self.property.do_replacements(instance))
 
@@ -142,7 +142,7 @@ class Animation(Effect, Action):
             self.get_time = self._absolute_timing
         elif timing:
             self.get_time = lambda: timing(
-                    self.clock.time, self.start_time, self.time)
+                self.clock.time, self.start_time, self.time)
 
         if isinstance(easing, string_types):
             e = easing_module
@@ -186,8 +186,8 @@ class Animation(Effect, Action):
         """Value to be used for the property this animation is on"""
         parent_value = self.parent.value
         target = self.target
-        return self.property.tween_values(self.compute_value,
-                parent_value, target)
+        return self.property.tween_values(
+            self.compute_value, parent_value, target)
 
     def get_time(self):  # pylint: disable=E0202
         """Get the local time for tweening, usually in the [0..1] range"""

@@ -249,7 +249,7 @@ def showcase(
         items='(poly) sine exponential circular elastic_example '
         'overshoot_example bounce_example'.split(),
         filename=None,
-    ):  # pragma: no cover; pylint: disable=R0914, W0621, W0404, F0401
+):  # pragma: no cover; pylint: disable=R0914, W0621, W0404, F0401
     """Show graphs of the easing functions in this module
     """
     import pylab

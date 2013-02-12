@@ -60,6 +60,5 @@ def test_suite(basefile=__file__):  # pragma: no cover
             assert not errno, 'pylint failed'
 
     return unittest.TestSuite([
-            PytestWrapper('test_wraper'),
-            PytestWrapper('lint_wraper'),
-        ])
+        PytestWrapper('test_wraper'),
+        PytestWrapper('lint_wraper')])

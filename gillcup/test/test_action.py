@@ -112,12 +112,11 @@ def test_sequence():
     clock = Clock()
     lst = []
     action = actions.Sequence(
-            TimeAppendingAction(lst),
-            actions.Delay(1),
-            TimeAppendingAction(lst),
-            actions.Delay(1),
-            TimeAppendingAction(lst),
-        )
+        TimeAppendingAction(lst),
+        actions.Delay(1),
+        TimeAppendingAction(lst),
+        actions.Delay(1),
+        TimeAppendingAction(lst))
     action.chain(TimeAppendingAction(lst))
     clock.schedule(action)
     clock.advance(2)
@@ -129,11 +128,10 @@ def test_parallel():
     clock = Clock()
     lst = []
     action = actions.Parallel(
-            TimeAppendingAction(lst),
-            TimeAppendingAction(lst),
-            actions.Sequence(actions.Delay(1), TimeAppendingAction(lst)),
-            actions.Sequence(actions.Delay(2), TimeAppendingAction(lst)),
-        )
+        TimeAppendingAction(lst),
+        TimeAppendingAction(lst),
+        actions.Sequence(actions.Delay(1), TimeAppendingAction(lst)),
+        actions.Sequence(actions.Delay(2), TimeAppendingAction(lst)))
     action.chain(TimeAppendingAction(lst))
     clock.schedule(action)
     clock.advance(2)
@@ -206,14 +204,14 @@ def test_chain_on_expired():
 
 
 @mark.parametrize(('maker'), [
-        lambda g: Action.coerce(g()),
-        lambda g: actions.Process(g()),
-        lambda g: actions.process_generator(g)(),
-    ])
+    lambda g: Action.coerce(g()),
+    lambda g: actions.Process(g()),
+    lambda g: actions.process_generator(g)()])
 def test_generator(maker):
     """Test actions.Generator"""
     clock = Clock()
     lst = []
+
     def _generator():
         yield 1
         lst.append('a')
@@ -222,6 +220,7 @@ def test_generator(maker):
         yielded = yield TimeAppendingAction(lst)
         yielded.chain(lambda: lst.append('c'))
         yield 1
+
     action = maker(_generator)
     clock.schedule(action)
     action.chain(TimeAppendingAction(lst))

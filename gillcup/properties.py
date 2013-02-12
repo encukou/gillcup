@@ -125,8 +125,8 @@ class TupleProperty(AnimatedProperty):
     def __init__(self, *default, **kwargs):
         super(TupleProperty, self).__init__(default, **kwargs)
         self.size = len(default)
-        self.subproperties = [_TupleElementProperty(self, i)
-                for i in range(self.size)]
+        self.subproperties = [
+            _TupleElementProperty(self, i) for i in range(self.size)]
 
     def adjust_value(self, value):
         """Convert an animation's ``*args`` values into a property value
@@ -215,7 +215,8 @@ class _TupleMakeEffect(Effect):
     def value(self):
         """Value to be used for the property this effect is on"""
         element_effect = self.element_effect
-        return tuple(element_effect.value if i == self.index else val
+        return tuple(
+            element_effect.value if i == self.index else val
             for i, val in enumerate(self.parent.value))
 
     def get_replacement(self):

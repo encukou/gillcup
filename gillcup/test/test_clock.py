@@ -114,10 +114,13 @@ def test_update_function():
     """Test that schedule_update_function() works"""
     time_list = [0]
     clock = Clock()
+
     def _update_function():
         time_list[0] = clock.time
+
     def _do_assert():
         assert time_list[0] == clock.time
+
     clock.schedule_update_function(_update_function)
     _do_assert()
     clock.advance(1)
@@ -130,8 +133,10 @@ def test_update_function():
 def test_unschedule_update_function():
     """Test that unschedule_update_function() works"""
     clock = Clock()
+
     def _update_function():
         raise AssertionError('Update function called!')
+
     clock.schedule_update_function(_update_function)
     clock.unschedule_update_function(_update_function)
     clock.advance(1)
@@ -161,11 +166,13 @@ def test_subclock():
     assert subclock.time == 4
 
     lst = []
+
     def _append_const(lst, value):
         def _append():
             print(value, clock.time, subclock.time)
             lst.append(value)
         return _append
+
     subclock.schedule(_append_const(lst, 'a'), 1)
     clock.schedule(_append_const(lst, 'b'), 1)
     subclock.schedule(_append_const(lst, 'c'), 2)

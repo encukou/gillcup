@@ -250,8 +250,8 @@ def test_custom_timing(Tone):
     clock = Clock()
     tone = Tone()
     clock.advance(1)
-    action = Animation(tone, 'pitch', 450, time=1,
-            timing=lambda t, s, d: (t - s) / d / 2)
+    action = Animation(
+        tone, 'pitch', 450, time=1, timing=lambda t, s, d: (t - s) / d / 2)
     clock.schedule(action)
     clock.advance(0)
     assert tone.pitch == 440
@@ -266,13 +266,15 @@ def test_custom_timing(Tone):
 def test_easing(Tone):
     """Test all kinds of easing functions"""
     easings = []
-    for easing in ['linear', 'quadratic', 'cubic', 'quartic', 'quintic',
+    for easing in [
+            'linear', 'quadratic', 'cubic', 'quartic', 'quintic',
             'sine', 'exponential', 'circular']:
         easings.append(easing)
         for mod in [''] + '.in_ .out .in_out .out_in'.split():
             easings.append(easing + mod)
         easings.append(getattr(easing_mod, easing))
-    for easing in (easing_mod.linear, easing_mod.exponential,
+    for easing in (
+            easing_mod.linear, easing_mod.exponential,
             easing_mod.bounce(2)):
         easings.append(easing)
         for mod in 'in_ out in_out out_in'.split():
@@ -292,8 +294,7 @@ def test_easing(Tone):
         for easing in easings + [
                 easing_mod.bounce(parameter),
                 easing_mod.overshoot(parameter),
-                easing_mod.elastic(parameter),
-                ]:
+                easing_mod.elastic(parameter)]:
             print(easing)
             clock = Clock()
             tone = Tone()
