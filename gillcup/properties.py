@@ -187,7 +187,10 @@ class _TupleExtractEffect(Effect):
 
     def get_replacement(self):
         self.parent = self.parent.get_replacement()
-        if isinstance(self.parent, ConstantEffect):
+        if (isinstance(self.parent, _TupleMakeEffect) and
+                self.parent.index == self.index):
+            return self.parent.element_effect
+        elif isinstance(self.parent, ConstantEffect):
             return ConstantEffect(self.value)
         else:
             return self
@@ -218,7 +221,11 @@ class _TupleMakeEffect(Effect):
     def get_replacement(self):
         self.parent = self.parent.get_replacement()
         self.element_effect = self.element_effect.get_replacement()
-        if (isinstance(self.parent, ConstantEffect) and
+        if (isinstance(self.parent, _TupleMakeEffect) and
+                self.parent.index == self.index):
+            self.parent = self.parent.parent
+            return self.get_replacement()
+        elif (isinstance(self.parent, ConstantEffect) and
                 isinstance(self.element_effect, ConstantEffect)):
             return ConstantEffect(self.value)
         else:
