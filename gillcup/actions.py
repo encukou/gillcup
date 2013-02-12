@@ -315,7 +315,7 @@ class Process(Action):
 
 
 def process_generator(func):
-    """Decorator for creating :class:`~gillcup.actions.Process`\ es
+    """Decorator for creating :class:`~gillcup.actions.Process`\\ es
 
     Used as a decorator on a generator function, it allows writing in a
     declarative style instead of callbacks, with ``yield`` statements for

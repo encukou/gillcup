@@ -8,8 +8,8 @@ import gc
 
 from pytest import raises, mark
 
-from gillcup import (Clock, AnimatedProperty, TupleProperty, Animation,
-        animation, effect)
+from gillcup import (
+    Clock, AnimatedProperty, TupleProperty, Animation, animation, effect)
 from gillcup import easing as easing_mod
 
 
@@ -293,7 +293,7 @@ def test_easing(Tone):
                 easing_mod.bounce(parameter),
                 easing_mod.overshoot(parameter),
                 easing_mod.elastic(parameter),
-            ]:
+                ]:
             print(easing)
             clock = Clock()
             tone = Tone()
