@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup_args = dict(
     name='gillcup',
-    version='0.2.0-beta.1',  # XXX: Duplicated in __init__.py
+    version='0.2.0-beta.2',  # XXX: Duplicated in __init__.py
     packages=find_packages(),
 
     description="""An animation framework for Python""",

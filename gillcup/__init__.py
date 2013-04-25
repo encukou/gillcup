@@ -25,8 +25,8 @@ from the gillcup package:
 * :class:`~gillcup.ConstantEffect` (from :mod:`gillcup.effect`)
 """
 
-__version__ = '0.2.0-beta.1'
-__version_info__ = (0, 2, 0, 'beta', 1)
+__version__ = '0.2.0-beta.2'
+__version_info__ = (0, 2, 0, 'beta', 2)
 
 from gillcup.clock import Clock, Subclock
 from gillcup.actions import Action
