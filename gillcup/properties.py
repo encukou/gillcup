@@ -94,7 +94,7 @@ class AnimatedProperty(object):
         # pylint: disable=W0212
         parent = self.get_effect(instance)
         instance.__gillcup_effects[self] = animation
-        return parent
+        return parent.get_replacement()
 
     def do_replacements(self, instance):
         """Possibly replace current effect w/ a more lightweight equivalent"""

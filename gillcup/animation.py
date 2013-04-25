@@ -27,6 +27,7 @@ from six import string_types
 
 from gillcup.actions import Action
 from gillcup.effect import Effect, ConstantEffect
+from gillcup.properties import AnimatedProperty
 from gillcup import easing as easing_module
 
 
@@ -108,6 +109,7 @@ class Animation(Effect, Action):
 
     start_time = None
     parent = None
+    strength = 1
 
     def __init__(self, instance, property_name, *target, **kwargs):
         super(Animation, self).__init__()
@@ -169,6 +171,7 @@ class Animation(Effect, Action):
             class AnimatedAnimation(cls):
                 """A more dynamic flavor of gillcup.Animation"""
                 target = prop.get_target_property()
+                strength = AnimatedProperty(1)
             ani_class = AnimatedAnimation
         else:
             ani_class = cls
@@ -208,15 +211,15 @@ class Animation(Effect, Action):
 
     def compute_value(self, previous, target):
         """Given the previous value and a target, compute value"""
-        t = self.easing(self.get_time())
+        t = self.easing(self.get_time()) * self.strength
         return previous * (1 - t) + target * t
 
     def get_replacement(self):
-        self.parent = self.parent.get_replacement()
         if not self.dynamic and self.get_time() >= 1:
             # Not gonna change from now on
             return ConstantEffect(self.value)
         else:
+            self.parent = self.parent.get_replacement()
             return self
 
 
