@@ -185,6 +185,13 @@ class Action(object):
         return Parallel(other, self)
 
 
+class ManualAction(Action):
+    """An action doesn't end until trigger_chain is called manually
+    """
+    def __call__(self):
+        self.expire()
+
+
 class FunctionCaller(Action):
     """An Action that calls given `function`, passing `args` and `kwargs` to it
 
