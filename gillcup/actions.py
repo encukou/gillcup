@@ -25,9 +25,8 @@ class Action(object):
     directly from the constructor with the `clock` and `dt` arguments.
     Each Action may only be scheduled *once*.
 
-    Other actions (the lowercase term denotes “arbitrary callables”) may be
-    chained to an Action, that is, scheduled to run at some time after the
-    Action is run.
+    Other actions may be chained to an Action, that is, scheduled to run at
+    some time after the Action is run.
 
     Some Actions may represent a time interval or process rather than a
     discrete point in time. In these cases, chained actions are run after the
@@ -43,10 +42,12 @@ class Action(object):
         *   ``|`` creates a :class:`~gillcup.actions.Parallel` construct:
             all actions are started at once.
 
-    The operators can be used with regular callables (which are wrapped in
-    :class:`~gillcup.actions.FunctionCaller`), or with numbers
-    (which create corresponding :class:`delays <gillcup.actions.Delay>`), or
-    with iterables (which get wrapped in :class:`~gillcup.actions.Process`).
+    The ``chain()`` method and operators can be used with Actions, or regular
+    callables (which are wrapped in :class:`~gillcup.actions.FunctionCaller`),
+    or with numbers (which create corresponding
+    :class:`delays <gillcup.actions.Delay>`), or with iterables (which get
+    wrapped in :class:`~gillcup.actions.Process`), or with None (which coerces
+    into a no-op Action).
     """
     # The states an Animation goes through are:
     # - unscheduled (self.clock is unset)
@@ -78,7 +79,11 @@ class Action(object):
     def chain(self, action, dt=0):
         """Schedule an action to be scheduled after this Action
 
-        The dt argument can be given to delay the chained action by the
+        The ``action`` argument may be a callable, number, or None,
+        and is wrapped by an Action if necessary. See ``__init__`` for more
+        details.
+
+        The ``dt`` argument can be given to delay the chained action by the
         specified time.
 
         If this Action has already been called, the chained action is scheduled
@@ -88,6 +93,14 @@ class Action(object):
 
         Returns the chained action.
         """
+        action = self.coerce(action)
+        return self.chain_callable(action, dt=dt)
+
+    def chain_callable(self, action, dt=0):
+        """Chain an arbitrary callable to be scheduled after this Action
+
+        This is the same as ``chain()``, except the argument is not coerced.
+        """
         if self.chain_triggered:
             self.clock.schedule(action, dt)
         else:
@@ -96,12 +109,15 @@ class Action(object):
 
     @classmethod
     def coerce(cls, value):
-        """Coerce value into an action. Called on operands of ``+`` and ``|``.
+        """Coerce value into an action.
 
-        Wraps functions in FunctionCallers, and numbers in Delays
+        Wraps functions in FunctionCallers, numbers in Delays, and None in a
+        no-op.
         """
         if isinstance(value, Action):
             return value
+        elif value is None:
+            return Action()
         elif callable(value):
             return FunctionCaller(value)
         elif isinstance(value, numbers.Real):
