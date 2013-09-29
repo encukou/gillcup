@@ -37,3 +37,14 @@ class ConstantEffect(Effect):
     def __init__(self, value):
         super(ConstantEffect, self).__init__()
         self.value = value
+
+
+class ComputedEffect(Effect):
+    """An Effect whose value is supplied by a function"""
+    def __init__(self, function):
+        super(ComputedEffect, self).__init__()
+        self.function = function
+
+    @property
+    def value(self):
+        return self.function()
