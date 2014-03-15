@@ -110,10 +110,12 @@ def test_recursive_advance(clock):
     @gillcup.coroutine
     def advance():
         print("Advancing!")
+        yield 0.1
         yield from clock.advance(1)
-    clock.task(advance())
+    future = clock.task(advance())
+    clock.advance_sync(1)
     with pytest.raises(RuntimeError):
-        clock.advance_sync(1)
+        future.result()
 
 
 def test_subclock(clock):
