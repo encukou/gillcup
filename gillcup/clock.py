@@ -2,6 +2,8 @@ import collections
 import heapq
 import asyncio
 
+import gillcup.futures
+
 _Event = collections.namedtuple('EventHeapEntry', 'time index callback args')
 
 # Next action index; used to keep FIFO ordering for actions scheduled
@@ -98,7 +100,6 @@ class Clock:
 
         print('Done.', _continuing)
 
-
     def advance_sync(self, dt):
         """Call (and wait for) self.advance() outside of an event loop"""
         loop = asyncio.get_event_loop()
@@ -109,14 +110,28 @@ class Clock:
         for subclock in self._subclocks:
             subclock._advance(dt * subclock.speed)
 
-    def wait(self, dt):
+    def sleep(self, dt):
         """Return a future that will complete after "dt" time units
 
         Scheduling for the past (dt<0) will raise an error.
         """
         future = asyncio.Future()
         self.schedule(dt, future.set_result, None)
-        return future
+        return gillcup.futures.Future(self, future)
+
+    def wait_for(self, future):
+        """Wrap a future so that its calbacks are scheduled on this Clock
+
+        Return a future that is done when the original one is,
+        but any callbacks registered on it will be scheduled on this Clock.
+
+        If the given future is already scheduling on this Clock,
+        it is returned unchanged.
+        """
+        if isinstance(future, gillcup.futures.Future) and future.clock is self:
+            return future
+        else:
+            return gillcup.futures.Future(self, future)
 
     def schedule(self, dt, callback, *args):
         """Schedule callback to be called after "dt" time units
@@ -144,9 +159,9 @@ class Clock:
                     try:
                         value = float(value)
                     except TypeError:
-                        yield value
+                        yield from self.wait_for(value)
                     else:
-                        yield from self.wait(value)
+                        yield from self.sleep(value)
                 except Exception as exc:
                     value = None
                     exception = exc

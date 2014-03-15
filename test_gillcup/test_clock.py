@@ -5,12 +5,7 @@ import asyncio
 import pytest
 
 import gillcup
-from gillcup.clock import Clock, Subclock
-
-
-@pytest.fixture
-def clock():
-    return Clock()
+from gillcup.clock import Subclock
 
 
 def dummy_function():
