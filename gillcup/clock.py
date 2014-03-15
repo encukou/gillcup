@@ -9,7 +9,7 @@ _Event = collections.namedtuple('EventHeapEntry', 'time index callback args')
 next_index = 0
 
 
-class Clock(object):
+class Clock:
     """Keeps track of discrete time, and schedules events.
 
     Attributes:
@@ -34,8 +34,7 @@ class Clock(object):
 
     speed = 1
 
-    @property
-    def _next_event(self):
+    def _get_next_event(self):
         try:
             event = self.events[0]
         except IndexError:
@@ -43,7 +42,7 @@ class Clock(object):
         else:
             events = [(event.time - self.time, event.index, self, event)]
         for subclock in self._subclocks:
-            event = subclock._next_event  # pylint: disable=W0212
+            event = subclock._get_next_event()
             if event:
                 remain, index, clock, event = event
                 try:
@@ -58,7 +57,8 @@ class Clock(object):
         except ValueError:
             return None
 
-    def advance(self, dt):
+    @asyncio.coroutine
+    def advance(self, dt, *, _continuing=False):
         """Call to advance the clock's time
 
         Steps the clock dt units to the future, pausing at times when actions
@@ -66,50 +66,60 @@ class Clock(object):
 
         Attempting to move to the past (dt<0) will raise an error.
         """
+        print(self.advancing, _continuing)
+        if self.advancing and not _continuing:
+            raise RuntimeError('Clock.advance called recursively')
         dt *= self.speed
         if dt < 0:
             raise ValueError('Moving backwards in time')
-        if self.advancing:
-            raise RuntimeError('Clock.advance called recursively')
         self.advancing = True
-        try:
-            while True:
-                event = self._next_event
-                if not event:
-                    break
-                event_dt, _index, clock, event = event
-                if event_dt > dt:
-                    break
-                if dt:
-                    self._advance(event_dt)
-                dt -= event_dt
-                _evt = heapq.heappop(clock.events)
-                assert _evt is event and clock.time == event.time
-                clock.time = event.time
-                event.callback(*event.args)
+
+        event = self._get_next_event()
+        if event is not None:
+            event_dt, _index, clock, event = event
+        if event is None or event_dt > dt:
             if dt:
                 self._advance(dt)
-        finally:
+            dt = 0
             self.advancing = False
+        else:
+            if event_dt:
+                self._advance(event_dt)
+            dt -= event_dt
+            _evt = heapq.heappop(clock.events)
+            assert _evt is event and clock.time == event.time
+            # jump to the event's time
+            clock.time = event.time
+            # Handle the event (synchronously!)
+            event.callback(*event.args)
+
+            # finish jumping to target time
+            yield from asyncio.Task(self.advance(dt, _continuing=True))
+
+        print('Done.', _continuing)
+
+
+    def advance_sync(self, dt):
+        """Call (and wait for) self.advance() outside of an event loop"""
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self.advance(dt))
 
     def _advance(self, dt):
         self.time += dt
         for subclock in self._subclocks:
-            subclock._advance(dt * subclock.speed)  # pylint: disable=W0212
+            subclock._advance(dt * subclock.speed)
 
     def wait(self, dt):
-        """Return a future representing a wait of "dt" time units
-        """
-        future = asyncio.Future()
-        self.schedule(dt, future.set_result, self)
-
-    def schedule(self, dt, callback, *args):
-        """Schedule a callback to be called `dt` time units in the future
-
-        Scheduling is stable: if two callbacks are scheduled for the same
-        time, they will be called in the order they were scheduled.
+        """Return a future that will complete after "dt" time units
 
         Scheduling for the past (dt<0) will raise an error.
+        """
+        future = asyncio.Future()
+        self.schedule(dt, future.set_result, None)
+        return future
+
+    def schedule(self, dt, callback, *args):
+        """Schedule callback to be called after "dt" time units
         """
         global next_index
         if dt < 0:
@@ -118,6 +128,32 @@ class Clock(object):
         scheduled_time = self.time + dt
         event = _Event(scheduled_time, next_index, callback, args)
         heapq.heappush(self.events, event)
+
+    def task(self, coro):
+        @asyncio.coroutine
+        def coro_wrapper():
+            iterator = iter(coro)
+            value = exception = None
+            while True:
+                if exception is None:
+                    value = iterator.send(value)
+                else:
+                    value = iterator.throw(exception)
+                print('Got', value)
+                try:
+                    try:
+                        value = float(value)
+                    except TypeError:
+                        yield value
+                    else:
+                        yield from self.wait(value)
+                except Exception as exc:
+                    value = None
+                    exception = exc
+                except BaseException as exc:
+                    iterator.throw(exc)
+                    raise
+        return asyncio.Task(coro_wrapper())
 
 
 class Subclock(Clock):
