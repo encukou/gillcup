@@ -110,13 +110,13 @@ class Clock:
         for subclock in self._subclocks:
             subclock._advance(dt * subclock.speed)
 
-    def sleep(self, dt):
+    def sleep(self, delay):
         """Return a future that will complete after "dt" time units
 
         Scheduling for the past (dt<0) will raise an error.
         """
         future = asyncio.Future()
-        self.schedule(dt, future.set_result, None)
+        self.schedule(delay, future.set_result, None)
         return gillcup.futures.Future(self, future)
 
     def wait_for(self, future):
@@ -133,14 +133,14 @@ class Clock:
         else:
             return gillcup.futures.Future(self, future)
 
-    def schedule(self, dt, callback, *args):
+    def schedule(self, delay, callback, *args):
         """Schedule callback to be called after "dt" time units
         """
         global next_index
-        if dt < 0:
+        if delay < 0:
             raise ValueError('Scheduling an action in the past')
         next_index += 1
-        scheduled_time = self.time + dt
+        scheduled_time = self.time + delay
         event = _Event(scheduled_time, next_index, callback, args)
         heapq.heappush(self.events, event)
 
