@@ -154,7 +154,8 @@ class Clock:
                     value = iterator.send(value)
                 else:
                     value = iterator.throw(exception)
-                print('Got', value)
+                if value is None:
+                    value = 0
                 try:
                     try:
                         value = float(value)

@@ -249,3 +249,18 @@ def test_double_complex_task(clock):
     assert future1.result() == 'ok'
     assert future2.done()
     assert future2.result() == 'ok'
+
+
+@gillcup.coroutine
+def delaying_task(lst):
+    for i in range(100):
+        yield
+    lst.append('X')
+
+
+def test_delaying_task(clock):
+    lst = []
+    future1 = clock.task(appending_task(lst))
+    future2 = clock.task(delaying_task(lst))
+    clock.advance_sync(1)
+    assert lst == [0, 'X', 1]
