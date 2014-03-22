@@ -52,3 +52,22 @@ class Constant(Expression):
 
     def get(self):
         return self._value
+
+
+class Value(Expression):
+    def __init__(self, *value):
+        self._value = tuple(float(v) for v in value)
+        self._size = len(self._value)
+
+    def __len__(self):
+        return self._size
+
+    def get(self):
+        return self._value
+
+    def set(self, *value):
+        value = tuple(float(v) for v in value)
+        if len(value) != self._size:
+            raise ValueError('Mismatched vector size: {} != {}'.format(
+                len(value), self._size))
+        self._value = value

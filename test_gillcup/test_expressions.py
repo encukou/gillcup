@@ -1,10 +1,10 @@
 import pytest
 
-from gillcup.expressions import Constant
+from gillcup.expressions import Constant, Value
 
 
-def test_simple_value():
-    exp = Constant(3)
+@pytest.mark.parametrize('exp', [Constant(3), Value(3)])
+def test_simple_value(exp):
     assert tuple(exp) == (3, )
     assert float(exp) == 3.0
     assert int(exp) == 3
@@ -24,8 +24,8 @@ def test_simple_value():
     assert exp >= (3,)
 
 
-def test_tuple_value():
-    exp = Constant(3, 4, 5)
+@pytest.mark.parametrize('exp', [Constant(3, 4, 5), Value(3, 4, 5)])
+def test_tuple_value(exp):
     assert tuple(exp) == (3, 4, 5)
     with pytest.raises(ValueError):
         float(exp)
@@ -38,3 +38,13 @@ def test_tuple_value():
     assert exp > (3, 4, 4)
     assert exp <= (3, 5, 5)
     assert exp >= (3, 2, 5)
+
+
+def test_value_setting():
+    exp = Value(4)
+    assert exp == 4
+    exp.set(6)
+    assert exp == 6
+
+    with pytest.raises(ValueError):
+        exp.set(6, 7)
