@@ -24,6 +24,9 @@ class Expression:
     def __int__(self):
         return int(float(self))
 
+    def __repr__(self):
+        return '<{}>'.format(', '.join(str(n) for n in self))
+
     def get(self):
         """Return the value of this expression, as a tuple"""
         raise NotImplementedError()

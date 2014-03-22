@@ -8,6 +8,7 @@ def test_simple_value(exp):
     assert tuple(exp) == (3, )
     assert float(exp) == 3.0
     assert int(exp) == 3
+    assert repr(exp) == '<3.0>'
 
     assert exp == 3
     assert exp != 4
@@ -31,6 +32,7 @@ def test_tuple_value(exp):
         float(exp)
     with pytest.raises(ValueError):
         int(exp)
+    assert repr(exp) == '<3.0, 4.0, 5.0>'
 
     assert exp == (3, 4, 5)
     assert exp != (3, 5, 5)
