@@ -113,6 +113,7 @@ class Value(Expression):
     def __init__(self, *value):
         self._value = tuple(float(v) for v in value)
         self._size = len(self._value)
+        self._fixed = False
 
     def __len__(self):
         return self._size
@@ -121,11 +122,24 @@ class Value(Expression):
         return self._value
 
     def set(self, *value):
+        if self._fixed:
+            raise ValueError('value has been fixed')
         value = tuple(float(v) for v in value)
         if len(value) != self._size:
             raise ValueError('Mismatched vector size: {} != {}'.format(
                 len(value), self._size))
         self._value = value
+
+    def fix(self, *value):
+        if value:
+            self.set(*value)
+        self._fixed = True
+
+    def simplify(self):
+        if self._fixed:
+            return Constant(*self)
+        else:
+            return self
 
 
 def _coerce(exp, size=1):

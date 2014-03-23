@@ -124,6 +124,28 @@ def test_value_setting():
         exp.set(6, 7)
 
 
+def test_value_fix_0():
+    exp = Value(4)
+    exp.fix(6)
+    assert exp == 6
+    with pytest.raises(ValueError):
+        exp.set(4)
+    assert exp == 6
+    assert exp.simplify() == 6
+    assert isinstance(exp.simplify(), Constant)
+
+
+def test_value_fix_1():
+    exp = Value(6)
+    exp.fix()
+    assert exp == 6
+    with pytest.raises(ValueError):
+        exp.set(4)
+    assert exp == 6
+    assert exp.simplify() == 6
+    assert isinstance(exp.simplify(), Constant)
+
+
 def check_formula(numpy, formula, expected_args, got_args):
     if numpy:
         expected = formula(*(numpy.array(a) for a in expected_args))
