@@ -202,11 +202,20 @@ def test_bad_lengths(op):
         raise ValueError(num_args)
 
 
-def test_constant_propagation(formula, args):
+def test_constant_propagation(formula, args, maybe_numpy):
     values = tuple(Constant(a) for a in args)
-    got = check_formula(None, formula, args, values)
+    got = check_formula(maybe_numpy, formula, args, values)
     if got:
         assert isinstance(got, Constant)
+
+
+def test_fixed_falue_constant_propegation(formula, args, maybe_numpy):
+    values = tuple(Value(a) for a in args)
+    for value in values:
+        value.fix()
+    got = check_formula(maybe_numpy, formula, args, values)
+    if got:
+        assert isinstance(got.simplify(), Constant)
 
 
 def check_dump(expression, expected):

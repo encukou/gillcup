@@ -228,8 +228,9 @@ class Foldr(Expression):
         return self._operands
 
     def simplify(self):
+        self._operands = tuple(o.simplify() for o in self._operands)
         if all(isinstance(o, Constant) for o in self._operands):
-            return Constant(*self.get())
+            return Constant(*self)
         else:
             return self
 
@@ -294,8 +295,8 @@ class Neg(Elementwise):
         super().__init__(operand, operator.neg)
 
     def simplify(self):
-        if isinstance(self._operand, Constant):
-            return Constant(*self.get())
+        if isinstance(self._operand.simplify(), Constant):
+            return Constant(*self)
         else:
             return self
 
