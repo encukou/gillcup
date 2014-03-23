@@ -179,6 +179,25 @@ def test_tuples(op):
         assert op(Value(1, 2)) == (op(1), op(2))
     elif num_args == 2:
         assert op(Value(1, 2), Value(3, 4)) == (op(1, 3), op(2, 4))
+        assert op(Value(1, 2), 3) == (op(1, 3), op(2, 3))
+        assert op(3, Value(1, 2)) == (op(3, 1), op(3, 2))
+    else:
+        raise ValueError(num_args)
+
+
+def test_bad_lengths(op):
+    num_args = len(inspect.signature(op).parameters)
+    if num_args == 1:
+        pass
+    elif num_args == 2:
+        with pytest.raises(ValueError):
+            op(Value(1, 2), Value(3))
+        with pytest.raises(ValueError):
+            op(Value(1), Value(2, 3))
+        with pytest.raises(ValueError):
+            op(Value(1, 2), (3,))
+        with pytest.raises(ValueError):
+            op((3,), Value(1, 2))
     else:
         raise ValueError(num_args)
 
