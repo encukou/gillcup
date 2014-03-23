@@ -5,7 +5,8 @@ import textwrap
 
 import pytest
 
-from gillcup.expressions import Constant, Value, Concat, dump
+from gillcup.expressions import Constant, Value, Concat, EmptyExpressionError
+from gillcup.expressions import dump
 
 
 try:
@@ -147,6 +148,16 @@ def test_value_fix_1():
     assert isinstance(exp.simplify(), Constant)
 
 
+def test_constant_zero_size():
+    with pytest.raises(EmptyExpressionError):
+        Constant()
+
+
+def test_value_zero_size():
+    with pytest.raises(EmptyExpressionError):
+        Value()
+
+
 def check_formula(numpy, formula, expected_args, got_args):
     if numpy:
         expected = formula(*(numpy.array(a) for a in expected_args))
@@ -252,7 +263,9 @@ def test_index_get():
         val[3]
     with pytest.raises(IndexError):
         val[-80]
-    with pytest.raises(IndexError):
+    with pytest.raises(EmptyExpressionError):
+        val[1:1]
+    with pytest.raises(EmptyExpressionError):
         val[2:1]
     with pytest.raises(TypeError):
         val[None]
@@ -307,5 +320,10 @@ def test_replace_slice():
     assert val == (1, 0, 3)
     val = val.replace(slice(1, None), -1)
     assert val == (1, -1, -1)
-    val = val.replace(slice(1), 2)
-    assert val == (2, -1, -1)
+    val = val.replace(slice(1), (2, 3))
+    assert val == (2, 3, -1, -1)
+    val = val.replace(slice(0, -1), ())
+    assert val == -1
+
+    with pytest.raises(EmptyExpressionError):
+        val.replace(slice(None, None), ())

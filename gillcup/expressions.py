@@ -3,6 +3,12 @@ import functools
 import math
 
 
+class EmptyExpressionError(ValueError):
+    """Raised when a zero-length expression would be created"""
+    def __init__(self, message='cannot create zero-length expression'):
+        super().__init__(message)
+
+
 @functools.total_ordering
 class Expression:
     """A dynamic numeric value.
@@ -81,16 +87,56 @@ class Expression:
         return Neg(self).simplify()
 
     def replace(self, index, replacement):
-        start, stop = _get_slice_indices(self, index)
-        replacement = _coerce(replacement, stop - start)
+        """Replace the given element (or slice) with a value
+
+        Any element of an expression can be replaced::
+
+            >>> Constant(1, 2, 3).replace(0, -2)
+            <-2.0, 2.0, 3.0>
+
+        This can be used to change the size of the expression
+        (as long as it doesn't become zero)::
+
+            >>> Constant(1, 2, 3).replace(0, (-2, -3))
+            <-2.0, -3.0, 2.0, 3.0>
+
+        Slices can be replaced as well::
+
+            >>> Constant(1, 2, 3).replace(slice(0, -1), (-2, -3))
+            <-2.0, -3.0, 3.0>
+
+            >>> Constant(1, 2, 3).replace(slice(1, 1), (-8, -9))
+            <1.0, -8.0, -9.0, 2.0, 3.0>
+
+            >>> Constant(1, 2, 3).replace(slice(1, None), ())
+            <1.0>
+
+        When replacing a slice by a plain number, the number is repeated
+        so that the size does not change::
+
+            >>> Constant(1, 2, 3).replace(slice(0, -1), -1)
+            <-1.0, -1.0, 3.0>
+            >>> Constant(1, 2, 3).replace(slice(0, -1), (-1,))
+            <-1.0, 3.0>
+
+        Of course this does not happen when using a tuple or expression::
+
+            >>> Constant(1, 2, 3).replace(slice(0, -1), Constant(-1))
+            <-1.0, 3.0>
+        """
+        start, stop = _get_slice_indices(self, index, allow_empty=True)
+        replacement = _coerce(replacement, stop - start, allow_empty=True)
         parts = []
         if start > 0:
             parts.append(self[:start])
-        parts.append(replacement)
+        if replacement:
+            parts.append(replacement)
         if stop < len(self):
             parts.append(self[stop:])
-        if len(parts) == 1:
-            return replacement
+        if not parts:
+            raise EmptyExpressionError()
+        elif len(parts) == 1:
+            return parts[0]
         else:
             return Concat(*parts).simplify()
 
@@ -151,6 +197,8 @@ def _as_tuple(value, size=1):
 
 class Constant(Expression):
     def __init__(self, *value):
+        if not value:
+            raise EmptyExpressionError()
         self._value = tuple(float(v) for v in value)
 
     def get(self):
@@ -159,6 +207,8 @@ class Constant(Expression):
 
 class Value(Expression):
     def __init__(self, *value):
+        if not value:
+            raise EmptyExpressionError()
         self._value = tuple(float(v) for v in value)
         self._size = len(self._value)
         self._fixed = False
@@ -197,11 +247,18 @@ class Value(Expression):
             return self
 
 
-def _coerce(exp, size=1):
+def _coerce(exp, size=1, allow_empty=False):
     if isinstance(exp, Expression):
         return exp
     else:
-        return Constant(*_as_tuple(exp, size))
+        tup = _as_tuple(exp, size)
+        if not tup:
+            if allow_empty:
+                return None
+            else:
+                raise EmptyExpressionError()
+        else:
+            return Constant(*tup)
 
 
 def _coerce_all(exps):
@@ -322,7 +379,7 @@ class Neg(Elementwise):
             return self
 
 
-def _get_slice_indices(source, index):
+def _get_slice_indices(source, index, allow_empty=False):
         try:
             index = int(index)
         except TypeError:
@@ -331,11 +388,11 @@ def _get_slice_indices(source, index):
             except AttributeError:
                 message = 'indices must be slices or integers, not {}'
                 raise TypeError(message.format(type(index).__name__))
-            if index.step not in (None, 1):
-                raise IndexError('non-1 step not supported')
             start, stop, step = indices(len(source))
-            if start >= stop:
-                raise IndexError('cannot create empty slice')
+            if step not in (None, 1):
+                raise IndexError('non-1 step not supported')
+            if start >= stop and not allow_empty:
+                raise EmptyExpressionError()
             return start, stop
         else:
             if index < 0:
