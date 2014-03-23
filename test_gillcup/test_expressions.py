@@ -137,6 +137,7 @@ def check_formula(numpy, formula, expected_args, got_args):
         assert math.isnan(expected)
     else:
         assert expected == got
+    return got
 
 
 def test_formula_values(formula, args, maybe_numpy):
@@ -155,3 +156,10 @@ def test_tuples(op):
         assert op(Value(1, 2), Value(3, 4)) == (op(1, 3), op(2, 4))
     else:
         raise ValueError(num_args)
+
+
+def test_constant_propagation(formula, args):
+    values = tuple(Constant(a) for a in args)
+    got = check_formula(None, formula, args, values)
+    if got:
+        assert isinstance(got, Constant)

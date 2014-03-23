@@ -34,6 +34,9 @@ class Expression:
         """Return the value of this expression, as a tuple"""
         raise NotImplementedError()
 
+    def simplify(self):
+        return self
+
     @property
     def children(self):
         return ()
@@ -49,30 +52,30 @@ class Expression:
         return self.get() < _as_tuple(other)
 
     def __add__(self, other):
-        return Sum((self, other))
+        return Sum((self, other)).simplify()
     __radd__ = __add__
 
     def __mul__(self, other):
-        return Product((self, other))
+        return Product((self, other)).simplify()
     __rmul__ = __mul__
 
     def __sub__(self, other):
-        return Difference((self, other))
+        return Difference((self, other)).simplify()
 
     def __rsub__(self, other):
-        return Difference((other, self))
+        return Difference((other, self)).simplify()
 
     def __truediv__(self, other):
-        return Quotient((self, other))
+        return Quotient((self, other)).simplify()
 
     def __rtruediv__(self, other):
-        return Quotient((other, self))
+        return Quotient((other, self)).simplify()
 
     def __pos__(self):
         return self
 
     def __neg__(self):
-        return Neg(self)
+        return Neg(self).simplify()
 
 
 def dump(exp, indent=0):
@@ -176,6 +179,12 @@ class Foldr(Expression):
     def children(self):
         return self._operands
 
+    def simplify(self):
+        if all(isinstance(o, Constant) for o in self._operands):
+            return Constant(*self.get())
+        else:
+            return self
+
 
 class Sum(Foldr):
     pretty_name = '+'
@@ -234,3 +243,9 @@ class Elementwise(Expression):
 class Neg(Elementwise):
     def __init__(self, operand):
         super().__init__(operand, operator.neg)
+
+    def simplify(self):
+        if isinstance(self._operand, Constant):
+            return Constant(*self.get())
+        else:
+            return self
