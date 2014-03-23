@@ -5,7 +5,7 @@ import textwrap
 
 import pytest
 
-from gillcup.expressions import Constant, Value, dump
+from gillcup.expressions import Constant, Value, Concat, dump
 
 
 try:
@@ -275,3 +275,27 @@ def test_index_get():
     assert len(val[1:]) == 2
     assert len(val[:]) == 3
     assert len(val[:-1]) == 2
+
+
+def test_concat():
+    val = Value(3)
+    cat = Concat(val, 2, Value(5, 4))
+    assert cat == (3, 2, 5, 4)
+    val.set(8)
+    assert cat == (8, 2, 5, 4)
+
+
+def test_concat_simplification():
+    val1 = Value(1)
+    val2 = Value(4, 5)
+    cat = Concat(val1, 2, 3, val2)
+    assert cat == (1, 2, 3, 4, 5)
+    check_dump(cat, """
+        Concat <1.0, 2.0, 3.0, 4.0, 5.0>:
+          Value <1.0>
+          Constant <2.0, 3.0>
+          Value <4.0, 5.0>
+    """)
+    val1.fix()
+    val2.fix()
+    check_dump(cat.simplify(), 'Constant <1.0, 2.0, 3.0, 4.0, 5.0>')

@@ -169,6 +169,13 @@ class Value(Expression):
             self.set(*value)
         self._fixed = True
 
+    @property
+    def pretty_name(self):
+        if self._fixed:
+            return '{} (fixed)'.format(type(self).__name__)
+        else:
+            return type(self).__name__
+
     def simplify(self):
         if self._fixed:
             return Constant(*self)
@@ -341,3 +348,42 @@ class Slice(Expression):
 
     def get(self):
         return self._source.get()[self._start:self._stop]
+
+
+class Concat(Expression):
+    def __init__(self, *children):
+        self._children = tuple(_coerce(c) for c in children)
+        if not self._children:
+            raise ValueError('no expressions to concatentate')
+        self._len = sum(len(c) for c in self._children)
+        self._simplify_children()
+
+    @property
+    def children(self):
+        return self._children
+
+    def __len__(self):
+        return self._len
+
+    def get(self):
+        return sum((c.get() for c in self._children), ())
+
+    def simplify(self):
+        self._simplify_children()
+        if len(self._children) == 1:
+            return self._children[0]
+        else:
+            return self
+
+    def _simplify_children(self):
+        new_children = []
+        for child in self._children:
+            child = child.simplify()
+            if (isinstance(child, Constant) and
+                    new_children and
+                    isinstance(new_children[-1], Constant)):
+                new_const = Constant(*new_children[-1].get() + child.get())
+                new_children[-1] = new_const
+            else:
+                new_children.append(child)
+        self._children = tuple(new_children)
