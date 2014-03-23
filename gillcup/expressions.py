@@ -80,6 +80,20 @@ class Expression:
     def __neg__(self):
         return Neg(self).simplify()
 
+    def replace(self, index, replacement):
+        start, stop = _get_slice_indices(self, index)
+        replacement = _coerce(replacement, stop - start)
+        parts = []
+        if start > 0:
+            parts.append(self[:start])
+        parts.append(replacement)
+        if stop < len(self):
+            parts.append(self[stop:])
+        if len(parts) == 1:
+            return replacement
+        else:
+            return Concat(*parts).simplify()
+
 
 def dump(exp):
     memo = {}
@@ -308,9 +322,7 @@ class Neg(Elementwise):
             return self
 
 
-class Slice(Expression):
-    def __init__(self, source, index):
-        self._source = source
+def _get_slice_indices(source, index):
         try:
             index = int(index)
         except TypeError:
@@ -321,19 +333,23 @@ class Slice(Expression):
                 raise TypeError(message.format(type(index).__name__))
             if index.step not in (None, 1):
                 raise IndexError('non-1 step not supported')
-            self._start, self._stop, step = indices(len(source))
-            if self._start >= self._stop:
+            start, stop, step = indices(len(source))
+            if start >= stop:
                 raise IndexError('cannot create empty slice')
-            self._len = self._stop - self._start
+            return start, stop
         else:
             if index < 0:
                 index += len(source)
             if not (0 <= index < len(source)):
-                message = '{} index out of range'
-                raise IndexError(message.format(type(self).__name__))
-            self._start = index
-            self._stop = index + 1
-            self._len = 1
+                raise IndexError('expression index out of range')
+            return index, index + 1
+
+
+class Slice(Expression):
+    def __init__(self, source, index):
+        self._source = source
+        self._start, self._stop = _get_slice_indices(source, index)
+        self._len = self._stop - self._start
 
     def __len__(self):
         return self._len

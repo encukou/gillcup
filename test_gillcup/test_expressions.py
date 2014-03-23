@@ -299,3 +299,13 @@ def test_concat_simplification():
     val1.fix()
     val2.fix()
     check_dump(cat.simplify(), 'Constant <1.0, 2.0, 3.0, 4.0, 5.0>')
+
+
+def test_replace_slice():
+    val = Value(1, 2, 3)
+    val = val.replace(1, 0)
+    assert val == (1, 0, 3)
+    val = val.replace(slice(1, None), -1)
+    assert val == (1, -1, -1)
+    val = val.replace(slice(1), 2)
+    assert val == (2, -1, -1)
