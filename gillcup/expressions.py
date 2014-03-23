@@ -45,6 +45,9 @@ class Expression:
     def pretty_name(self):
         return type(self).__name__
 
+    def __getitem__(self, index):
+        return Slice(self, index)
+
     def __eq__(self, other):
         return self.get() == _as_tuple(other)
 
@@ -295,3 +298,45 @@ class Neg(Elementwise):
             return Constant(*self.get())
         else:
             return self
+
+
+class Slice(Expression):
+    def __init__(self, source, index):
+        self._source = source
+        try:
+            index = int(index)
+        except TypeError:
+            try:
+                indices = index.indices
+            except AttributeError:
+                message = 'indices must be slices or integers, not {}'
+                raise TypeError(message.format(type(index).__name__))
+            if index.step not in (None, 1):
+                raise IndexError('non-1 step not supported')
+            self._start, self._stop, step = indices(len(source))
+            if self._start >= self._stop:
+                raise IndexError('cannot create empty slice')
+            self._len = self._stop - self._start
+        else:
+            if index < 0:
+                index += len(source)
+            if not (0 <= index < len(source)):
+                message = '{} index out of range'
+                raise IndexError(message.format(type(self).__name__))
+            self._start = index
+            self._stop = index + 1
+            self._len = 1
+
+    def __len__(self):
+        return self._len
+
+    @property
+    def pretty_name(self):
+        return '[{}:{}]'.format(self._start, self._stop)
+
+    @property
+    def children(self):
+        yield self._source
+
+    def get(self):
+        return self._source.get()[self._start:self._stop]

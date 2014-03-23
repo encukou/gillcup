@@ -228,3 +228,41 @@ def test_dump():
               Constant <4.0>
           Constant <5.0>
     """)
+
+
+def test_index_get():
+    val = Value(1, 2, 3)
+
+    assert val[1] == 2
+    assert val[2] == 3
+    assert val[-2] == 2
+    assert val[-3] == 1
+    assert val[:-1] == (1, 2)
+    assert val[-1:] == (3, )
+    with pytest.raises(IndexError):
+        val[3]
+    with pytest.raises(IndexError):
+        val[-80]
+    with pytest.raises(IndexError):
+        val[2:1]
+    with pytest.raises(TypeError):
+        val[None]
+
+    first_item = val[0]
+    last_item = val[-1]
+    first_two = val[:2]
+
+    assert first_item == 1
+    assert last_item == 3
+    assert first_two == (1, 2)
+
+    val.set(2, 3, 4)
+    assert first_item == 2
+    assert last_item == 4
+    assert first_two == (2, 3)
+
+    assert len(val[1]) == 1
+    assert len(val[:1]) == 1
+    assert len(val[1:]) == 2
+    assert len(val[:]) == 3
+    assert len(val[:-1]) == 2
