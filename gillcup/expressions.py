@@ -78,16 +78,47 @@ class Expression:
         return Neg(self).simplify()
 
 
-def dump(exp, indent=0):
-    base = '{dent}{name} {exp!r}'.format(
-        dent='  ' * indent,
-        name=exp.pretty_name,
-        exp=exp)
-    children = list(exp.children)
-    if children:
-        return base + ':\n' + '\n'.join(dump(c, indent+1) for c in children)
-    else:
-        return base
+def dump(exp):
+    memo = {}
+    seen = set()
+    counter = 0
+
+    def fill_memo(exp):
+        nonlocal counter
+        num = memo.get(id(exp), None)
+        if num is None:
+            memo[id(exp)] = 0
+            for child in exp.children:
+                fill_memo(child)
+        elif not num:
+            counter += 1
+            memo[id(exp)] = counter
+
+    fill_memo(exp)
+
+    def gen(exp, indent=0):
+        base = '{dent}{name} {exp!r}'.format(
+            dent='  ' * indent,
+            name=exp.pretty_name,
+            exp=exp)
+        children = list(exp.children)
+        ref = memo[id(exp)]
+        if id(exp) in seen:
+            yield '{}  (*{})'.format(base, ref)
+        else:
+            seen.add(id(exp))
+            if ref:
+                refpart = '  (&{})'.format(ref)
+            else:
+                refpart = ''
+            if children:
+                yield base + ':' + refpart
+                for child in exp.children:
+                    yield from gen(child, indent + 1)
+            else:
+                yield base + refpart
+
+    return '\n'.join(gen(exp))
 
 
 def _as_tuple(value, size=1):

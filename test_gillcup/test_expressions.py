@@ -1,6 +1,7 @@
 import itertools
 import inspect
 import math
+import textwrap
 
 import pytest
 
@@ -187,3 +188,24 @@ def test_constant_propagation(formula, args):
     got = check_formula(None, formula, args, values)
     if got:
         assert isinstance(got, Constant)
+
+
+def check_dump(expression, expected):
+    print(dump(expression))
+    expected = textwrap.dedent(expected.strip('\n').rstrip())
+    assert dump(expression) == expected
+
+
+def test_dump():
+    val = Value(3) + 1
+    check_dump(val + 4 * val + 5, """
+        + <25.0>:
+          + <20.0>:
+            + <4.0>:  (&1)
+              Value <3.0>
+              Constant <1.0>
+            * <16.0>:
+              + <4.0>  (*1)
+              Constant <4.0>
+          Constant <5.0>
+    """)
