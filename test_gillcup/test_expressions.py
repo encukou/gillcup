@@ -13,6 +13,9 @@ except ImportError:
     numpy = None
 
 
+def get_lambda_source(f):
+    return inspect.getsource(f).split(':', 1)[1].strip().rstrip(',')
+
 
 def pytest_generate_tests(metafunc):
     if {'args', 'formula'} <= set(metafunc.fixturenames):
@@ -42,9 +45,8 @@ def pytest_generate_tests(metafunc):
                 for args in get_combs(numbers, count):
                     yield args, formula
         argvalues = list(_gen())
-        ids = ['{} ({})'.format(
-                inspect.getsource(formula).split(':', 1)[1].strip().rstrip(','),
-                ', '.join(str(a) for a in args))
+        ids = ['{} ({})'.format(get_lambda_source(formula),
+                                ', '.join(str(a) for a in args))
                for args, formula in argvalues]
         metafunc.parametrize('args,formula', argvalues, ids=ids)
 

@@ -220,6 +220,7 @@ def safediv(a, b):
         else:
             return float('nan')
 
+
 class Quotient(Foldr):
     pretty_name = '/'
 
