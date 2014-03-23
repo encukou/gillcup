@@ -1,4 +1,7 @@
+import operator
 import functools
+import math
+
 
 @functools.total_ordering
 class Expression:
@@ -31,20 +34,66 @@ class Expression:
         """Return the value of this expression, as a tuple"""
         raise NotImplementedError()
 
+    @property
+    def children(self):
+        return ()
+
+    @property
+    def pretty_name(self):
+        return type(self).__name__
+
     def __eq__(self, other):
         return self.get() == _as_tuple(other)
 
     def __lt__(self, other):
         return self.get() < _as_tuple(other)
 
+    def __add__(self, other):
+        return Sum((self, other))
+    __radd__ = __add__
 
-def _as_tuple(value):
+    def __mul__(self, other):
+        return Product((self, other))
+    __rmul__ = __mul__
+
+    def __sub__(self, other):
+        return Difference((self, other))
+
+    def __rsub__(self, other):
+        return Difference((other, self))
+
+    def __truediv__(self, other):
+        return Quotient((self, other))
+
+    def __rtruediv__(self, other):
+        return Quotient((other, self))
+
+    def __pos__(self):
+        return self
+
+    def __neg__(self):
+        return Neg(self)
+
+
+def dump(exp, indent=0):
+    base = '{dent}{name} {exp!r}'.format(
+        dent='  ' * indent,
+        name=exp.pretty_name,
+        exp=exp)
+    children = list(exp.children)
+    if children:
+        return base + ':\n' + '\n'.join(dump(c, indent+1) for c in children)
+    else:
+        return base
+
+
+def _as_tuple(value, size=1):
     if isinstance(value, Expression):
         return value.get()
     try:
         iterator = iter(value)
     except TypeError:
-        return (value, )
+        return (float(value), ) * size
     else:
         return tuple(float(v) for v in iterator)
 
@@ -74,3 +123,114 @@ class Value(Expression):
             raise ValueError('Mismatched vector size: {} != {}'.format(
                 len(value), self._size))
         self._value = value
+
+
+def _coerce(exp, size=1):
+    if isinstance(exp, Expression):
+        return exp
+    else:
+        return Constant(*_as_tuple(exp, size))
+
+
+def _coerce_all(exps):
+    exps = tuple(exps)
+    for exp in exps:
+        try:
+            size = len(exp)
+        except TypeError:
+            pass
+        else:
+            break
+    else:
+        raise ValueError('Unable to determine size: %s' % exps)
+    return tuple(_coerce(e, size) for e in exps)
+
+
+def _fold_tuples(operands, op):
+    reducer = functools.partial(functools.reduce, op)
+    return tuple(map(reducer, zip(*operands)))
+
+
+def _check_len(a, b):
+    if len(a) != len(b):
+        raise ValueError('Mismatched vector size: {} != {}'.format(
+            len(a), len(b)))
+
+
+class Foldr(Expression):
+    def __init__(self, operands, op):
+        self._op = op
+        self._operands = tuple(_coerce_all(operands))
+        first = self._operands[0]
+        for operand in self._operands[1:]:
+            _check_len(operand, first)
+
+    def get(self):
+        return _fold_tuples(self._operands, self._op)
+
+    @property
+    def pretty_name(self):
+        return '{}({})'.format(type(self).__name__, self._op)
+
+    @property
+    def children(self):
+        return self._operands
+
+
+class Sum(Foldr):
+    pretty_name = '+'
+
+    def __init__(self, operands):
+        super().__init__(operands, operator.add)
+
+    def _dump_name(self):
+        return '+'
+
+
+class Product(Foldr):
+    pretty_name = '*'
+
+    def __init__(self, operands):
+        super().__init__(operands, operator.mul)
+
+
+class Difference(Foldr):
+    pretty_name = '-'
+
+    def __init__(self, operands):
+        super().__init__(operands, operator.sub)
+
+
+def safediv(a, b):
+    try:
+        return a / b
+    except ZeroDivisionError:
+        sign = a * b
+        if a and not math.isnan(a):
+            return math.copysign(float('inf'), sign)
+        else:
+            return float('nan')
+
+class Quotient(Foldr):
+    pretty_name = '/'
+
+    def __init__(self, operands):
+        super().__init__(operands, safediv)
+
+
+class Elementwise(Expression):
+    def __init__(self, operand, op):
+        self._operand = _coerce(operand)
+        self._op = op
+
+    def get(self):
+        return tuple(map(self._op, self._operand.get()))
+
+    @property
+    def children(self):
+        yield self._operand
+
+
+class Neg(Elementwise):
+    def __init__(self, operand):
+        super().__init__(operand, operator.neg)
