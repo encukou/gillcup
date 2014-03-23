@@ -1,0 +1,12 @@
+# See http://travis-ci.org/encukou/gillcup
+
+language: python
+python:
+  - "3.3"
+install:
+    - sudo apt-get install python3-numpy python-pip
+    - pip install asyncio pytest pep8
+    - pip install -e.
+script:
+    - py.test -v
+    - pep8 .
