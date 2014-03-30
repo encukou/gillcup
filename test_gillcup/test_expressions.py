@@ -327,3 +327,10 @@ def test_replace_slice():
 
     with pytest.raises(EmptyExpressionError):
         val.replace(slice(None, None), ())
+
+
+def test_constant_slice_simplification():
+    const = Constant(0, 1, 2)
+    check_dump(const[:-1], 'Constant <0.0, 1.0>')
+    check_dump(const[1:], 'Constant <1.0, 2.0>')
+    check_dump(const[1], 'Constant <1.0>')

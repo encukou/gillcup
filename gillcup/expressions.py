@@ -204,6 +204,9 @@ class Constant(Expression):
     def get(self):
         return self._value
 
+    def __getitem__(self, index):
+        return Constant(*self._value[slice(*_get_slice_indices(self, index))])
+
 
 class Value(Expression):
     def __init__(self, *value):
