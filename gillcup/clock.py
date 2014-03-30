@@ -68,7 +68,6 @@ class Clock:
 
         Attempting to move to the past (dt<0) will raise an error.
         """
-        print(self.advancing, _continuing)
         if self.advancing and not _continuing:
             raise RuntimeError('Clock.advance called recursively')
         dt *= self.speed
@@ -97,8 +96,6 @@ class Clock:
 
             # finish jumping to target time
             yield from asyncio.Task(self.advance(dt, _continuing=True))
-
-        print('Done.', _continuing)
 
     def advance_sync(self, dt):
         """Call (and wait for) self.advance() outside of an event loop"""
