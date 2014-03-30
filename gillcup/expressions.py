@@ -46,7 +46,7 @@ class Expression:
         return type(self).__name__
 
     def __getitem__(self, index):
-        return Slice(self, index)
+        return Slice(self, index).simplify()
 
     def __eq__(self, other):
         return self.get() == _as_tuple(other)
@@ -394,6 +394,15 @@ class Slice(Expression):
 
     def get(self):
         return self._source.get()[self._start:self._stop]
+
+    def simplify(self):
+        src = self._source
+        if self._start <= 0 and self._stop >= len(src):
+            return self._source
+        elif isinstance(src, Slice):
+            subslice = slice(self._start + src._start, self._stop + src._start)
+            return Slice(src._source, subslice)
+        return self
 
 
 class Concat(Expression):

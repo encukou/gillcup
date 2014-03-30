@@ -301,6 +301,26 @@ def test_index_get():
     assert len(val[:]) == 3
     assert len(val[:-1]) == 2
 
+def test_slice_simplification():
+    val = Value(1, 2, 3)
+    assert val[:] is val
+    check_dump(val[:-1][:-1], """
+        [0:1] <1.0>:
+          Value <1.0, 2.0, 3.0>
+    """)
+    check_dump(val[1:][:-1], """
+        [1:2] <2.0>:
+          Value <1.0, 2.0, 3.0>
+    """)
+    check_dump(val[1:30][1:], """
+        [2:3] <3.0>:
+          Value <1.0, 2.0, 3.0>
+    """)
+    check_dump(val[:-1][:30], """
+        [0:2] <1.0, 2.0>:
+          Value <1.0, 2.0, 3.0>
+    """)
+
 
 def test_concat():
     val = Value(3)
