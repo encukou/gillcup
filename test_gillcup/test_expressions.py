@@ -50,7 +50,7 @@ def pytest_generate_tests(metafunc):
         ids = ['{} ({})'.format(get_lambda_source(formula),
                                 ', '.join(str(a) for a in args))
                for args, formula in argvalues]
-        metafunc.parametrize('args,formula', argvalues, ids=ids)
+        metafunc.parametrize(['args', 'formula'], argvalues, ids=ids)
 
 
 @pytest.fixture(params=['numpy', 'py'])
