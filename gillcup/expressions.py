@@ -514,3 +514,43 @@ class Interpolation(Expression):
         yield NamedContainer('from', self._a)
         yield NamedContainer('to', self._b)
         yield NamedContainer('t', self._t)
+
+
+class Progress(Expression):
+    """Gives linear progress according to a Clock
+
+    The value of this expression is
+    0 at the start (``clock``'s current time + ``delay``),
+    and 1 at the end (``duration`` time units after start).
+    Between those two times, it changes smoothly as the clock advances.
+
+    If ``clamp`` is true, the value stays 0 before the start and 1 after end.
+    Otherwise, it is extrapolated: it will be negative before the start,
+    and greater than 1 after the end.
+    """
+    def __init__(self, clock, duration, *, delay=0, clamp=True):
+        self._clock = clock
+        self._start = clock.time + float(delay)
+        self._duration = float(duration)
+        if self._duration == 0:
+            raise ZeroDivisionError()
+        self._clamp = clamp
+
+    def __len__(self):
+        return 1
+
+    def get(self):
+        rv = (self._clock.time - self._start) / self._duration
+        if self._clamp:
+            if rv <= 0:
+                return (0, )
+            elif rv >= 1:
+                return (1, )
+        return (rv, )
+
+    def simplify(self):
+        if self._clamp:
+            end = self._start + self._duration
+            if self._clock.time >= end:
+                return Constant(1)
+        return self

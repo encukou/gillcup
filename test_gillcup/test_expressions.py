@@ -6,7 +6,7 @@ import textwrap
 import pytest
 
 from gillcup.expressions import Constant, Value, Concat, Interpolation
-from gillcup.expressions import dump
+from gillcup.expressions import Progress, dump
 
 
 try:
@@ -447,3 +447,15 @@ def test_interpolation_dump():
           t <0.5>:
             Value <0.5>
     """)
+
+
+def test_progress_clamped(clock):
+    exp = Progress(clock, 2, delay=1)
+    assert exp == 0
+    clock.advance_sync(1)
+    assert exp == 0
+    clock.advance_sync(1)
+    assert exp == 0.5
+    clock.advance_sync(1)
+    assert exp == 1
+    assert isinstance(exp.simplify(), Constant)
