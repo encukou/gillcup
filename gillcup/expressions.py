@@ -3,12 +3,6 @@ import functools
 import math
 
 
-class EmptyExpressionError(ValueError):
-    """Raised when a zero-length expression would be created"""
-    def __init__(self, message='cannot create zero-length expression'):
-        super().__init__(message)
-
-
 @functools.total_ordering
 class Expression:
     """A dynamic numeric value.
@@ -124,21 +118,9 @@ class Expression:
             >>> Constant(1, 2, 3).replace(slice(0, -1), Constant(-1))
             <-1.0, 3.0>
         """
-        start, stop = _get_slice_indices(self, index, allow_empty=True)
-        replacement = _coerce(replacement, stop - start, allow_empty=True)
-        parts = []
-        if start > 0:
-            parts.append(self[:start])
-        if replacement:
-            parts.append(replacement)
-        if stop < len(self):
-            parts.append(self[stop:])
-        if not parts:
-            raise EmptyExpressionError()
-        elif len(parts) == 1:
-            return parts[0]
-        else:
-            return Concat(*parts).simplify()
+        start, stop = _get_slice_indices(self, index)
+        replacement = _coerce(replacement, stop - start)
+        return Concat(self[:start], replacement, self[stop:]).simplify()
 
 
 def dump(exp):
@@ -197,8 +179,6 @@ def _as_tuple(value, size=1):
 
 class Constant(Expression):
     def __init__(self, *value):
-        if not value:
-            raise EmptyExpressionError()
         self._value = tuple(float(v) for v in value)
 
     def get(self):
@@ -210,8 +190,6 @@ class Constant(Expression):
 
 class Value(Expression):
     def __init__(self, *value):
-        if not value:
-            raise EmptyExpressionError()
         self._value = tuple(float(v) for v in value)
         self._size = len(self._value)
         self._fixed = False
@@ -250,18 +228,12 @@ class Value(Expression):
             return self
 
 
-def _coerce(exp, size=1, allow_empty=False):
+def _coerce(exp, size=1):
     if isinstance(exp, Expression):
         return exp
     else:
         tup = _as_tuple(exp, size)
-        if not tup:
-            if allow_empty:
-                return None
-            else:
-                raise EmptyExpressionError()
-        else:
-            return Constant(*tup)
+        return Constant(*tup)
 
 
 def _coerce_all(exps):
@@ -382,7 +354,7 @@ class Neg(Elementwise):
             return self
 
 
-def _get_slice_indices(source, index, allow_empty=False):
+def _get_slice_indices(source, index):
         try:
             index = int(index)
         except TypeError:
@@ -394,8 +366,6 @@ def _get_slice_indices(source, index, allow_empty=False):
             start, stop, step = indices(len(source))
             if step not in (None, 1):
                 raise IndexError('non-1 step not supported')
-            if start >= stop and not allow_empty:
-                raise EmptyExpressionError()
             return start, stop
         else:
             if index < 0:
@@ -429,8 +399,6 @@ class Slice(Expression):
 class Concat(Expression):
     def __init__(self, *children):
         self._children = tuple(_coerce(c) for c in children)
-        if not self._children:
-            raise ValueError('no expressions to concatentate')
         self._len = sum(len(c) for c in self._children)
         self._simplify_children()
 

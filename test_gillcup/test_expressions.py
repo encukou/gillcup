@@ -5,7 +5,7 @@ import textwrap
 
 import pytest
 
-from gillcup.expressions import Constant, Value, Concat, EmptyExpressionError
+from gillcup.expressions import Constant, Value, Concat
 from gillcup.expressions import dump
 
 
@@ -98,6 +98,8 @@ def test_simple_value(exp):
     assert exp <= (3,)
     assert exp >= (3,)
 
+    assert exp
+
 
 @pytest.mark.parametrize('exp', [Constant(3, 4, 5), Value(3, 4, 5)])
 def test_tuple_value(exp):
@@ -114,6 +116,8 @@ def test_tuple_value(exp):
     assert exp > (3, 4, 4)
     assert exp <= (3, 5, 5)
     assert exp >= (3, 2, 5)
+
+    assert exp
 
 
 def test_value_setting():
@@ -149,13 +153,23 @@ def test_value_fix_1():
 
 
 def test_constant_zero_size():
-    with pytest.raises(EmptyExpressionError):
-        Constant()
+    assert Constant() == ()
+    assert tuple(Constant()) == ()
+
+    with pytest.raises(ValueError):
+        float(Constant())
+
+    assert not Constant()
 
 
 def test_value_zero_size():
-    with pytest.raises(EmptyExpressionError):
-        Value()
+    assert Value() == ()
+    assert tuple(Value()) == ()
+
+    with pytest.raises(ValueError):
+        float(Value())
+
+    assert not Value()
 
 
 def check_formula(numpy, formula, expected_args, got_args):
@@ -263,10 +277,8 @@ def test_index_get():
         val[3]
     with pytest.raises(IndexError):
         val[-80]
-    with pytest.raises(EmptyExpressionError):
-        val[1:1]
-    with pytest.raises(EmptyExpressionError):
-        val[2:1]
+    assert val[1:1] == ()
+    assert val[2:1] == ()
     with pytest.raises(TypeError):
         val[None]
 
@@ -325,8 +337,7 @@ def test_replace_slice():
     val = val.replace(slice(0, -1), ())
     assert val == -1
 
-    with pytest.raises(EmptyExpressionError):
-        val.replace(slice(None, None), ())
+    assert val.replace(slice(None, None), ()) == ()
 
 
 def test_constant_slice_simplification():
