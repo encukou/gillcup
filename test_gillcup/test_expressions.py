@@ -5,7 +5,7 @@ import textwrap
 
 import pytest
 
-from gillcup.expressions import Constant, Value, Concat
+from gillcup.expressions import Constant, Value, Concat, Interpolation
 from gillcup.expressions import dump
 
 
@@ -401,4 +401,49 @@ def test_slice_replace_simplification2():
             [2:3] <2.0>:
               Value <0.0, 1.0, 2.0>  (*1)
             Constant <3.0>
+    """)
+
+
+def test_interpolation():
+    val1 = Value(0, 1, 5, 1)
+    val2 = Value(10, 1, 0, 2)
+    t = Value(0)
+    exp = Interpolation(val1, val2, t)
+    assert exp == exp.simplify() == (0, 1, 5, 1)
+
+    t.set(1)
+    assert exp == exp.simplify() == (10, 1, 0, 2)
+
+    t.set(0.5)
+    assert exp == exp.simplify() == (5, 1, 2.5, 1.5)
+
+
+def test_interpolation_ramps():
+    t = Value(0)
+    for x in range(-2, 5):
+        exp = Interpolation(0, x, t)
+        for i in range(-10, 20):
+            t.set(i / 10)
+            assert exp == exp.simplify() == t * x
+
+
+def test_interpolation_simplification():
+    val1 = Value(0, 1, 5, 1)
+    val2 = Value(10, 1, 0, 2)
+    assert Interpolation(val1, val2, 0).simplify() is val1
+    assert Interpolation(val1, val2, 1).simplify() is val2
+
+
+def test_interpolation_dump():
+    val1 = Value(0, 0)
+    val2 = Value(2, 10)
+    exp = Interpolation(val1, val2, Value(0.5))
+    check_dump(exp, """
+        Interpolation <1.0, 5.0>:
+          from <0.0, 0.0>:
+            Value <0.0, 0.0>
+          to <2.0, 10.0>:
+            Value <2.0, 10.0>
+          t <0.5>:
+            Value <0.5>
     """)

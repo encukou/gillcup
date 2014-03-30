@@ -147,7 +147,7 @@ def dump(exp):
             name=exp.pretty_name,
             exp=exp)
         children = list(exp.children)
-        ref = memo[id(exp)]
+        ref = memo.get(id(exp), None)
         if id(exp) in seen:
             yield '{}  (*{})'.format(base, ref)
         else:
@@ -246,7 +246,7 @@ def _coerce_all(exps):
         else:
             break
     else:
-        raise ValueError('Unable to determine size: %s' % exps)
+        size = 1
     return tuple(_coerce(e, size) for e in exps)
 
 
@@ -466,3 +466,51 @@ class Concat(Expression):
                 start = 0
             end -= child_len
         return Concat(*new_children).simplify()
+
+
+class NamedContainer(Expression):
+    def __init__(self, name, val):
+        self._name = name
+        self._val = val
+
+    def get(self):
+        return self._val.get()
+
+    @property
+    def pretty_name(self):
+        return self._name
+
+    @property
+    def children(self):
+        yield self._val
+
+
+class Interpolation(Expression):
+    def __init__(self, a, b, t):
+        self._a, self._b = _coerce_all([a, b])
+        self._t = _coerce(t, 1)
+        if len(self._t) != 1:
+            raise ValueError('Interpolation coefficient must be '
+                             'a single number')
+
+    def get(self):
+        t = float(self._t)
+        nt = 1 - t
+        return tuple(a * nt + b * t for a, b in zip(self._a, self._b))
+
+    def simplify(self):
+        a = self._a = self._a.simplify()
+        b = self._b = self._b.simplify()
+        t = self._t = self._t.simplify()
+        if isinstance(t, Constant):
+            if t == 0:
+                return a
+            elif t == 1:
+                return b
+        return self
+
+    @property
+    def children(self):
+        yield NamedContainer('from', self._a)
+        yield NamedContainer('to', self._b)
+        yield NamedContainer('t', self._t)
