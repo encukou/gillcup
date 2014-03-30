@@ -334,3 +334,17 @@ def test_constant_slice_simplification():
     check_dump(const[:-1], 'Constant <0.0, 1.0>')
     check_dump(const[1:], 'Constant <1.0, 2.0>')
     check_dump(const[1], 'Constant <1.0>')
+
+
+def test_concat_simplification():
+    exp = Concat(Constant(0, 1), Constant(2, 3))
+    check_dump(exp.simplify(), 'Constant <0.0, 1.0, 2.0, 3.0>')
+
+
+def test_slice_replace_simplification():
+    val = Value(0, 1, 2)
+    val = val.replace(0, 1)
+    val = val.replace(1, 1)
+    val = val.replace(2, 1)
+
+    check_dump(val, 'Constant <1.0, 1.0, 1.0>')

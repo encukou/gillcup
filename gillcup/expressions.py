@@ -463,3 +463,21 @@ class Concat(Expression):
             else:
                 new_children.append(child)
         self._children = tuple(new_children)
+
+    def __getitem__(self, index):
+        start, end = _get_slice_indices(self, index)
+        new_children = []
+        for child in self._children:
+            child_len = len(child)
+            if end <= 0:
+                break
+            elif start >= child_len:
+                pass
+            else:
+                if start <= 0 and end >= child_len:
+                    new_children.append(child)
+                else:
+                    new_children.append(child[start:end])
+            start -= child_len
+            end -= child_len
+        return Concat(*new_children).simplify()
