@@ -348,3 +348,26 @@ def test_slice_replace_simplification():
     val = val.replace(2, 1)
 
     check_dump(val, 'Constant <1.0, 1.0, 1.0>')
+
+
+def test_slice_replace_simplification2():
+    val = Value(0, 1, 2)
+    val = val.replace(1, val[1] + 3)
+    val = val.replace(0, val[0] + 3)
+    val = val.replace(2, val[2] + 3)
+
+    check_dump(val.simplify(), """
+        Concat <3.0, 4.0, 5.0>:
+          + <3.0>:
+            [0:1] <0.0>:
+              Value <0.0, 1.0, 2.0>  (&1)
+            Constant <3.0>
+          + <4.0>:
+            [1:2] <1.0>:
+              Value <0.0, 1.0, 2.0>  (*1)
+            Constant <3.0>
+          + <5.0>:
+            [2:3] <2.0>:
+              Value <0.0, 1.0, 2.0>  (*1)
+            Constant <3.0>
+    """)

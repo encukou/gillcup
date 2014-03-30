@@ -452,8 +452,14 @@ class Concat(Expression):
             return self
 
     def _simplify_children(self):
+        def gen_children(children):
+            for child in children:
+                if isinstance(child, Concat):
+                    yield from gen_children(child._children)
+                else:
+                    yield child
         new_children = []
-        for child in self._children:
+        for child in gen_children(self._children):
             child = child.simplify()
             if (isinstance(child, Constant) and
                     new_children and
@@ -479,5 +485,7 @@ class Concat(Expression):
                 else:
                     new_children.append(child[start:end])
             start -= child_len
+            if start < 0:
+                start = 0
             end -= child_len
         return Concat(*new_children).simplify()
