@@ -43,7 +43,7 @@ class SpecialMethodDocumenter(sphinx.ext.autodoc.MethodDocumenter):
         if name == '__delattr__':
             return 'del self.attr'
         if name == '__call__':
-            return 'self()'
+            return 'self(%s)' % sig.strip('()')
         if name == '__getitem__':
             return 'self[%s]' % sig.strip('()')
         if name == '__setitem__':

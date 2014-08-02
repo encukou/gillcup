@@ -1,8 +1,9 @@
 """Signalling primitives
 
-.. TODO:
-    A Gillcup signal can have many receiver functions attached to it.
-    When the signal is called, the receivers are called as well.
+A Gillcup signal can have many receiver functions attached to it.
+When the signal is called, the receivers are called as well.
+
+A signal is truthy if it has any listeners attached to it.
 
 .. TODO:
     Normally, receivers are only weakly referenced, so listening to a signal
@@ -38,4 +39,39 @@
 .. [#weakmeth] Technically, the function wrapped by the method
                also has to stay alive.
 
+Reference
+---------
+
+.. autoclass:: Signal
+
 """
+
+
+class Signal:
+    """A broadcasting device.
+
+    .. automethod:: connect
+    .. autospecialmethod:: __call__
+    .. automethod:: disconnect
+    .. autospecialmethod:: __bool__
+    """
+
+    def __init__(self):
+        self._listeners = []
+
+    def connect(self, listener):
+        """Add the given receiver to this signal's list"""
+        self._listeners.append(listener)
+
+    def disconnect(self, listener):
+        """Remove the given receiver from this signal's list"""
+        self._listeners.remove(listener)
+
+    def __call__(self, *args, **kwargs):
+        """Call all of this signal's receivers with the given arguments"""
+        for listener in self._listeners:
+            listener(*args, **kwargs)
+
+    def __bool__(self):
+        """True if any listeners are connected"""
+        return bool(self._listeners)
