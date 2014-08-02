@@ -37,9 +37,8 @@ as is.)
     This is more efficient than using a lambda, sinceGillcup can eliminate
     calls to unconnected signals.
 
-.. TODO:
-    When a signal is added to an class, each instance of that class gets
-    its own instance of the signal.
+When a signal is added to an class, each instance of that class will
+automatically get its own instance of the signal.
 
 .. TODO:
     The instance's signal automatically calls the class signal with an extra
@@ -97,10 +96,22 @@ class Signal:
     def __init__(self):
         self._weak_receivers = {}
         self._strong_receivers = {}
+        self._instance_signals = weakref.WeakKeyDictionary()
 
         for hashable_id, ref in list(self._weak_receivers.items()):
             if not ref:
                 del self._weak_receivers[hashable_id]
+
+    def __get__(self, instance, owner=None):
+        if instance is None:
+            return self
+        else:
+            try:
+                return self._instance_signals[instance]
+            except KeyError:
+                new_signal = type(self)()
+                self._instance_signals[instance] = new_signal
+                return new_signal
 
     def connect(self, receiver, weak=True):
         """Add the given receiver to this signal's list"""

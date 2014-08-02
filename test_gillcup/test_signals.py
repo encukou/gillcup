@@ -20,13 +20,16 @@ class Collector:
     def check(self, *expected):
         assert tuple(self.collected) == expected
 
+    def const_collector(self, item):
+        return lambda: self.collect(item)
+
 
 @pytest.fixture
 def collector():
     return Collector()
 
 
-def test_simple_callback(signal, collector):
+def test_simple_listener(signal, collector):
     assert not signal
     signal.connect(collector.collect)
     assert signal
@@ -169,3 +172,24 @@ def test_chaining_with_lists(signal):
     signal2.connect(lambda: [3, 4], weak=False)
     signal.connect(signal2)
     assert sorted(signal()) == [[1, 2], [3, 4]]
+
+
+def test_instance_signals(collector):
+
+    class SomeClass:
+        sig = Signal()
+
+    instance_a = SomeClass()
+    instance_b = SomeClass()
+
+    SomeClass.sig.connect(collector.const_collector('Class'), weak=False)
+    instance_a.sig.connect(collector.const_collector('a'), weak=False)
+    instance_b.sig.connect(collector.const_collector('b'), weak=False)
+
+    collector.check()
+    SomeClass.sig()
+    collector.check('Class')
+    instance_a.sig()
+    collector.check('Class', 'a')
+    instance_b.sig()
+    collector.check('Class', 'a', 'b')
