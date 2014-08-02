@@ -20,7 +20,7 @@ THE SOFTWARE.
 
 -------------------------------------------------------------------------------
 
-The signals module includes some ideas and code from the Blinker project
+The signals module was based on ideas and code from the Blinker project
 <http://pythonhosted.org/blinker/>, whose license is also MIT:
 
     Copyright (c) The Blinker authors and contributors <see AUTHORS file>
