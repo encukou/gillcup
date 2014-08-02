@@ -100,3 +100,45 @@ def test_strongness_function(signal):
     signal(3)
     assert signal
     assert collected == [3]
+
+
+@pytest.mark.parametrize('weak1, weak2', [
+    (True, True),
+    (True, False),
+    (False, True),
+    (False, False),
+])
+def test_connection_uniqueness(signal, collector, weak1, weak2):
+    signal.connect(collector.collect, weak=weak1)
+    signal.connect(collector.collect, weak=weak2)
+    signal(3)
+    collector.check(3)
+
+
+@pytest.mark.parametrize('weak1, weak2', [
+    (True, True),
+    (True, False),
+    (False, True),
+    (False, False),
+])
+def test_connection_uniqueness(signal, collector, weak1, weak2):
+    signal.connect(collector.collect, weak=weak1)
+    signal.connect(collector.collect, weak=weak2)
+    signal(3)
+    collector.check(3)
+
+
+@pytest.mark.parametrize('weak1, weak2', [
+    (True, False),
+    (False, True),
+    (False, False),
+])
+def test_strong_preference(signal, weak1, weak2):
+    collector = Collector()
+    signal.connect(collector.collect, weak=weak1)
+    signal.connect(collector.collect, weak=weak2)
+    collected = collector.collected
+    del collector
+    gc.collect()
+    signal(3)
+    assert collected == [3]

@@ -1,6 +1,6 @@
 """Signalling primitives
 
-A Gillcup signal can have many receiver functions attached to it.
+A Gillcup signal can have many listener functions attached to it.
 When the signal is called, the receivers are called as well.
 
 The receivers are called synchronously, so they should return quickly.
@@ -11,7 +11,9 @@ is not enough to keep an object alive.
 For bound methods, :class:`weakref.WeakMethod` is used, so it's enough
 that the object stays alive[#weakmeth]_.
 
-A single receiver can not be connected to a signal multiple times.
+A single listener can only be connected to one signal at a time.
+Strongly-referenced listeners are preferred (i.e. if both a weak listener and
+a strong one are connected, only the strong reference is kept).
 
 A signal is truthy if any listeners are connected.
 
@@ -20,7 +22,7 @@ A signal is truthy if any listeners are connected.
     on signal call.
 
 .. TODO:
-    Since signals are callable, a signal can act as a receiver, so long chains
+    Since signals are callable, a signal can act as a listener, so long chains
     for relaying a message can be constructed.
     Gillcup tries not to needlessly call signals that have no receivers.
 
@@ -63,12 +65,10 @@ def _hashable_identity(obj):
 
 
 def _ref(obj, callback=None):
-    hashable_id = _hashable_identity(obj)
     if inspect.ismethod(obj):
-        ref = weakref.WeakMethod(obj, callback)
+        return weakref.WeakMethod(obj, callback)
     else:
-        ref = weakref.ref(obj, callback)
-    return hashable_id, ref
+        return weakref.ref(obj, callback)
 
 
 def _dict_discard(dct, key):
@@ -98,17 +98,25 @@ class Signal:
 
     def connect(self, receiver, weak=True):
         """Add the given receiver to this signal's list"""
+        hashable_id = _hashable_identity(receiver)
+
+        def discard_the_weak(ref=None):
+            _dict_discard(self._weak_receivers, hashable_id)
         if weak:
-            def discard(ref):
-                _dict_discard(self._weak_receivers, hashable_id)
-            hashable_id, ref = _ref(receiver, discard)
+            if hashable_id in self._strong_receivers:
+                return
+            ref = _ref(receiver, discard_the_weak)
             self._weak_receivers.setdefault(hashable_id, ref)
         else:
-            hashable_id = _hashable_identity(receiver)
+            if hashable_id in self._weak_receivers:
+                discard_the_weak()
             self._strong_receivers.setdefault(hashable_id, receiver)
 
     def disconnect(self, receiver):
-        """Remove the given receiver from this signal's list"""
+        """Remove the given receiver from this signal's list
+
+        Raises :class:`LookupError` if the receiver is not found.
+        """
         hashable_id = _hashable_identity(receiver)
         if _dict_discard(self._weak_receivers, hashable_id):
             return
