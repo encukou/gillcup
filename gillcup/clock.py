@@ -1,3 +1,43 @@
+"""Asyncio-based discrete-time simulation infrastructure
+
+The clock keeps track of *time*. But, what is time?
+
+If you are familiar with the :mod:`asyncio` library,
+you might know the :func:`asyncio.sleep` coroutine.
+It "sleeps" roughly for a given number of seconds,
+usually based on the computer's system time.
+Since the Python process does not control this time, ``sleep()`` may sleep
+longer than requested if the event loop is busy.
+Also, the system time always changes:
+so it is not possible to do two actions at exactly the same time.
+For animations and simulations, such time is unusable.
+Thus, time in Gillcup is a very different beast.
+
+Gillcup time is a quantity that *increases in discrete intervals*.
+On other words, it can never go backwards,
+and it does not change while animation/simulation code is executing.
+
+You can schedule an function for any time in the future.
+When the clock advances to that time, the clock is frozen at the event's
+scheduled time, and the function is called.
+
+The passage of Gillcup time is entirely in control of the programmer.
+It can be tied to the system clock to produce real-time animations,
+it can be slowed down or sped up,
+or an entire simulation can be run at once to get simulation results quickly.
+
+The Clock runs inside an asyncio event loop,
+using the future, callback, and coroutine mechanisms familiar to asyncio users.
+Gillcup uses its own :class:`~gillcup.futures.Future` objects that are tied
+to a clock that handles them.
+Any callbacks on a Gillcup future are handled by that future's clock;
+the Gillcup time does not advance between the future's completion
+and the callback execution.
+
+A coroutine can be scheduled on a Gillcup clock using
+:meth:`~gillcup.clock.Clock.task`; see the corresponding docs for details.
+"""
+
 import collections
 import heapq
 import asyncio
@@ -19,7 +59,26 @@ class Clock:
         .. attribute:: time
 
             The current time on the clock. Never assign to it directly;
-            use :meth:`~gillcup.Clock.advance()` instead.
+            use :meth:`advance` instead.
+
+        .. attribute:: speed
+
+            Arguments to :meth:`advance` are multiplied by this value.
+            Usefull mainly for :class:`Subclock`.
+
+    Methods:
+
+        .. automethod:: schedule
+
+        .. automethod:: wait_for
+
+        .. automethod:: sleep
+
+        .. automethod:: advance
+
+        .. automethod:: advance_sync
+
+        .. automethod:: task
     """
     def __init__(self):
         # Time on the clock
@@ -61,7 +120,7 @@ class Clock:
 
     @asyncio.coroutine
     def advance(self, dt, *, _continuing=False):
-        """Call to advance the clock's time
+        """Advance the clock's time
 
         Steps the clock dt units to the future, pausing at times when actions
         are scheduled, and running them.
@@ -98,7 +157,10 @@ class Clock:
             yield from asyncio.Task(self.advance(dt, _continuing=True))
 
     def advance_sync(self, dt):
-        """Call (and wait for) self.advance() outside of an event loop"""
+        """Call (and wait for) ``self.advance()`` outside of an event loop
+
+        This is useful in testing or in non-realtime applications.
+        """
         loop = asyncio.get_event_loop()
         loop.run_until_complete(self.advance(dt))
 
@@ -142,6 +204,13 @@ class Clock:
         heapq.heappush(self.events, event)
 
     def task(self, coro):
+        """Run an asyncio-style coroutine on this clock
+
+        Futures yielded by the coroutine will be handled by this Clock.
+
+        In addition to futures, the coroutine may yield real numbers,
+        which are translated to :meth:`sleep`.
+        """
         @asyncio.coroutine
         def coro_wrapper():
             iterator = iter(coro)
@@ -172,9 +241,10 @@ class Clock:
 class Subclock(Clock):
     """A Clock that advances in sync with another Clock
 
-    A Subclock advances whenever its *parent* clock does.
-    Its `speed` attribute specifies the relative speed relative to the parent
-    clock. For example, if speed==2, the subclock will run twice as fast as its
+    A Subclock advances whenever its :token:`parent` clock does.
+    Its :token:`speed` attribute specifies the relative speed relative
+    to the parent clock.
+    For example, if ``speed==2``, the subclock will run twice as fast as its
     parent clock.
 
     The actions scheduled on a parent Clock and all subclocks are run in the
@@ -184,4 +254,4 @@ class Subclock(Clock):
     def __init__(self, parent, speed=1):
         super(Subclock, self).__init__()
         self.speed = speed
-        parent._subclocks.add(self)  # pylint: disable=W0212
+        parent._subclocks.add(self)
