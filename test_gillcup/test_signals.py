@@ -17,8 +17,14 @@ class Collector:
     def collect(self, item):
         self.collected.append(item)
 
+    def clear(self):
+        self.collected.clear()
+
     def check(self, *expected):
         assert tuple(self.collected) == expected
+
+    def check_set(self, *expected):
+        assert set(self.collected) == set(expected)
 
     def const_collector(self, item):
         return lambda: self.collect(item)
@@ -193,3 +199,32 @@ def test_instance_signals(collector):
     collector.check('Class', 'a')
     instance_b.sig()
     collector.check('Class', 'a', 'b')
+
+
+def test_arg_adapter(signal, collector):
+    signal.connect(collector.collect)
+    signal.connect(collector.collect, arg_adapter=lambda *k, **a: (['y'], {}))
+    signal.connect(collector.collect, arg_adapter=lambda *k, **a: (['z'], {}))
+
+    collector.check()
+    signal('x')
+    collector.check_set('x', 'y', 'z')
+
+
+def test_arg_adapter_disconnection(signal, collector):
+    adapt_y = lambda *k, **a: (['y'], {})
+    adapt_z = lambda *k, **a: (['z'], {})
+    signal.connect(collector.collect)
+    signal.connect(collector.collect, arg_adapter=adapt_y)
+    signal.connect(collector.collect, arg_adapter=adapt_z)
+    signal.connect(collector.collect, arg_adapter=adapt_z)
+
+    collector.check()
+    signal('x')
+    collector.check_set('x', 'y', 'z')
+    collector.clear()
+
+    signal.disconnect(collector.collect, arg_adapter=adapt_z)
+    collector.check()
+    signal('x')
+    collector.check_set('x', 'y')

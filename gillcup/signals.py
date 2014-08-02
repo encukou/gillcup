@@ -31,9 +31,10 @@ as is.)
     which is in turn listening on a thirs signal, etc.
     Gillcup tries not to needlessly call signals that have no listeners.
 
+Signals can be chained using an "argument adapter" function,
+which can munge arguments to adapt them to the chained signal.
+
 .. TODO:
-    Signals can be chained using an "argument adapter" function,
-    which can munge arguments to adapt them to the chained signal.
     This is more efficient than using a lambda, sinceGillcup can eliminate
     calls to unconnected signals.
 
@@ -58,6 +59,7 @@ Reference
 
 import inspect
 import weakref
+import collections
 
 
 def _hashable_identity(obj):
@@ -98,10 +100,6 @@ class Signal:
         self._strong_listeners = {}
         self._instance_signals = weakref.WeakKeyDictionary()
 
-        for hashable_id, ref in list(self._weak_listeners.items()):
-            if not ref:
-                del self._weak_listeners[hashable_id]
-
     def __get__(self, instance, owner=None):
         if instance is None:
             return self
@@ -113,31 +111,45 @@ class Signal:
                 self._instance_signals[instance] = new_signal
                 return new_signal
 
-    def connect(self, listener, weak=True):
-        """Add the given listener to this signal's list"""
+    def connect(self, listener, *, weak=True, arg_adapter=None):
+        """Add the given listener to this signal's list
+
+        :param listener: The new listener to add
+        :param weak: If true, only a weak reference to the listener is kept
+                     (via :class:`weakref.WeakMethod` for methods,
+                     :class:`weakref.ref` for any other objects).
+        :param arg_adapter: An optional function for transforming arguments
+                            before calling the listener.
+                            It will be called with the given (*args, **kwargs),
+                            and must return a new (args, kwargs) tuple.
+                            If None, the original arguments are used.
+        """
         hashable_id = _hashable_identity(listener)
+        key = hashable_id, arg_adapter
 
         def discard_the_weak(ref=None):
-            _dict_discard(self._weak_listeners, hashable_id)
+            _dict_discard(self._weak_listeners, key)
         if weak:
-            if hashable_id in self._strong_listeners:
+            if key in self._strong_listeners:
                 return
             ref = _ref(listener, discard_the_weak)
-            self._weak_listeners.setdefault(hashable_id, ref)
+            self._weak_listeners.setdefault(key, ref)
         else:
-            if hashable_id in self._weak_listeners:
-                discard_the_weak()
-            self._strong_listeners.setdefault(hashable_id, listener)
+            discard_the_weak()
+            self._strong_listeners.setdefault(key, listener)
 
-    def disconnect(self, listener):
+    def disconnect(self, listener, *, arg_adapter=None):
         """Remove the given listener from this signal's list
 
         Raises :class:`LookupError` if the listener is not found.
+
+        Both the :token:`listener` and :token:`arg_adapter` must match
+        values given in an earlier call to :meth:`connect`.
         """
-        hashable_id = _hashable_identity(listener)
-        if _dict_discard(self._weak_listeners, hashable_id):
+        key = (_hashable_identity(listener), arg_adapter)
+        if _dict_discard(self._weak_listeners, key):
             return
-        if _dict_discard(self._strong_listeners, hashable_id):
+        if _dict_discard(self._strong_listeners, key):
             return
         raise LookupError(listener)
 
@@ -145,8 +157,12 @@ class Signal:
         """Call all of this signal's listeners with the given arguments
         """
         result = []
-        for listener in self._listeners:
-            partial_result = listener(*args, **kwargs)
+        for (_h, arg_adapter), listener in self._listeners:
+            if arg_adapter is None:
+                partial_result = listener(*args, **kwargs)
+            else:
+                new_args, new_kwargs = arg_adapter(*args, **kwargs)
+                partial_result = listener(*new_args, **new_kwargs)
             if getattr(listener, '_is_gillcup_signal', None):
                 result.extend(partial_result)
             else:
@@ -163,8 +179,10 @@ class Signal:
 
     @property
     def _listeners(self):
-        for ref in list(self._weak_listeners.values()):
-            listener = ref()
+        weaklings = list(self._weak_listeners.items())
+        stronglings = list(self._strong_listeners.items())
+        for key, listener in weaklings:
+            listener = listener()
             if listener:
-                yield listener
-        yield from list(self._strong_listeners.values())
+                yield key, listener
+        yield from stronglings
