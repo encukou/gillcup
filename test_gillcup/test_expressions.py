@@ -244,9 +244,10 @@ def test_fixed_falue_constant_propegation(formula, args, maybe_numpy):
 
 
 def check_dump(expression, expected):
-    print(dump(expression))
+    dumped = dump(expression)
+    print(dumped)
     expected = textwrap.dedent(expected.strip('\n').rstrip())
-    assert dump(expression) == expected
+    assert dumped == expected
 
 
 def test_dump():

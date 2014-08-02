@@ -36,6 +36,7 @@ def test_clock(clock):
 
 def test_scheduling(clock):
     """Test that simple scheduling works"""
+    clock.sleep(100)
     lst = []
     clock.schedule(1, append_const(lst, 'a'))
     clock.schedule(3, append_const(lst, 'd'))
@@ -53,6 +54,7 @@ def test_scheduling(clock):
 
 def test_speed(clock):
     """Test that the speed property works"""
+    clock.sleep(100)
     lst = []
     clock.schedule(10, append_const(lst, 'a'))
     clock.schedule(30, append_const(lst, 'd'))
@@ -61,15 +63,20 @@ def test_speed(clock):
     clock.speed = 10
     clock.advance_sync(0)
     assert lst == []
+    assert clock.time == 0
     clock.advance_sync(1)
     assert lst == ['a', 'b', 'c']
+    assert clock.time == 10
     clock.advance_sync(1)
     assert lst == ['a', 'b', 'c']
+    assert clock.time == 20
     clock.advance_sync(1)
     assert lst == ['a', 'b', 'c', 'd']
+    assert clock.time == 30
     clock.speed = -1
     with pytest.raises(ValueError):
         clock.advance_sync(4)
+    assert clock.time == 30
 
 
 def test_negative_dt(clock):
@@ -86,6 +93,49 @@ def test_zero_dt(clock):
     clock.schedule(0, append_const(lst, 'a'))
     clock.advance_sync(0)
     assert lst == ['a']
+
+
+def test_future_delay(clock):
+    """Test that Gillcup futures can be waited for"""
+    assert clock.time == 0
+    clock.advance_sync(clock.sleep(1))
+    clock.sleep(100)
+    assert clock.time == 1
+
+
+def test_asyncio_future_delay(clock):
+    """Test that futures can be waited for"""
+    assert clock.time == 0
+    aio_future = asyncio.Future()
+    sleep_future = clock.sleep(1)
+    clock.sleep(100)
+    sleep_future.add_done_callback(lambda f: aio_future.set_result(None))
+    clock.advance_sync(aio_future)
+    assert clock.time == 1
+
+
+def test_advance_to_end(clock):
+    """Test that advance(None) works"""
+    assert clock.time == 0
+    clock.sleep(10)
+    clock.sleep(100)
+    clock.advance_sync(None)
+    assert clock.time == 100
+
+
+def test_end_category(clock):
+    """Test work scheduled for the current time is done when advance() finishes
+    """
+    lst = []
+    assert clock.time == 0
+    aio_future = asyncio.Future()
+    sleep_future = clock.sleep(1)
+    aio_future.add_done_callback(lambda f: clock.sleep(1))
+    aio_future.add_done_callback(lambda f: lst.append('done'))
+    sleep_future.add_done_callback(lambda f: aio_future.set_result(None))
+    clock.advance_sync(aio_future)
+    assert clock.time == 1
+    assert lst == ['done']
 
 
 def test_integer_times(clock):
@@ -146,8 +196,16 @@ def test_subclock(clock):
     assert lst == ['a', 'b', 'c']
 
 
+def test_clock_speedup(clock):
+    """Test Clock.speed works"""
+    clock.speed = 2
+    clock.task(clock.sleep(1))
+    assert clock.time == 0
+    clock.advance_sync(2)
+
+
 def test_subclock_speedup(clock):
-    """Test Sublock.speed works when set as attribute"""
+    """Test Subclock.speed works when set as attribute"""
     subclock = Subclock(clock)
     assert subclock.time == 0
     clock.advance_sync(1)

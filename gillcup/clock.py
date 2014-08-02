@@ -43,12 +43,42 @@ import heapq
 import asyncio
 
 import gillcup.futures
+from gillcup import util
 
-_Event = collections.namedtuple('EventHeapEntry', 'time index callback args')
+_Event = collections.namedtuple('_Event',
+                                'time category index callback args')
+_Event.__doc__ = """
+    Heap entry
 
-# Next action index; used to keep FIFO ordering for actions scheduled
-# for the same time
-next_index = 0
+    Namedtuple elements:
+
+        .. attribute:: time
+
+            The time for which the event is scheduled
+
+        .. attribute:: category
+
+            Category for sorting.
+            Normal events have category of 0;
+            the event that advance() creates to wait for has a category of 1
+            to ensure other events at the same time have completed.
+
+        .. attribute:: index
+
+            Index for sorting.
+            Unique to each _Event, asigned from a global counter.
+            Used to keep FIFO ordering for actions scheduled for the same time.
+
+        .. attribute:: callback
+
+            The action to perform.
+
+        .. attribute:: args
+
+            Arguments to call :token:`callback` with.
+"""
+
+_next_index = 0
 
 
 class Clock:
@@ -101,81 +131,108 @@ class Clock:
         except IndexError:
             events = []
         else:
-            events = [(event.time - self.time, event.index, self, event)]
+            events = [(event.time - self.time, event.category, event.index,
+                       self, event)]
         for subclock in self._subclocks:
             event = subclock._get_next_event()
             if event:
-                remain, index, clock, event = event
+                remain, category, index, clock, event = event
                 try:
                     remain /= subclock.speed
                 except ZeroDivisionError:
                     # zero speed – events never happen
                     pass
                 else:
-                    events.append((remain, index, clock, event))
+                    events.append((remain, category, index, clock, event))
         try:
             return min(events)
         except ValueError:
             return None
 
     @asyncio.coroutine
-    def advance(self, dt, *, _continuing=False):
+    @util.fix_public_signature
+    def advance(self, delay, *, _continuing=False):
         """Advance the clock's time
 
-        Steps the clock dt units to the future, pausing at times when actions
-        are scheduled, and running them.
+        Moves the clock's time forward, pausing at times when
+        actions are scheduled, and running them.
 
-        Attempting to move to the past (dt<0) will raise an error.
+        :param delay: If :token:`delay` is a real number, move that many time
+            units into the future.
+            Attempting to move to the past (negative delay) will raise
+            an error.
+
+            If :token:`delay` is None, the Clock will advance until no more
+            actions are scheduled on it.
+            Note that with recurring events, ``advance(None)`` may
+            never finish.
+
+            Otherwise :token:`delay` should be a Future; in this case Clock
+            will advance until either that future is done, or no more actions
+            are scheduled.
         """
-        if self.advancing and not _continuing:
-            raise RuntimeError('Clock.advance called recursively')
-        dt *= self.speed
-        if dt < 0:
-            raise ValueError('Moving backwards in time')
+        if not _continuing:
+            if self.advancing:
+                raise RuntimeError('Clock.advance called recursively')
+            if delay is None:
+                delay = asyncio.Future()
+            try:
+                float(delay)
+            except TypeError:
+                # We want to wait for a *Gillcup* future on *this* clock,
+                # with category 1
+                delay = gillcup.futures.Future(self, delay, _category=1)
+            else:
+                if delay < 0:
+                    raise ValueError('Moving backwards in time')
+                delay = self.sleep(delay * self.speed, _category=1)
         self.advancing = True
 
-        event = self._get_next_event()
-        if event is not None:
-            event_dt, _index, clock, event = event
-        if event is None or event_dt > dt:
-            if dt:
-                self._advance(dt)
-            dt = 0
+        if delay.done():
             self.advancing = False
-        else:
-            if event_dt:
-                self._advance(event_dt)
-            dt -= event_dt
-            _evt = heapq.heappop(clock.events)
-            assert _evt is event and clock.time == event.time
-            # jump to the event's time
-            clock.time = event.time
-            # Handle the event (synchronously!)
-            event.callback(*event.args)
+            return
 
-            # finish jumping to target time
-            yield from asyncio.Task(self.advance(dt, _continuing=True))
+        event = self._get_next_event()
+        if event is None:
+            self.advancing = False
+            return
 
-    def advance_sync(self, dt):
-        """Call (and wait for) ``self.advance()`` outside of an event loop
+        event_dt, _cat, _index, clock, event = event
+        if event_dt:
+            self._advance(event_dt)
+        _evt = heapq.heappop(clock.events)
+        assert _evt is event and clock.time == event.time
+        # jump to the event's time
+        clock.time = event.time
+        # Handle the event (synchronously!)
+        event.callback(*event.args)
 
-        This is useful in testing or in non-realtime applications.
+        # finish jumping
+        yield from asyncio.Task(self.advance(delay, _continuing=True))
+
+    def advance_sync(self, delay):
+        """Call (and wait for) :meth:`advance` outside of an event loop
+
+        Runs asyncio's main event loop until ``advance()`` is finished.
+
+        Useful in testing or in some non-realtime applications.
         """
         loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.advance(dt))
+        loop.run_until_complete(self.advance(delay))
 
     def _advance(self, dt):
         self.time += dt
         for subclock in self._subclocks:
             subclock._advance(dt * subclock.speed)
 
-    def sleep(self, delay):
+    @util.fix_public_signature
+    def sleep(self, delay, *, _category=0):
         """Return a future that will complete after "dt" time units
 
         Scheduling for the past (dt<0) will raise an error.
         """
         future = asyncio.Future()
-        self.schedule(delay, future.set_result, None)
+        self.schedule(delay, future.set_result, None, _category=_category)
         return gillcup.futures.Future(self, future)
 
     def wait_for(self, future):
@@ -192,15 +249,16 @@ class Clock:
         else:
             return gillcup.futures.Future(self, future)
 
-    def schedule(self, delay, callback, *args):
+    @util.fix_public_signature
+    def schedule(self, delay, callback, *args, _category=0):
         """Schedule callback to be called after "dt" time units
         """
-        global next_index
+        global _next_index
         if delay < 0:
             raise ValueError('Scheduling an action in the past')
-        next_index += 1
+        _next_index += 1
         scheduled_time = self.time + delay
-        event = _Event(scheduled_time, next_index, callback, args)
+        event = _Event(scheduled_time, _category, _next_index, callback, args)
         heapq.heappush(self.events, event)
 
     def task(self, coro):

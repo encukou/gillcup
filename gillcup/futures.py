@@ -1,12 +1,20 @@
+from gillcup import util
+
+
 class Future:
     """Wraps a future; calbacks on the wrapper are scheduled on a given Clock
 
-    To be instantiated using Clock.wait_for()
+    To be instantiated using
+    :meth:`Clock.wait_for() <gillcup.clock.Clock.wait_for()>`.
+
+    See :class:`asyncio.Future` for API documentation.
     """
-    def __init__(self, clock, wrapped_future):
+    @util.fix_public_signature
+    def __init__(self, clock, wrapped_future, *, _category=0):
         self.clock = clock
         self._wrapped = wrapped_future
         self._callbacks = {}
+        self._category = 0
         self.cancel = wrapped_future.cancel
         self.cancelled = wrapped_future.cancelled
         self.done = wrapped_future.done
@@ -20,7 +28,7 @@ class Future:
 
     def add_done_callback(self, fn):
         def wrapped_callback(future):
-            self.clock.schedule(0, fn, self)
+            self.clock.schedule(0, fn, self, _category=self._category)
         self._callbacks.setdefault(fn, []).append(wrapped_callback)
         self._wrapped.add_done_callback(wrapped_callback)
 
