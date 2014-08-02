@@ -33,17 +33,14 @@ as is.)
 
 Signals can be chained using an "argument adapter" function,
 which can munge arguments to adapt them to the chained signal.
-
-.. TODO:
-    This is more efficient than using a lambda, sinceGillcup can eliminate
-    calls to unconnected signals.
+(This is more efficient than using a lambda, since Gillcup can eliminate
+calls to unconnected signals.)
 
 When a signal is added to an class, each instance of that class will
 automatically get its own instance of the signal.
 
-.. TODO:
-    The instance's signal automatically calls the class signal with an extra
-    "instance" keyword argument added.
+The instance's signal automatically calls the class signal with an "instance"
+keyword argument added.
 
 .. rubric:: footnotes
 
@@ -85,6 +82,13 @@ def _dict_discard(dct, key):
     return True
 
 
+def _instance_arg_adapter(instance):
+    def func(*args, **kwargs):
+        kwargs['instance'] = instance
+        return args, kwargs
+    return func
+
+
 class Signal:
     """A broadcasting device.
 
@@ -108,6 +112,8 @@ class Signal:
                 return self._instance_signals[instance]
             except KeyError:
                 new_signal = type(self)()
+                new_signal.connect(self,
+                                   arg_adapter=_instance_arg_adapter(instance))
                 self._instance_signals[instance] = new_signal
                 return new_signal
 
@@ -158,12 +164,15 @@ class Signal:
         """
         result = []
         for (_h, arg_adapter), listener in self._listeners:
+            is_signal = getattr(listener, '_is_gillcup_signal', None)
+            if is_signal and not listener:
+                continue
             if arg_adapter is None:
                 partial_result = listener(*args, **kwargs)
             else:
                 new_args, new_kwargs = arg_adapter(*args, **kwargs)
                 partial_result = listener(*new_args, **new_kwargs)
-            if getattr(listener, '_is_gillcup_signal', None):
+            if is_signal:
                 result.extend(partial_result)
             else:
                 result.append(partial_result)

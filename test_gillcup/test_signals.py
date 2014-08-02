@@ -25,10 +25,13 @@ class Collector:
 
     def check_set(self, *expected):
         assert set(self.collected) == set(expected)
+        assert len(self.collected) == len(expected)
 
     def const_collector(self, item):
         return lambda: self.collect(item)
 
+    def kwarg_collector(self, name):
+        return lambda **kwargs: self.collect(kwargs[name])
 
 @pytest.fixture
 def collector():
@@ -188,17 +191,37 @@ def test_instance_signals(collector):
     instance_a = SomeClass()
     instance_b = SomeClass()
 
-    SomeClass.sig.connect(collector.const_collector('Class'), weak=False)
+    SomeClass.sig.connect(collector.kwarg_collector('instance'), weak=False)
+    instance_a.sig.connect(collector.const_collector('a'), weak=False)
+    instance_b.sig.connect(collector.const_collector('b'), weak=False)
+
+    collector.check()
+    SomeClass.sig(instance=None)
+    collector.check(None)
+    instance_a.sig()
+    collector.check_set(None, 'a', instance_a)
+    instance_b.sig()
+    collector.check_set(None, 'a', instance_a, 'b', instance_b)
+
+
+def test_instance_signals_only(collector):
+
+    class SomeClass:
+        sig = Signal()
+
+    instance_a = SomeClass()
+    instance_b = SomeClass()
+
     instance_a.sig.connect(collector.const_collector('a'), weak=False)
     instance_b.sig.connect(collector.const_collector('b'), weak=False)
 
     collector.check()
     SomeClass.sig()
-    collector.check('Class')
+    collector.check()
     instance_a.sig()
-    collector.check('Class', 'a')
+    collector.check('a')
     instance_b.sig()
-    collector.check('Class', 'a', 'b')
+    collector.check('a', 'b')
 
 
 def test_arg_adapter(signal, collector):
