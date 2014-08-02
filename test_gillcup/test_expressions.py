@@ -98,6 +98,13 @@ def test_simple_value(exp):
     assert exp <= (3,)
     assert exp >= (3,)
 
+    assert not exp == (3, 0)
+    assert exp != (3, 0)
+    assert exp < (3, 0)
+    assert exp > (2, 99)
+    assert exp <= (3, 0)
+    assert exp >= (2, 99)
+
     assert exp
 
 
@@ -116,6 +123,13 @@ def test_tuple_value(exp):
     assert exp > (3, 4, 4)
     assert exp <= (3, 5, 5)
     assert exp >= (3, 2, 5)
+
+    assert not exp == 3
+    assert exp != 3
+    assert exp < 4
+    assert exp > 3
+    assert exp <= 4
+    assert exp >= 3
 
     assert exp
 
