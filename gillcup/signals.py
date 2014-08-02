@@ -17,13 +17,18 @@ a strong one are connected, only the strong reference is kept).
 
 A signal is truthy if any listeners are connected.
 
-.. TODO:
-    Receivers can return values, which are collected in a list and returned
-    on signal call.
+Receivers can return values, which are collected in a list and returned
+from the signal call.
+If a signal is reistered as a listener, the results returned from it
+are merged into the resulting list: the caller receives a flattened list
+of all individual replies.
+(If a non-signal listener returns a list, it will be inserted to the result
+as is.)
 
 .. TODO:
-    Since signals are callable, a signal can act as a listener, so long chains
-    for relaying a message can be constructed.
+    Long signal chains can be constructed,
+    where a signal listening on another signal,
+    which is in turn listening on a thirs signal, etc.
     Gillcup tries not to needlessly call signals that have no receivers.
 
 .. TODO:
@@ -32,12 +37,12 @@ A signal is truthy if any listeners are connected.
     This is more efficient than using a lambda, sinceGillcup can eliminate
     calls to unconnected signals.
 
-
 .. TODO:
     When a signal is added to an class, each instance of that class gets
     its own instance of the signal.
 
-    The instance's signal calls the class signal with an extra
+.. TODO:
+    The instance's signal automatically calls the class signal with an extra
     "instance" keyword argument added.
 
 .. rubric:: footnotes
@@ -87,6 +92,7 @@ class Signal:
     .. automethod:: disconnect
     .. autospecialmethod:: __bool__
     """
+    _is_gillcup_signal = True
 
     def __init__(self):
         self._weak_receivers = {}
@@ -127,8 +133,14 @@ class Signal:
     def __call__(self, *args, **kwargs):
         """Call all of this signal's receivers with the given arguments
         """
+        result = []
         for receiver in self._listeners:
-            receiver(*args, **kwargs)
+            partial_result = receiver(*args, **kwargs)
+            if getattr(receiver, '_is_gillcup_signal', None):
+                result.extend(partial_result)
+            else:
+                result.append(partial_result)
+        return result
 
     def __bool__(self):
         """True if any listeners are connected

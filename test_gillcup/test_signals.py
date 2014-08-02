@@ -142,3 +142,30 @@ def test_strong_preference(signal, weak1, weak2):
     gc.collect()
     signal(3)
     assert collected == [3]
+
+
+def test_simple_results(signal):
+    signal.connect(lambda: 1, weak=False)
+    signal.connect(lambda: 2, weak=False)
+    signal.connect(lambda: 3, weak=False)
+    assert sorted(signal()) == [1, 2, 3]
+
+
+def test_simple_chaining(signal):
+    signal2 = Signal()
+    signal.connect(lambda: 1, weak=False)
+    signal.connect(lambda: 2, weak=False)
+    signal.connect(lambda: 3, weak=False)
+    signal2.connect(lambda: 4, weak=False)
+    signal2.connect(lambda: 5, weak=False)
+    signal2.connect(lambda: 6, weak=False)
+    signal.connect(signal2)
+    assert sorted(signal()) == [1, 2, 3, 4, 5, 6]
+
+
+def test_chaining_with_lists(signal):
+    signal2 = Signal()
+    signal.connect(lambda: [1, 2], weak=False)
+    signal2.connect(lambda: [3, 4], weak=False)
+    signal.connect(signal2)
+    assert sorted(signal()) == [[1, 2], [3, 4]]
