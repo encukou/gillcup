@@ -44,3 +44,59 @@ def test_disconnect(signal, collector):
     assert not signal
     signal(1)
     collector.check()
+
+
+def test_weakness(signal):
+    collector = Collector()
+    collected = collector.collected
+    assert not signal
+    signal.connect(collector.collect)
+    assert signal
+    del collector
+    gc.collect()
+    signal(3)
+    assert not signal
+    assert collected == []
+
+
+def test_strongness(signal):
+    collector = Collector()
+    collected = collector.collected
+    assert not signal
+    signal.connect(collector.collect, weak=False)
+    assert signal
+    del collector
+    gc.collect()
+    signal(3)
+    assert signal
+    assert collected == [3]
+
+
+def test_weakness_function(signal):
+    collected = []
+
+    def collect(arg):
+        collected.append(arg)
+    assert not signal
+    signal.connect(collect)
+    assert signal
+    del collect
+    gc.collect()
+    signal(3)
+    assert not signal
+    assert collected == []
+
+
+def test_strongness_function(signal):
+    collected = []
+
+    def collect(arg):
+        collected.append(arg)
+    assert not signal
+    signal.connect(collect, weak=False)
+    assert signal
+    del collect
+    gc.collect()
+    signal(3)
+    assert signal
+    assert collected == [3]
