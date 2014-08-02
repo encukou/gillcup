@@ -42,8 +42,8 @@ class SpecialMethodDocumenter(sphinx.ext.autodoc.MethodDocumenter):
             return 'self.attr = value'
         if name == '__delattr__':
             return 'del self.attr'
-        if name == '__call__':
-            return 'self(%s)' % sig.strip('()')
+        # __call__: rendering this as 'self(...)' would make it look like a
+        # method named "self". Let's just use "__call__" here.
         if name == '__getitem__':
             return 'self[%s]' % sig.strip('()')
         if name == '__setitem__':

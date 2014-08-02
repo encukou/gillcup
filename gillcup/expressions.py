@@ -138,7 +138,7 @@ class Expression:
 
     This is a base class, subclass it but do not use it directly.
 
-    Methods to override in a subclass:
+    Members to override in a subclass:
         .. automethod:: get
         .. automethod:: simplify
         .. autoattribute:: children
@@ -630,7 +630,7 @@ class Difference(Reduce):
 def safediv(a, b):
     """Divide a by b, but return NaN or infinity on division by zero
 
-    The behavior is equivalent to Numpy with the 'ignore' setting:
+    The behavior is equivalent to Numpy with the 'ignore' setting.
     """
     try:
         return a / b
