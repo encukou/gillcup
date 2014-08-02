@@ -355,24 +355,24 @@ class Neg(Elementwise):
 
 
 def _get_slice_indices(source, index):
+    try:
+        index = int(index)
+    except TypeError:
         try:
-            index = int(index)
-        except TypeError:
-            try:
-                indices = index.indices
-            except AttributeError:
-                message = 'indices must be slices or integers, not {}'
-                raise TypeError(message.format(type(index).__name__))
-            start, stop, step = indices(len(source))
-            if step not in (None, 1):
-                raise IndexError('non-1 step not supported')
-            return start, stop
-        else:
-            if index < 0:
-                index += len(source)
-            if not (0 <= index < len(source)):
-                raise IndexError('expression index out of range')
-            return index, index + 1
+            indices = index.indices
+        except AttributeError:
+            message = 'indices must be slices or integers, not {}'
+            raise TypeError(message.format(type(index).__name__))
+        start, stop, step = indices(len(source))
+        if step not in (None, 1):
+            raise IndexError('non-1 step not supported')
+        return start, stop
+    else:
+        if index < 0:
+            index += len(source)
+        if not (0 <= index < len(source)):
+            raise IndexError('expression index out of range')
+        return index, index + 1
 
 
 class Slice(Expression):
