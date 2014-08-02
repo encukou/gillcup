@@ -1,12 +1,12 @@
 """Signalling primitives
 
 A Gillcup signal can have many listener functions attached to it.
-When the signal is called, the receivers are called as well.
+When the signal is called, the listeners are called as well.
 
-The receivers are called synchronously, so they should return quickly.
+The listeners are called synchronously, so they should return quickly.
 Long-running work should be scheduled.
 
-Normally, receivers are only weakly referenced, so listening to a signal
+Normally, listeners are only weakly referenced, so listening to a signal
 is not enough to keep an object alive.
 For bound methods, :class:`weakref.WeakMethod` is used, so it's enough
 that the object stays alive[#weakmeth]_.
@@ -17,7 +17,7 @@ a strong one are connected, only the strong reference is kept).
 
 A signal is truthy if any listeners are connected.
 
-Receivers can return values, which are collected in a list and returned
+Listeners can return values, which are collected in a list and returned
 from the signal call.
 If a signal is reistered as a listener, the results returned from it
 are merged into the resulting list: the caller receives a flattened list
@@ -29,7 +29,7 @@ as is.)
     Long signal chains can be constructed,
     where a signal listening on another signal,
     which is in turn listening on a thirs signal, etc.
-    Gillcup tries not to needlessly call signals that have no receivers.
+    Gillcup tries not to needlessly call signals that have no listeners.
 
 .. TODO:
     Signals can be chained using an "argument adapter" function,
@@ -94,13 +94,13 @@ class Signal:
     _is_gillcup_signal = True
 
     def __init__(self):
-        self._weak_receivers = {}
-        self._strong_receivers = {}
+        self._weak_listeners = {}
+        self._strong_listeners = {}
         self._instance_signals = weakref.WeakKeyDictionary()
 
-        for hashable_id, ref in list(self._weak_receivers.items()):
+        for hashable_id, ref in list(self._weak_listeners.items()):
             if not ref:
-                del self._weak_receivers[hashable_id]
+                del self._weak_listeners[hashable_id]
 
     def __get__(self, instance, owner=None):
         if instance is None:
@@ -113,41 +113,41 @@ class Signal:
                 self._instance_signals[instance] = new_signal
                 return new_signal
 
-    def connect(self, receiver, weak=True):
-        """Add the given receiver to this signal's list"""
-        hashable_id = _hashable_identity(receiver)
+    def connect(self, listener, weak=True):
+        """Add the given listener to this signal's list"""
+        hashable_id = _hashable_identity(listener)
 
         def discard_the_weak(ref=None):
-            _dict_discard(self._weak_receivers, hashable_id)
+            _dict_discard(self._weak_listeners, hashable_id)
         if weak:
-            if hashable_id in self._strong_receivers:
+            if hashable_id in self._strong_listeners:
                 return
-            ref = _ref(receiver, discard_the_weak)
-            self._weak_receivers.setdefault(hashable_id, ref)
+            ref = _ref(listener, discard_the_weak)
+            self._weak_listeners.setdefault(hashable_id, ref)
         else:
-            if hashable_id in self._weak_receivers:
+            if hashable_id in self._weak_listeners:
                 discard_the_weak()
-            self._strong_receivers.setdefault(hashable_id, receiver)
+            self._strong_listeners.setdefault(hashable_id, listener)
 
-    def disconnect(self, receiver):
-        """Remove the given receiver from this signal's list
+    def disconnect(self, listener):
+        """Remove the given listener from this signal's list
 
-        Raises :class:`LookupError` if the receiver is not found.
+        Raises :class:`LookupError` if the listener is not found.
         """
-        hashable_id = _hashable_identity(receiver)
-        if _dict_discard(self._weak_receivers, hashable_id):
+        hashable_id = _hashable_identity(listener)
+        if _dict_discard(self._weak_listeners, hashable_id):
             return
-        if _dict_discard(self._strong_receivers, hashable_id):
+        if _dict_discard(self._strong_listeners, hashable_id):
             return
-        raise LookupError(receiver)
+        raise LookupError(listener)
 
     def __call__(self, *args, **kwargs):
-        """Call all of this signal's receivers with the given arguments
+        """Call all of this signal's listeners with the given arguments
         """
         result = []
-        for receiver in self._listeners:
-            partial_result = receiver(*args, **kwargs)
-            if getattr(receiver, '_is_gillcup_signal', None):
+        for listener in self._listeners:
+            partial_result = listener(*args, **kwargs)
+            if getattr(listener, '_is_gillcup_signal', None):
                 result.extend(partial_result)
             else:
                 result.append(partial_result)
@@ -159,12 +159,12 @@ class Signal:
         Note that this only does an optimistic check;
         weak listeners may still be counted some time after they are deleted.
         """
-        return bool(self._weak_receivers or self._strong_receivers)
+        return bool(self._weak_listeners or self._strong_listeners)
 
     @property
     def _listeners(self):
-        for ref in list(self._weak_receivers.values()):
-            receiver = ref()
-            if receiver:
-                yield receiver
-        yield from list(self._strong_receivers.values())
+        for ref in list(self._weak_listeners.values()):
+            listener = ref()
+            if listener:
+                yield listener
+        yield from list(self._strong_listeners.values())
