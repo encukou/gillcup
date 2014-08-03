@@ -6,10 +6,20 @@ When the signal is called, the listeners are called as well.
 The listeners are called synchronously, so they should return quickly.
 Long-running work should be scheduled.
 
-Normally, listeners are only weakly referenced, so listening to a signal
+Listeners may be weakly referenced, so listening to a signal
 is not enough to keep an object alive.
 For bound methods, :class:`weakref.WeakMethod` is used, so it's enough
 that the object stays alive[#weakmeth]_.
+
+By default, methods are referenced weakly, and other objects strongly.
+This covers the usual use cases:
+
+* Methods: the owner object is usually kept alive by other means,
+  and we do want a weak reference here.
+* Lambda/helper functions: usually a reference is not kept around so they
+  go out of scope quickly, so we want to keep a strong reference.
+* Normal functions: usually doesn't matter because modules are rarely unloaded,
+  so mightas well avoid the overhead of weak references.
 
 A single listener can only be connected to one signal at a time.
 Strongly-referenced listeners are preferred (i.e. if both a weak listener and
@@ -198,13 +208,15 @@ class Signal:
         return '<Signal {s.name}{s.signature}{of_woner}>'.format(
             s=self, of_woner=of_woner)
 
-    def connect(self, listener, *, weak=True, arg_adapter=None):
+    def connect(self, listener, *, weak=None, arg_adapter=None):
         """Add the given listener to this signal's list
 
         :param listener: The new listener to add
         :param weak: If true, only a weak reference to the listener is kept
                      (via :class:`weakref.WeakMethod` for methods,
                      :class:`weakref.ref` for any other objects).
+                     If None (default), methods are referenced weakly and
+                     any other object is referenced strongly.
         :param arg_adapter: An optional function for transforming arguments
                             before calling the listener.
                             It will be called with the given (*args, **kwargs),
@@ -220,6 +232,9 @@ class Signal:
                 return
         hashable_id = _hashable_identity(listener)
         key = hashable_id, arg_adapter
+
+        if weak is None:
+            weak = inspect.ismethod(listener)
 
         def discard_the_weak(ref=None):
             _dict_discard(self._weak_listeners, key)

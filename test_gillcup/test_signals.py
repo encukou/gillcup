@@ -63,7 +63,7 @@ def test_weakness(sig):
     collector = Collector()
     collected = collector.collected
     assert not sig
-    sig.connect(collector.collect)
+    sig.connect(collector.collect, weak=True)
     assert sig
     del collector
     gc.collect()
@@ -91,7 +91,7 @@ def test_weakness_function(sig):
     def collect(arg):
         collected.append(arg)
     assert not sig
-    sig.connect(collect)
+    sig.connect(collect, weak=True)
     assert sig
     del collect
     gc.collect()
@@ -364,3 +364,34 @@ def test_signature_checking():
 
     with pytest.raises(TypeError):
         value_changed(1, 2, foo=5)
+
+
+def test_no_weak_builtin_method(sig):
+    with pytest.raises(TypeError):
+        sig.connect([].append, weak=True)
+
+
+def test_default_strong_lambda(sig):
+    lst = []
+    sig.connect(lambda x: lst.append(x))
+    gc.collect()
+    sig(3)
+    assert lst == [3]
+
+
+def test_default_strong_builtin_method(sig):
+    lst = []
+    sig.connect(lst.append)
+    gc.collect()
+    sig(3)
+    assert lst == [3]
+
+
+def test_default_weak_method(sig):
+    collector = Collector()
+    collected = collector.collected
+    sig.connect(collector.collect)
+    del collector
+    gc.collect()
+    sig(3)
+    assert collected == []
