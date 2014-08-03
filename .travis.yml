@@ -5,8 +5,8 @@ python:
   - "3.4"
 install:
     - sudo apt-get install python3-numpy python-pip
-    - pip install asyncio pytest pep8
+    - pip install pytest pep8
     - pip install -e.
 script:
-    - py.test -v
-    - pep8 .
+    - python -m pytest -v
+    - python -m pep8 .
