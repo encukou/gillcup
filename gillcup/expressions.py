@@ -132,6 +132,13 @@ import functools
 import math
 
 
+def simplify(exp):
+    if exp.replacement is None:
+        return exp
+    else:
+        return exp.replacement
+
+
 @functools.total_ordering
 class Expression:
     """A dynamic numeric value.
@@ -140,7 +147,6 @@ class Expression:
 
     Members to override in a subclass:
         .. automethod:: get
-        .. automethod:: simplify
         .. autoattribute:: children
         .. autoattribute:: pretty_name
 
@@ -187,6 +193,9 @@ class Expression:
         .. autospecialmethod:: __pos__
         .. autospecialmethod:: __neg__
     """
+
+    replacement = None
+
     def __len__(self):
         """Size of this expression
 
@@ -222,16 +231,6 @@ class Expression:
     def get(self):
         """Return the current value of this expression, as a tuple."""
         raise NotImplementedError()
-
-    def simplify(self):
-        """Return a simplified version of this expression.
-
-        The returned expression should have the same value as ``self``
-        at the current time and any time in the future.
-
-        The base implementation simply returns ``self``.
-        """
-        return self
 
     @property
     def children(self):
@@ -493,7 +492,7 @@ class Value(Expression):
 
         The value cannot be changed after :meth:`fix` is called.
         """
-        if self._fixed:
+        if self.replacement is not None:
             raise ValueError('value has been fixed')
         value = tuple(float(v) for v in value)
         if len(value) != self._size:
@@ -511,7 +510,7 @@ class Value(Expression):
         """
         if value:
             self.set(*value)
-        self._fixed = True
+        self.replacement = Constant(*self)
 
     @property
     def pretty_name(self):
@@ -519,12 +518,6 @@ class Value(Expression):
             return '{} (fixed)'.format(type(self).__name__)
         else:
             return type(self).__name__
-
-    def simplify(self):
-        if self._fixed:
-            return Constant(*self)
-        else:
-            return self
 
 
 def _coerce(exp, size=1):
@@ -584,7 +577,7 @@ class Reduce(Expression):
         return self._operands
 
     def simplify(self):
-        self._operands = tuple(o.simplify() for o in self._operands)
+        self._operands = tuple(simplify(o) for o in self._operands)
         if all(isinstance(o, Constant) for o in self._operands):
             return Constant(*self)
         else:
@@ -676,7 +669,7 @@ class Neg(Elementwise):
         super().__init__(operand, operator.neg)
 
     def simplify(self):
-        if isinstance(self._operand.simplify(), Constant):
+        if isinstance(simplify(self._operand), Constant):
             return Constant(*self)
         else:
             return self
@@ -776,7 +769,7 @@ class Concat(Expression):
                     yield child
         new_children = []
         for child in gen_children(self._children):
-            child = child.simplify()
+            child = simplify(child)
             if (isinstance(child, Constant) and
                     new_children and
                     isinstance(new_children[-1], Constant)):
@@ -804,7 +797,7 @@ class Concat(Expression):
             if start < 0:
                 start = 0
             end -= child_len
-        return Concat(*new_children).simplify()
+        return simplify(Concat(*new_children))
 
 
 class NamedContainer(Expression):
@@ -856,9 +849,9 @@ class Interpolation(Expression):
         return tuple(a * nt + b * t for a, b in zip(self._a, self._b))
 
     def simplify(self):
-        a = self._a = self._a.simplify()
-        b = self._b = self._b.simplify()
-        t = self._t = self._t.simplify()
+        a = self._a = simplify(self._a)
+        b = self._b = simplify(self._b)
+        t = self._t = simplify(self._t)
         if isinstance(t, Constant):
             if t == 0:
                 return a
@@ -892,6 +885,8 @@ class Progress(Expression):
         if self._duration == 0:
             raise ZeroDivisionError()
         self._clamp = clamp
+        if clamp:
+            clock.schedule(delay + duration, self._fix)
 
     def __len__(self):
         return 1
@@ -905,9 +900,5 @@ class Progress(Expression):
                 return (1, )
         return (rv, )
 
-    def simplify(self):
-        if self._clamp:
-            end = self._start + self._duration
-            if self._clock.time >= end:
-                return Constant(1)
-        return self
+    def _fix(self):
+        self.replacement = Constant(1)
