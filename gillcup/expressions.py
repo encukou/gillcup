@@ -142,11 +142,14 @@ def simplify(exp):
 def replace_child(exp, listener):
     """Move listener from an expression to its replacement, return replacement
     """
-    exp.replacement_available.disconnect(listener)
-    exp = exp.replacement
-    if not isinstance(exp, Constant):
-        exp.replacement_available.connect(listener)
-    return exp
+    replacement = exp.replacement
+    if replacement is exp:
+        return exp
+    else:
+        exp.replacement_available.disconnect(listener)
+        if not isinstance(replacement, Constant):
+            replacement.replacement_available.connect(listener)
+        return replacement
 
 
 @functools.total_ordering
@@ -378,7 +381,7 @@ class Expression:
         """
         start, stop = _get_slice_indices(self, index)
         replacement = _coerce(replacement, stop - start)
-        return Concat(self[:start], replacement, self[stop:]).simplify()
+        return simplify(Concat(self[:start], replacement, self[stop:]))
 
 
 def dump(exp):
@@ -776,6 +779,8 @@ class Concat(Expression):
         self._children = tuple(_coerce(c) for c in children)
         self._len = sum(len(c) for c in self._children)
         self._simplify_children()
+        for child in children:
+            child.replacement_available.connect(self._simplify_children)
 
     @property
     def children(self):
@@ -786,13 +791,6 @@ class Concat(Expression):
 
     def get(self):
         return sum((c.get() for c in self._children), ())
-
-    def simplify(self):
-        self._simplify_children()
-        if len(self._children) == 1:
-            return self._children[0]
-        else:
-            return self
 
     def _simplify_children(self):
         def gen_children(children):
@@ -812,6 +810,8 @@ class Concat(Expression):
             else:
                 new_children.append(child)
         self._children = tuple(new_children)
+        if len(self._children) == 1:
+            [self.replacement] = self._children
 
     def __getitem__(self, index):
         start, end = _get_slice_indices(self, index)
@@ -831,7 +831,7 @@ class Concat(Expression):
             if start < 0:
                 start = 0
             end -= child_len
-        return simplify(Concat(*new_children))
+        return Concat(*new_children)
 
 
 class NamedContainer(Expression):

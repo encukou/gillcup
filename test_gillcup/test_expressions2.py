@@ -51,3 +51,15 @@ def test_interpolation_chain_simplification(chain_length):
     print(id(exp))
     with reduce_to_const(exp):
         t.fix()
+
+
+def test_concat_simplification():
+    v1 = Value(1)
+    v2 = Value(2)
+    v3 = Value(3)
+    exp = Concat(v1, v2, v3)
+    with reduce_to_const(exp):
+        v1.fix()
+        v2.fix()
+        assert len(exp.children) == 2
+        v3.fix()
