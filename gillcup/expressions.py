@@ -413,14 +413,14 @@ def dump(exp):
         >>> exp = Interpolation(Value(0), Value(10), Value(0.5))
         >>> print(dump(exp))
         Interpolation <5.0>:
-          from <0.0>:
+          start <0.0>:
             Value <0.0>
-          to <10.0>:
+          end <10.0>:
             Value <10.0>
           t <0.5>:
             Value <0.5>
 
-    Here the ``from``, ``to``, and ``t`` are dynamically generated
+    Here the ``start``, ``end``, and ``t`` are dynamically generated
     :class:`NamedContainers <NamedContainer>` whose only purpose is to make
     the dump more readable.
     """
@@ -912,40 +912,40 @@ class Interpolation(Expression):
 
     Note that :token:`t` is not limited to [0..1]; extrapolation is possible.
     """
-    def __init__(self, a, b, t):
-        self._a, self._b = _coerce_all([a, b])
+    def __init__(self, start, end, t):
+        self._start, self._end = _coerce_all([start, end])
         self._t = _coerce(t, 1)
         if len(self._t) != 1:
             raise ValueError('Interpolation coefficient must be '
                              'a single number')
-        self._a.replacement_available.connect(self._replace_a)
-        self._b.replacement_available.connect(self._replace_b)
+        self._start.replacement_available.connect(self._replace_start)
+        self._end.replacement_available.connect(self._replace_end)
         self._t.replacement_available.connect(self._replace_t)
         self._replace_t()
 
     def get(self):
         t = float(self._t)
         nt = 1 - t
-        return tuple(a * nt + b * t for a, b in zip(self._a, self._b))
+        return tuple(a * nt + b * t for a, b in zip(self._start, self._end))
 
-    def _replace_a(self):
-        self._a = _replace_child(self._a, self._replace_a)
+    def _replace_start(self):
+        self._start = _replace_child(self._start, self._replace_start)
 
-    def _replace_b(self):
-        self._b = _replace_child(self._b, self._replace_b)
+    def _replace_end(self):
+        self._end = _replace_child(self._end, self._replace_end)
 
     def _replace_t(self):
         self._t = t = _replace_child(self._t, self._replace_t)
         if isinstance(t, Constant):
             if t == 0:
-                self.replacement = simplify(self._a)
+                self.replacement = simplify(self._start)
             elif t == 1:
-                self.replacement = simplify(self._b)
+                self.replacement = simplify(self._end)
 
     @property
     def children(self):
-        yield NamedContainer('from', self._a)
-        yield NamedContainer('to', self._b)
+        yield NamedContainer('start', self._start)
+        yield NamedContainer('end', self._end)
         yield NamedContainer('t', self._t)
 
 

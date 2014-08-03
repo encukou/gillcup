@@ -483,9 +483,9 @@ def test_interpolation_dump():
     exp = Interpolation(val1, val2, Value(0.5))
     check_dump(exp, """
         Interpolation <1.0, 5.0>:
-          from <0.0, 0.0>:
+          start <0.0, 0.0>:
             Value <0.0, 0.0>
-          to <2.0, 10.0>:
+          end <2.0, 10.0>:
             Value <2.0, 10.0>
           t <0.5>:
             Value <0.5>
