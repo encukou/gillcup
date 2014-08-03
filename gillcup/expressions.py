@@ -612,8 +612,19 @@ def _check_len(a, b):
 class Reduce(Expression):
     """Applies an :func:`reduce` element-wise on a number of Expressions.
 
+    Assumes the `op` function is pure.
+
     All operands must be the same size.
+
+    Class attributes:
+
+        .. attribute:: commutative
+
+            True to enable optimizations that assume `op` implements a
+            commutative operator
     """
+    commutative = False
+
     def __init__(self, operands, op):
         self._op = op
         self._operands = tuple(_coerce_all(operands))
@@ -635,18 +646,28 @@ class Reduce(Expression):
     def children(self):
         return self._operands
 
-    def _replace_operands(self):
-        in_consts = True
+    def _replace_operands(self, commutative=False):
         new = []
-        for oper in self._operands:
-            oper = _replace_child(oper.replacement, self._replace_operands)
-            if in_consts and not isinstance(oper, Constant):
-                if new:
-                    new = [Constant(*_reduce_tuples(new, self._op))]
-                in_consts = False
-            new.append(oper)
-        if in_consts:
-            new = [Constant(*_reduce_tuples(new, self._op))]
+
+        def _generate_operands(operands):
+            for i, oper in enumerate(operands):
+                oper = _replace_child(oper.replacement, self._replace_operands)
+                if ((self.commutative or i == 0) and
+                        type(oper) == type(self) and
+                        oper._op == self._op):
+                    yield from _generate_operands(oper._operands)
+                else:
+                    yield oper
+
+        for oper in _generate_operands(self._operands):
+            if (new and isinstance(oper, Constant) and
+                    (self.commutative or len(new) == 1) and
+                    isinstance(new[-1], Constant)):
+                new[-1] = Constant(*tuple(map(self._op,
+                                              tuple(new[-1]),
+                                              tuple(oper))))
+            else:
+                new.append(oper)
         self._operands = new
         if len(self._operands) == 1:
             [self.replacement] = self._operands
@@ -658,6 +679,7 @@ class Sum(Reduce):
     All operands must be the same size.
     """
     pretty_name = '+'
+    commutative = True
 
     def __init__(self, operands):
         super().__init__(operands, operator.add)
@@ -672,6 +694,7 @@ class Product(Reduce):
     All operands must be the same size.
     """
     pretty_name = '*'
+    commutative = True
 
     def __init__(self, operands):
         super().__init__(operands, operator.mul)

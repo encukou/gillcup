@@ -293,15 +293,14 @@ def check_dump(expression, expected):
 
 def test_dump():
     val = Value(3) + 1
-    check_dump(val + 4 * val + 5, """
-        + <25.0>:
-          + <20.0>:
-            + <4.0>:  (&1)
-              Value <3.0>
-              Constant <1.0>
-            * <16.0>:
-              + <4.0>  (*1)
-              Constant <4.0>
+    check_dump(val - 4 * val - 5, """
+        - <-17.0>:
+          + <4.0>:  (&1)
+            Value <3.0>
+            Constant <1.0>
+          * <16.0>:
+            + <4.0>  (*1)
+            Constant <4.0>
           Constant <5.0>
     """)
 
@@ -560,3 +559,30 @@ def test_reduce_simplification(cls):
         v2.fix()
         assert len(exp.children) == 2
         v3.fix()
+
+
+def get_depth(exp):
+    depths = [get_depth(c) for c in exp.children]
+    if depths:
+        return 1 + max(depths)
+    else:
+        return 1
+
+
+def check_depth(exp, depth):
+    print(dump(exp))
+    assert get_depth(exp) == depth
+
+
+def test_addition_depth():
+    exp = Value(0)
+    for i in range(10):
+        exp = exp + 1
+    check_depth(exp, 2)
+
+
+def test_subtraction_depth():
+    exp = Value(0)
+    for i in range(10):
+        exp = exp - 1
+    check_depth(exp, 2)
