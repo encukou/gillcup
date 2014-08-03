@@ -67,7 +67,6 @@ Reference
 
 import inspect
 import weakref
-import collections
 
 from gillcup import util
 

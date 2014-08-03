@@ -344,7 +344,7 @@ def test_index_get():
     assert len(val[:-1]) == 2
 
 
-def test_slice_simplification():
+def test_basic_slice_simplification():
     val = Value(1, 2, 3)
     assert val[:] is val
     check_dump(val[:-1][:-1], """
@@ -373,7 +373,12 @@ def test_concat():
     assert cat == (8, 2, 5, 4)
 
 
-def test_concat_simplification():
+def test_simple_concat_simplification():
+    exp = Concat(Constant(0, 1), Constant(2, 3))
+    check_dump(simplify(exp), 'Constant <0.0, 1.0, 2.0, 3.0>')
+
+
+def test_complex_concat_simplification():
     val1 = Value(1)
     val2 = Value(4, 5)
     cat = Concat(val1, 2, 3, val2)
@@ -408,11 +413,6 @@ def test_constant_slice_simplification():
     check_dump(const[:-1], 'Constant <0.0, 1.0>')
     check_dump(const[1:], 'Constant <1.0, 2.0>')
     check_dump(const[1], 'Constant <1.0>')
-
-
-def test_concat_simplification():
-    exp = Concat(Constant(0, 1), Constant(2, 3))
-    check_dump(simplify(exp), 'Constant <0.0, 1.0, 2.0, 3.0>')
 
 
 def test_slice_replace_simplification():

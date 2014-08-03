@@ -56,9 +56,9 @@ def test_done_cancel(future):
     future.cancel()
     assert future.done()
     assert future.cancelled()
-    with pytest.raises(asyncio.CancelledError) as exc_info:
+    with pytest.raises(asyncio.CancelledError):
         future.result()
-    with pytest.raises(asyncio.CancelledError) as exc_info:
+    with pytest.raises(asyncio.CancelledError):
         future.exception()
 
 
@@ -84,7 +84,6 @@ def test_scheduling(future, clock):
 
 
 def test_unscheduling(future, future_type, clock):
-    flag = False
     callback = lambda: None
     callback2 = lambda: None
     future.add_done_callback(callback)

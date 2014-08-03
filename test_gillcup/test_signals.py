@@ -136,19 +136,6 @@ def test_connection_uniqueness(sig, collector, weak1, weak2):
 
 
 @pytest.mark.parametrize('weak1, weak2', [
-    (True, True),
-    (True, False),
-    (False, True),
-    (False, False),
-])
-def test_connection_uniqueness(sig, collector, weak1, weak2):
-    sig.connect(collector.collect, weak=weak1)
-    sig.connect(collector.collect, weak=weak2)
-    sig(3)
-    collector.check(3)
-
-
-@pytest.mark.parametrize('weak1, weak2', [
     (True, False),
     (False, True),
     (False, False),
@@ -233,7 +220,7 @@ def test_instance_signals_only(collector):
 
 
 def test_reserved_param_name(collector):
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError):
         Signal(signature=inspect.signature(lambda sender: None))
 
 

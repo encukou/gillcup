@@ -318,7 +318,7 @@ def delaying_task(lst):
 
 def test_delaying_task(clock):
     lst = []
-    future1 = clock.task(appending_task(lst))
-    future2 = clock.task(delaying_task(lst))
+    clock.task(appending_task(lst))
+    clock.task(delaying_task(lst))
     clock.advance_sync(1)
     assert lst == [0, 'X', 1]

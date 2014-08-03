@@ -1,5 +1,4 @@
 import inspect
-import collections
 
 
 KEYWORD_ONLY = inspect.Parameter.KEYWORD_ONLY
