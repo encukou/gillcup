@@ -3,6 +3,7 @@
 language: python
 python:
   - "3.3"
+  - "3.4"
 install:
     - sudo apt-get install python3-numpy python-pip
     - pip install asyncio pytest pep8
