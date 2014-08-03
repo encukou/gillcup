@@ -251,3 +251,25 @@ def test_arg_adapter_disconnection(signal, collector):
     collector.check()
     signal('x')
     collector.check_set('x', 'y')
+
+
+def test_lazy_connect(collector):
+    s1 = Signal()
+    s2 = Signal()
+    s3 = Signal()
+
+    s1.connect(s2)
+    s2.connect(s3)
+
+    assert not s1
+    assert not s2
+    assert not s3
+
+    s3.connect(collector.collect)
+
+    assert s1
+    assert s2
+    assert s3
+
+    s1(3)
+    collector.check(3)

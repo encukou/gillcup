@@ -5,7 +5,7 @@ Gillcup is based on three concepts:
     system, based on futures and coroutines of Python's :mod:`asyncio` library.
 *   The :mod:`~gillcup.expressions` make it possible to define and evaluate
     numeric expressions based on external factors such as Clock time.
-*   The :mod:`~signals` enable notifications.
+*   The :mod:`~gillcup.signals` enable notifications.
 
 """
 import asyncio

@@ -25,11 +25,10 @@ of all individual replies.
 (If a non-signal listener returns a list, it will be inserted to the result
 as is.)
 
-.. TODO:
-    Long signal chains can be constructed,
-    where a signal listening on another signal,
-    which is in turn listening on a thirs signal, etc.
-    Gillcup tries not to needlessly call signals that have no listeners.
+Long signal chains can be constructed,
+where a signal is listening on another signal,
+which is in turn listening on a third signal, etc.
+Gillcup tries not to needlessly call signals that have no listeners.
 
 Signals can be chained using an "argument adapter" function,
 which can munge arguments to adapt them to the chained signal.
@@ -103,6 +102,7 @@ class Signal:
         self._weak_listeners = {}
         self._strong_listeners = {}
         self._instance_signals = weakref.WeakKeyDictionary()
+        self._waiting_connections = []
 
     def __get__(self, instance, owner=None):
         if instance is None:
@@ -130,6 +130,13 @@ class Signal:
                             and must return a new (args, kwargs) tuple.
                             If None, the original arguments are used.
         """
+        try:
+            connect_override = listener._gillcup_signal_connect_override
+        except AttributeError:
+            pass
+        else:
+            if connect_override(self, weak, arg_adapter):
+                return
         hashable_id = _hashable_identity(listener)
         key = hashable_id, arg_adapter
 
@@ -143,6 +150,8 @@ class Signal:
         else:
             discard_the_weak()
             self._strong_listeners.setdefault(key, listener)
+        for signal, weak, arg_adapter in self._waiting_connections:
+            signal.connect(self, weak=weak, arg_adapter=arg_adapter)
 
     def disconnect(self, listener, *, arg_adapter=None):
         """Remove the given listener from this signal's list
@@ -166,6 +175,7 @@ class Signal:
         for (_h, arg_adapter), listener in self._listeners:
             is_signal = getattr(listener, '_is_gillcup_signal', None)
             if is_signal and not listener:
+                # TODO: Disconnect & go back to _waiting_connections?
                 continue
             if arg_adapter is None:
                 partial_result = listener(*args, **kwargs)
@@ -185,6 +195,13 @@ class Signal:
         weak listeners may still be counted some time after they are deleted.
         """
         return bool(self._weak_listeners or self._strong_listeners)
+
+    def _gillcup_signal_connect_override(self, signal, weak, arg_adapter):
+        if self:
+            return False
+        else:
+            self._waiting_connections.append((signal, weak, arg_adapter))
+            return True
 
     @property
     def _listeners(self):
