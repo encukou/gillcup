@@ -47,7 +47,7 @@ calls to unconnected signals.)
 
 When a signal is added to an class, each instance of that class will
 automatically get its own instance of the signal.
-The instance's signal automatically calls the class signal with an "instance"
+The instance's signal automatically calls the class signal with an "sender"
 keyword argument added.
 This argument is added to the signature of class-bound signals,
 and cannot be used for other purposes.
@@ -95,9 +95,9 @@ def _dict_discard(dct, key):
     return True
 
 
-def _instance_arg_adapter(instance):
+def _sender_arg_adapter(sender):
     def func(*args, **kwargs):
-        kwargs['instance'] = instance
+        kwargs['sender'] = sender
         return args, kwargs
     return func
 
@@ -149,9 +149,9 @@ class Signal:
 
         if not signature:
             signature = inspect.signature(self.__call__)
-        if _owner is None and 'instance' in signature.parameters:
+        if _owner is None and 'sender' in signature.parameters:
             raise ValueError(
-                'The parameter name "instance" is reserved by gillcup')
+                'The parameter name "sender" is reserved by gillcup')
         self.signature = self.__signature__ = signature
 
         if doc:
@@ -166,7 +166,7 @@ class Signal:
         if instance is None:
             owner = cls
             extra_arg = inspect.Parameter(
-                name='instance',
+                name='sender',
                 kind=inspect.Parameter.KEYWORD_ONLY,
                 default=None)
 
@@ -196,7 +196,7 @@ class Signal:
                                     signature=signature, _owner=owner)
             if parent:
                 new_signal.connect(parent,
-                                   arg_adapter=_instance_arg_adapter(instance))
+                                   arg_adapter=_sender_arg_adapter(instance))
             self._instance_signals[owner] = new_signal
             return new_signal
 

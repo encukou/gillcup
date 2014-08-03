@@ -192,12 +192,12 @@ def test_instance_signals(collector):
     instance_a = SomeClass()
     instance_b = SomeClass()
 
-    SomeClass.sig.connect(collector.kwarg_collector('instance'), weak=False)
+    SomeClass.sig.connect(collector.kwarg_collector('sender'), weak=False)
     instance_a.sig.connect(collector.const_collector('a'), weak=False)
     instance_b.sig.connect(collector.const_collector('b'), weak=False)
 
     collector.check()
-    SomeClass.sig(instance=None)
+    SomeClass.sig(sender=None)
     collector.check(None)
     instance_a.sig()
     collector.check_set(None, 'a', instance_a)
@@ -227,7 +227,7 @@ def test_instance_signals_only(collector):
 
 def test_reserved_param_name(collector):
     with pytest.raises(ValueError) as e:
-        Signal(signature=inspect.signature(lambda instance: None))
+        Signal(signature=inspect.signature(lambda sender: None))
 
 
 def test_arg_adapter(sig, collector):
@@ -327,10 +327,10 @@ def test_decorator_on_class():
 
     assert Foo.value_changed.name == 'value_changed'
     assert list(Foo.value_changed.signature.parameters) == [
-        'old_value', 'new_value', 'instance']
+        'old_value', 'new_value', 'sender']
     assert Foo.value_changed.__doc__ == 'Notifies of a value change'
     assert repr(Foo.value_changed) == (
-        '<Signal value_changed(old_value, new_value, *, instance=None) '
+        '<Signal value_changed(old_value, new_value, *, sender=None) '
         'of {owner!r}>'.format(owner=Foo))
 
 
