@@ -50,6 +50,7 @@ and cannot be used for other purposes.
 Reference
 ---------
 
+.. autofunction:: signal
 .. autoclass:: Signal
 
 """
@@ -91,18 +92,30 @@ def _instance_arg_adapter(instance):
     return func
 
 
+def signal(func):
+    '''Signal-creating decorator
+
+    Creates a Signal by copying the name, signature, and docstring from
+    a function.
+    Note that the body of the function is discarded.
+
+    Example::
+
+        >>> @signal
+        ... def value_changed(old_value, new_value):
+        ...     """Notify of value change"""
+        ...
+        >>> value_changed
+        <Signal value_changed(old_value, new_value)>
+        >>> value_changed.__doc__
+        'Notify of value change'
+    '''
+    return Signal(func.__name__, doc=func.__doc__,
+                  signature=inspect.signature(func))
+
+
 class Signal:
     """A broadcasting device.
-
-    :param name: Optional name of the signal.
-                Available as :token:`name` attribute
-    :param doc: Optional documentation for the signal.
-                Available as the docstring.
-    :param sig: Optional signature for the signal.
-                Available as the docstring.
-
-                If a callable is given, the signature is extracted from it,
-                i.e., you can give an example receiver to :token:`sig`.
 
     Methods:
 
@@ -114,22 +127,22 @@ class Signal:
     _is_gillcup_signal = True
 
     @util.fix_public_signature
-    def __init__(self, name=None, *, doc=None, sig=None, _internal=False):
+    def __init__(self, name=None, *, doc=None, signature=None,
+                 _owner=None):
         self._weak_listeners = {}
         self._strong_listeners = {}
         self._instance_signals = weakref.WeakKeyDictionary()
         self._waiting_connections = []
 
+        self.owner = _owner
         self.name = name
 
-        if not sig:
-            sig = self.__call__
-        if callable(sig):
-            sig = inspect.signature(sig)
-        if not _internal and 'instance' in sig.parameters:
+        if not signature:
+            signature = inspect.signature(self.__call__)
+        if _owner is None and 'instance' in signature.parameters:
             raise ValueError(
                 'The parameter name "instance" is reserved by gillcup')
-        self.sig = self.__signature__ = sig
+        self.signature = self.__signature__ = signature
 
         if doc:
             self.__doc__ = doc
@@ -138,16 +151,17 @@ class Signal:
         else:
             self.__doc__ = 'A signal'
 
-    def __get__(self, instance, owner=None):
+    def __get__(self, instance, cls=None):
         parent = None
         if instance is None:
-            key = owner
+            owner = cls
             extra_arg = inspect.Parameter(
                 name='instance',
-                kind=inspect.Parameter.KEYWORD_ONLY)
+                kind=inspect.Parameter.KEYWORD_ONLY,
+                default=None)
 
             def _params_gen():
-                existing = iter(self.sig.parameters.values())
+                existing = iter(self.signature.parameters.values())
                 for param in existing:
                     if param.kind in (inspect.Parameter.KEYWORD_ONLY,
                                       inspect.Parameter.VAR_KEYWORD):
@@ -159,22 +173,30 @@ class Signal:
                 else:
                     yield extra_arg
                 yield from existing
-            sig = self.sig.replace(parameters=list(_params_gen()))
+            signature = self.signature.replace(parameters=list(_params_gen()))
         else:
-            key = instance
-            sig = self.sig
-            if owner:
-                parent = self.__get__(None, owner)
+            owner = instance
+            signature = self.signature
+            if cls:
+                parent = self.__get__(None, cls)
         try:
-            return self._instance_signals[key]
+            return self._instance_signals[owner]
         except KeyError:
             new_signal = type(self)(self.name, doc=self.__doc__,
-                                    sig=self, _internal=True)
+                                    signature=signature, _owner=owner)
             if parent:
                 new_signal.connect(parent,
                                    arg_adapter=_instance_arg_adapter(instance))
-            self._instance_signals[key] = new_signal
+            self._instance_signals[owner] = new_signal
             return new_signal
+
+    def __repr__(self):
+        if self.owner is None:
+            of_woner = ''
+        else:
+            of_woner = ' of {}'.format(self.owner)
+        return '<Signal {s.name}{s.signature}{of_woner}>'.format(
+            s=self, of_woner=of_woner)
 
     def connect(self, listener, *, weak=True, arg_adapter=None):
         """Add the given listener to this signal's list
@@ -230,7 +252,7 @@ class Signal:
     def __call__(self, *args, **kwargs):
         """Call all of this signal's listeners with the given arguments
         """
-        self.sig.bind(*args, **kwargs)
+        self.signature.bind(*args, **kwargs)
         result = []
         for (_h, arg_adapter), listener in self._listeners:
             is_signal = getattr(listener, '_is_gillcup_signal', None)

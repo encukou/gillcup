@@ -1,12 +1,13 @@
 import gc
+import inspect
 
 import pytest
 
-from gillcup.signals import Signal
+from gillcup.signals import Signal, signal
 
 
 @pytest.fixture
-def signal():
+def sig():
     return Signal()
 
 
@@ -38,79 +39,79 @@ def collector():
     return Collector()
 
 
-def test_simple_listener(signal, collector):
-    assert not signal
-    signal.connect(collector.collect)
-    assert signal
-    signal(3)
-    signal(4)
+def test_simple_listener(sig, collector):
+    assert not sig
+    sig.connect(collector.collect)
+    assert sig
+    sig(3)
+    sig(4)
     collector.check(3, 4)
-    assert signal
+    assert sig
 
 
-def test_disconnect(signal, collector):
-    assert not signal
-    signal.connect(collector.collect)
-    assert signal
-    signal.disconnect(collector.collect)
-    assert not signal
-    signal(1)
+def test_disconnect(sig, collector):
+    assert not sig
+    sig.connect(collector.collect)
+    assert sig
+    sig.disconnect(collector.collect)
+    assert not sig
+    sig(1)
     collector.check()
 
 
-def test_weakness(signal):
+def test_weakness(sig):
     collector = Collector()
     collected = collector.collected
-    assert not signal
-    signal.connect(collector.collect)
-    assert signal
+    assert not sig
+    sig.connect(collector.collect)
+    assert sig
     del collector
     gc.collect()
-    signal(3)
-    assert not signal
+    sig(3)
+    assert not sig
     assert collected == []
 
 
-def test_strongness(signal):
+def test_strongness(sig):
     collector = Collector()
     collected = collector.collected
-    assert not signal
-    signal.connect(collector.collect, weak=False)
-    assert signal
+    assert not sig
+    sig.connect(collector.collect, weak=False)
+    assert sig
     del collector
     gc.collect()
-    signal(3)
-    assert signal
+    sig(3)
+    assert sig
     assert collected == [3]
 
 
-def test_weakness_function(signal):
+def test_weakness_function(sig):
     collected = []
 
     def collect(arg):
         collected.append(arg)
-    assert not signal
-    signal.connect(collect)
-    assert signal
+    assert not sig
+    sig.connect(collect)
+    assert sig
     del collect
     gc.collect()
-    signal(3)
-    assert not signal
+    sig(3)
+    assert not sig
     assert collected == []
 
 
-def test_strongness_function(signal):
+def test_strongness_function(sig):
     collected = []
 
     def collect(arg):
         collected.append(arg)
-    assert not signal
-    signal.connect(collect, weak=False)
-    assert signal
+    assert not sig
+    sig.connect(collect, weak=False)
+    assert sig
     del collect
     gc.collect()
-    signal(3)
-    assert signal
+    sig(3)
+    assert sig
     assert collected == [3]
 
 
@@ -120,10 +121,10 @@ def test_strongness_function(signal):
     (False, True),
     (False, False),
 ])
-def test_connection_uniqueness(signal, collector, weak1, weak2):
-    signal.connect(collector.collect, weak=weak1)
-    signal.connect(collector.collect, weak=weak2)
-    signal(3)
+def test_connection_uniqueness(sig, collector, weak1, weak2):
+    sig.connect(collector.collect, weak=weak1)
+    sig.connect(collector.collect, weak=weak2)
+    sig(3)
     collector.check(3)
 
 
@@ -133,10 +134,10 @@ def test_connection_uniqueness(signal, collector, weak1, weak2):
     (False, True),
     (False, False),
 ])
-def test_connection_uniqueness(signal, collector, weak1, weak2):
-    signal.connect(collector.collect, weak=weak1)
-    signal.connect(collector.collect, weak=weak2)
-    signal(3)
+def test_connection_uniqueness(sig, collector, weak1, weak2):
+    sig.connect(collector.collect, weak=weak1)
+    sig.connect(collector.collect, weak=weak2)
+    sig(3)
     collector.check(3)
 
 
@@ -145,42 +146,42 @@ def test_connection_uniqueness(signal, collector, weak1, weak2):
     (False, True),
     (False, False),
 ])
-def test_strong_preference(signal, weak1, weak2):
+def test_strong_preference(sig, weak1, weak2):
     collector = Collector()
-    signal.connect(collector.collect, weak=weak1)
-    signal.connect(collector.collect, weak=weak2)
+    sig.connect(collector.collect, weak=weak1)
+    sig.connect(collector.collect, weak=weak2)
     collected = collector.collected
     del collector
     gc.collect()
-    signal(3)
+    sig(3)
     assert collected == [3]
 
 
-def test_simple_results(signal):
-    signal.connect(lambda: 1, weak=False)
-    signal.connect(lambda: 2, weak=False)
-    signal.connect(lambda: 3, weak=False)
-    assert sorted(signal()) == [1, 2, 3]
+def test_simple_results(sig):
+    sig.connect(lambda: 1, weak=False)
+    sig.connect(lambda: 2, weak=False)
+    sig.connect(lambda: 3, weak=False)
+    assert sorted(sig()) == [1, 2, 3]
 
 
-def test_simple_chaining(signal):
+def test_simple_chaining(sig):
     signal2 = Signal()
-    signal.connect(lambda: 1, weak=False)
-    signal.connect(lambda: 2, weak=False)
-    signal.connect(lambda: 3, weak=False)
+    sig.connect(lambda: 1, weak=False)
+    sig.connect(lambda: 2, weak=False)
+    sig.connect(lambda: 3, weak=False)
     signal2.connect(lambda: 4, weak=False)
     signal2.connect(lambda: 5, weak=False)
     signal2.connect(lambda: 6, weak=False)
-    signal.connect(signal2)
-    assert sorted(signal()) == [1, 2, 3, 4, 5, 6]
+    sig.connect(signal2)
+    assert sorted(sig()) == [1, 2, 3, 4, 5, 6]
 
 
-def test_chaining_with_lists(signal):
+def test_chaining_with_lists(sig):
     signal2 = Signal()
-    signal.connect(lambda: [1, 2], weak=False)
+    sig.connect(lambda: [1, 2], weak=False)
     signal2.connect(lambda: [3, 4], weak=False)
-    signal.connect(signal2)
-    assert sorted(signal()) == [[1, 2], [3, 4]]
+    sig.connect(signal2)
+    assert sorted(sig()) == [[1, 2], [3, 4]]
 
 
 def test_instance_signals(collector):
@@ -226,35 +227,35 @@ def test_instance_signals_only(collector):
 
 def test_reserved_param_name(collector):
     with pytest.raises(ValueError) as e:
-        Signal(sig=lambda instance: None)
+        Signal(signature=inspect.signature(lambda instance: None))
 
 
-def test_arg_adapter(signal, collector):
-    signal.connect(collector.collect)
-    signal.connect(collector.collect, arg_adapter=lambda *k, **a: (['y'], {}))
-    signal.connect(collector.collect, arg_adapter=lambda *k, **a: (['z'], {}))
+def test_arg_adapter(sig, collector):
+    sig.connect(collector.collect)
+    sig.connect(collector.collect, arg_adapter=lambda *k, **a: (['y'], {}))
+    sig.connect(collector.collect, arg_adapter=lambda *k, **a: (['z'], {}))
 
     collector.check()
-    signal('x')
+    sig('x')
     collector.check_set('x', 'y', 'z')
 
 
-def test_arg_adapter_disconnection(signal, collector):
+def test_arg_adapter_disconnection(sig, collector):
     adapt_y = lambda *k, **a: (['y'], {})
     adapt_z = lambda *k, **a: (['z'], {})
-    signal.connect(collector.collect)
-    signal.connect(collector.collect, arg_adapter=adapt_y)
-    signal.connect(collector.collect, arg_adapter=adapt_z)
-    signal.connect(collector.collect, arg_adapter=adapt_z)
+    sig.connect(collector.collect)
+    sig.connect(collector.collect, arg_adapter=adapt_y)
+    sig.connect(collector.collect, arg_adapter=adapt_z)
+    sig.connect(collector.collect, arg_adapter=adapt_z)
 
     collector.check()
-    signal('x')
+    sig('x')
     collector.check_set('x', 'y', 'z')
     collector.clear()
 
-    signal.disconnect(collector.collect, arg_adapter=adapt_z)
+    sig.disconnect(collector.collect, arg_adapter=adapt_z)
     collector.check()
-    signal('x')
+    sig('x')
     collector.check_set('x', 'y')
 
 
@@ -302,3 +303,64 @@ def test_naming__doc():
     sig = Signal(doc='Notify of any change')
     assert sig.name == None
     assert sig.__doc__ == 'Notify of any change'
+
+
+def test_decorator():
+
+    @signal
+    def value_changed(old_value, new_value):
+        """Notifies of a value change"""
+
+    assert value_changed.name == 'value_changed'
+    assert list(value_changed.signature.parameters) == [
+        'old_value', 'new_value']
+    assert value_changed.__doc__ == 'Notifies of a value change'
+    assert repr(value_changed) == (
+        '<Signal value_changed(old_value, new_value)>')
+
+
+def test_decorator_on_class():
+    class Foo:
+        @signal
+        def value_changed(old_value, new_value):
+            """Notifies of a value change"""
+
+    assert Foo.value_changed.name == 'value_changed'
+    assert list(Foo.value_changed.signature.parameters) == [
+        'old_value', 'new_value', 'instance']
+    assert Foo.value_changed.__doc__ == 'Notifies of a value change'
+    assert repr(Foo.value_changed) == (
+        '<Signal value_changed(old_value, new_value, *, instance=None) '
+        'of {owner!r}>'.format(owner=Foo))
+
+
+def test_decorator_on_instance():
+    class Foo:
+        @signal
+        def value_changed(old_value, new_value):
+            """Notifies of a value change"""
+    foo = Foo()
+
+    assert foo.value_changed.name == 'value_changed'
+    assert list(foo.value_changed.signature.parameters) == [
+        'old_value', 'new_value']
+    assert foo.value_changed.__doc__ == 'Notifies of a value change'
+    assert repr(foo.value_changed) == (
+        '<Signal value_changed(old_value, new_value) '
+        'of {owner!r}>'.format(owner=foo))
+
+
+def test_signature_checking():
+
+    @signal
+    def value_changed(old_value, new_value):
+        """Notifies of a value change"""
+
+    value_changed(1, 2)
+    value_changed(old_value=1, new_value=2)
+
+    with pytest.raises(TypeError):
+        value_changed()
+
+    with pytest.raises(TypeError):
+        value_changed(1, 2, foo=5)
