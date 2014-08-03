@@ -123,6 +123,7 @@ Debugging helpers
 Helpers
 -------
 
+.. autofunction:: gillcup.expressions.simplify
 .. autofunction:: gillcup.expressions.safediv
 
 """
@@ -135,21 +136,8 @@ from gillcup.signals import signal
 
 
 def simplify(exp):
-    """Simplify the given expression"""
+    """Return a simplified version the given expression, if it exists"""
     return exp.replacement
-
-
-def replace_child(exp, listener):
-    """Move listener from an expression to its replacement, return replacement
-    """
-    replacement = exp.replacement
-    if replacement is exp:
-        return exp
-    else:
-        exp.replacement_available.disconnect(listener)
-        if not isinstance(replacement, Constant):
-            replacement.replacement_available.connect(listener)
-        return replacement
 
 
 @functools.total_ordering
@@ -158,14 +146,28 @@ class Expression:
 
     This is a base class, subclass it but do not use it directly.
 
-    Members to override in a subclass:
-        .. automethod:: get
-        .. autoattribute:: children
-        .. autoattribute:: pretty_name
+    Subclassing reference:
 
-    Signals:
+        Overridable members:
 
-        .. automethod:: replacement_available
+            .. automethod:: get
+            .. autoattribute:: children
+            .. autoattribute:: pretty_name
+
+        Replacing:
+
+            Sometimes when an expression is simplified, it may make sense to
+            replace it by a different type.
+            For example, after an animation ends the value will not change
+            any more, and can be represented by a Constant.
+
+            To make a request for such a replacement, store the new expression
+            in the :attr:`replacement` attribute.
+            This will automatically trigger the :meth:`replacement_available`
+            signal.
+
+            .. autoattribute:: replacement
+            .. automethod:: replacement_available
 
     Operations:
         .. autospecialmethod:: __len__
@@ -253,6 +255,10 @@ class Expression:
 
     @property
     def replacement(self):
+        """A simplified version of this expression
+
+        If a simplified version does not exist, the value is self.
+        """
         replacement = self._replacement
         if replacement is None:
             return self
@@ -471,6 +477,19 @@ def dump(exp):
     return '\n'.join(gen(exp))
 
 
+def _replace_child(exp, listener):
+    """Move listener from an expression to its replacement, return replacement
+    """
+    replacement = exp.replacement
+    if replacement is exp:
+        return exp
+    else:
+        exp.replacement_available.disconnect(listener)
+        if not isinstance(replacement, Constant):
+            replacement.replacement_available.connect(listener)
+        return replacement
+
+
 def _as_tuple(value, size=1):
     if isinstance(value, Expression):
         return value.get()
@@ -620,7 +639,7 @@ class Reduce(Expression):
         in_consts = True
         new = []
         for oper in self._operands:
-            oper = replace_child(oper.replacement, self._replace_operands)
+            oper = _replace_child(oper.replacement, self._replace_operands)
             if in_consts and not isinstance(oper, Constant):
                 if new:
                     new = [Constant(*_reduce_tuples(new, self._op))]
@@ -716,8 +735,8 @@ class Elementwise(Expression):
         yield self._operand
 
     def _replace_operand(self):
-        self._operand = o = replace_child(self._operand, self._replace_operand)
-        if isinstance(o, Constant):
+        self._operand = _replace_child(self._operand, self._replace_operand)
+        if isinstance(self._operand, Constant):
             self.replacement = Constant(*self)
 
 
@@ -783,7 +802,7 @@ class Slice(Expression):
         return self._source.get()[self._start:self._stop]
 
     def _replace_source(self):
-        self._source = src = replace_child(self._source, self._replace_source)
+        self._source = src = _replace_child(self._source, self._replace_source)
         if isinstance(src, Constant):
             self.replacement = Constant(*self)
 
@@ -907,13 +926,13 @@ class Interpolation(Expression):
         return tuple(a * nt + b * t for a, b in zip(self._a, self._b))
 
     def _replace_a(self):
-        self._a = replace_child(self._a, self._replace_a)
+        self._a = _replace_child(self._a, self._replace_a)
 
     def _replace_b(self):
-        self._b = replace_child(self._b, self._replace_b)
+        self._b = _replace_child(self._b, self._replace_b)
 
     def _replace_t(self):
-        self._t = t = replace_child(self._t, self._replace_t)
+        self._t = t = _replace_child(self._t, self._replace_t)
         if isinstance(t, Constant):
             if t == 0:
                 self.replacement = simplify(self._a)
