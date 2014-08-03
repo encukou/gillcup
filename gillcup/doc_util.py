@@ -1,3 +1,6 @@
+# Private Sphinx extension for making special methods look better.
+# The parts that Gillcup uses should work...
+
 import sphinx.ext.autodoc
 
 

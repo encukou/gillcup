@@ -40,6 +40,7 @@ class Collector:
     def collect_all_args(self, *args, **kwargs):
         self.collect((args, tuple(sorted((kwargs.items())))))
 
+
 @pytest.fixture
 def collector():
     return Collector()
@@ -289,7 +290,7 @@ def test_lazy_connect(collector):
 
 def test_naming__none():
     sig = Signal()
-    assert sig.name == None
+    assert sig.name is None
     assert sig.__doc__ == 'A signal'
 
 
@@ -307,7 +308,7 @@ def test_naming__both():
 
 def test_naming__doc():
     sig = Signal(doc='Notify of any change')
-    assert sig.name == None
+    assert sig.name is None
     assert sig.__doc__ == 'Notify of any change'
 
 
@@ -409,8 +410,11 @@ def test_on_unhashable_class(collector):
         def value_changed(old_value, new_value):
             """Notifies of a value change"""
 
-        def __eq__(self, other): return False
-        def __ne__(self, other): return True
+        def __eq__(self, other):
+            return False
+
+        def __ne__(self, other):
+            return True
 
     foo = Foo()
 

@@ -78,6 +78,7 @@ def op(request):
         neg=lambda a: -a,
     )[request.param]
 
+
 class Flag:
     def __init__(self, value=False):
         self.value = value
@@ -341,6 +342,7 @@ def test_index_get():
     assert len(val[1:]) == 2
     assert len(val[:]) == 3
     assert len(val[:-1]) == 2
+
 
 def test_slice_simplification():
     val = Value(1, 2, 3)
