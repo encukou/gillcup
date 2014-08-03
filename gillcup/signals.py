@@ -91,18 +91,41 @@ def _instance_arg_adapter(instance):
 class Signal:
     """A broadcasting device.
 
-    .. automethod:: connect
-    .. autospecialmethod:: __call__
-    .. automethod:: disconnect
-    .. autospecialmethod:: __bool__
+    Attributes:
+
+        .. attribute:: name
+
+            The name of the signal. Set from the :token:`name` argument to
+            :meth`__init__`.
+
+        .. attribute:: __doc__
+
+            Documentation string. Set from the :token:`doc` argument to
+            :meth`__init__`.
+
+    Methods:
+
+        .. automethod:: connect
+        .. autospecialmethod:: __call__
+        .. automethod:: disconnect
+        .. autospecialmethod:: __bool__
     """
     _is_gillcup_signal = True
 
-    def __init__(self):
+    def __init__(self, name=None, *, doc=None):
         self._weak_listeners = {}
         self._strong_listeners = {}
         self._instance_signals = weakref.WeakKeyDictionary()
         self._waiting_connections = []
+
+        self.name = name
+
+        if doc:
+            self.__doc__ = doc
+        elif name:
+            self.__doc__ = "Signal '%s'" % name
+        else:
+            self.__doc__ = 'A signal'
 
     def __get__(self, instance, owner=None):
         if instance is None:
@@ -111,7 +134,7 @@ class Signal:
             try:
                 return self._instance_signals[instance]
             except KeyError:
-                new_signal = type(self)()
+                new_signal = type(self)(self.name, doc=self.__doc__)
                 new_signal.connect(self,
                                    arg_adapter=_instance_arg_adapter(instance))
                 self._instance_signals[instance] = new_signal

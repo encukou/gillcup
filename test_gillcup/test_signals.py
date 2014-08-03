@@ -273,3 +273,27 @@ def test_lazy_connect(collector):
 
     s1(3)
     collector.check(3)
+
+
+def test_naming__none():
+    sig = Signal()
+    assert sig.name == None
+    assert sig.__doc__ == 'A signal'
+
+
+def test_naming__name():
+    sig = Signal('changed')
+    assert sig.name == 'changed'
+    assert sig.__doc__ == "Signal 'changed'"
+
+
+def test_naming__both():
+    sig = Signal('changed', doc='Notify of any change')
+    assert sig.name == 'changed'
+    assert sig.__doc__ == 'Notify of any change'
+
+
+def test_naming__doc():
+    sig = Signal(doc='Notify of any change')
+    assert sig.name == None
+    assert sig.__doc__ == 'Notify of any change'
