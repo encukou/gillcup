@@ -586,3 +586,17 @@ def test_subtraction_depth():
     for i in range(10):
         exp = exp - 1
     check_depth(exp, 2)
+
+
+def test_slicing_depth():
+    exp = Value(0, 0, 0)
+    for i in range(10):
+        exp = exp.replace(1, exp[1] - 1)
+    check_depth(exp, 4)
+
+
+def test_elementwise_manipulation_depth():
+    exp = Value(0, 0, 0)
+    for i in range(10):
+        exp = exp.replace(i % 3, exp[i % 3] - i)
+    check_depth(exp, 4)
