@@ -131,12 +131,22 @@ import operator
 import functools
 import math
 
+from gillcup.signals import signal
+
 
 def simplify(exp):
-    if exp.replacement is None:
-        return exp
-    else:
-        return exp.replacement
+    """Simplify the given expression"""
+    return exp.replacement
+
+
+def replace_child(exp, listener):
+    """Move listener from an expression to its replacement, return replacement
+    """
+    exp.replacement_available.disconnect(listener)
+    exp = exp.replacement
+    if not isinstance(exp, Constant):
+        exp.replacement_available.connect(listener)
+    return exp
 
 
 @functools.total_ordering
@@ -149,6 +159,10 @@ class Expression:
         .. automethod:: get
         .. autoattribute:: children
         .. autoattribute:: pretty_name
+
+    Signals:
+
+        .. automethod:: replacement_available
 
     Operations:
         .. autospecialmethod:: __len__
@@ -194,7 +208,9 @@ class Expression:
         .. autospecialmethod:: __neg__
     """
 
-    replacement = None
+    @signal
+    def replacement_available():
+        """Notifies that a simplified replacement is available"""
 
     def __len__(self):
         """Size of this expression
@@ -231,6 +247,24 @@ class Expression:
     def get(self):
         """Return the current value of this expression, as a tuple."""
         raise NotImplementedError()
+
+    @property
+    def replacement(self):
+        replacement = self._replacement
+        if replacement is None:
+            return self
+        else:
+            while replacement._replacement is not None:
+                replacement = replacement._replacement
+            self._replacement = replacement
+            return replacement
+
+    @replacement.setter
+    def replacement(self, new_exp):
+        if new_exp is not self._replacement:
+            self._replacement = new_exp
+            self.replacement_available()
+    _replacement = None
 
     @property
     def children(self):
@@ -492,7 +526,7 @@ class Value(Expression):
 
         The value cannot be changed after :meth:`fix` is called.
         """
-        if self.replacement is not None:
+        if self._replacement is not None:
             raise ValueError('value has been fixed')
         value = tuple(float(v) for v in value)
         if len(value) != self._size:
@@ -842,22 +876,28 @@ class Interpolation(Expression):
         if len(self._t) != 1:
             raise ValueError('Interpolation coefficient must be '
                              'a single number')
+        self._a.replacement_available.connect(self._replace_a)
+        self._b.replacement_available.connect(self._replace_b)
+        self._t.replacement_available.connect(self._replace_t)
 
     def get(self):
         t = float(self._t)
         nt = 1 - t
         return tuple(a * nt + b * t for a, b in zip(self._a, self._b))
 
-    def simplify(self):
-        a = self._a = simplify(self._a)
-        b = self._b = simplify(self._b)
-        t = self._t = simplify(self._t)
+    def _replace_a(self):
+        self._a = replace_child(self._a, self._replace_a)
+
+    def _replace_b(self):
+        self._b = replace_child(self._b, self._replace_b)
+
+    def _replace_t(self):
+        self._t = t = replace_child(self._t, self._replace_t)
         if isinstance(t, Constant):
             if t == 0:
-                return a
+                self.replacement = simplify(self._a)
             elif t == 1:
-                return b
-        return self
+                self.replacement = simplify(self._b)
 
     @property
     def children(self):
