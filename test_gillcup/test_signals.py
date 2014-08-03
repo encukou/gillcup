@@ -224,6 +224,11 @@ def test_instance_signals_only(collector):
     collector.check('a', 'b')
 
 
+def test_reserved_param_name(collector):
+    with pytest.raises(ValueError) as e:
+        Signal(sig=lambda instance: None)
+
+
 def test_arg_adapter(signal, collector):
     signal.connect(collector.collect)
     signal.connect(collector.collect, arg_adapter=lambda *k, **a: (['y'], {}))

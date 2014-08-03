@@ -37,9 +37,10 @@ calls to unconnected signals.)
 
 When a signal is added to an class, each instance of that class will
 automatically get its own instance of the signal.
-
 The instance's signal automatically calls the class signal with an "instance"
 keyword argument added.
+This argument is added to the signature of class-bound signals,
+and cannot be used for other purposes.
 
 .. rubric:: footnotes
 
@@ -56,6 +57,8 @@ Reference
 import inspect
 import weakref
 import collections
+
+from gillcup import util
 
 
 def _hashable_identity(obj):
@@ -91,17 +94,15 @@ def _instance_arg_adapter(instance):
 class Signal:
     """A broadcasting device.
 
-    Attributes:
+    :param name: Optional name of the signal.
+                Available as :token:`name` attribute
+    :param doc: Optional documentation for the signal.
+                Available as the docstring.
+    :param sig: Optional signature for the signal.
+                Available as the docstring.
 
-        .. attribute:: name
-
-            The name of the signal. Set from the :token:`name` argument to
-            :meth`__init__`.
-
-        .. attribute:: __doc__
-
-            Documentation string. Set from the :token:`doc` argument to
-            :meth`__init__`.
+                If a callable is given, the signature is extracted from it,
+                i.e., you can give an example receiver to :token:`sig`.
 
     Methods:
 
@@ -112,13 +113,23 @@ class Signal:
     """
     _is_gillcup_signal = True
 
-    def __init__(self, name=None, *, doc=None):
+    @util.fix_public_signature
+    def __init__(self, name=None, *, doc=None, sig=None, _internal=False):
         self._weak_listeners = {}
         self._strong_listeners = {}
         self._instance_signals = weakref.WeakKeyDictionary()
         self._waiting_connections = []
 
         self.name = name
+
+        if not sig:
+            sig = self.__call__
+        if callable(sig):
+            sig = inspect.signature(sig)
+        if not _internal and 'instance' in sig.parameters:
+            raise ValueError(
+                'The parameter name "instance" is reserved by gillcup')
+        self.sig = self.__signature__ = sig
 
         if doc:
             self.__doc__ = doc
@@ -128,17 +139,42 @@ class Signal:
             self.__doc__ = 'A signal'
 
     def __get__(self, instance, owner=None):
+        parent = None
         if instance is None:
-            return self
+            key = owner
+            extra_arg = inspect.Parameter(
+                name='instance',
+                kind=inspect.Parameter.KEYWORD_ONLY)
+
+            def _params_gen():
+                existing = iter(self.sig.parameters.values())
+                for param in existing:
+                    if param.kind in (inspect.Parameter.KEYWORD_ONLY,
+                                      inspect.Parameter.VAR_KEYWORD):
+                        yield extra_arg
+                        yield param
+                        break
+                    else:
+                        yield param
+                else:
+                    yield extra_arg
+                yield from existing
+            sig = self.sig.replace(parameters=list(_params_gen()))
         else:
-            try:
-                return self._instance_signals[instance]
-            except KeyError:
-                new_signal = type(self)(self.name, doc=self.__doc__)
-                new_signal.connect(self,
+            key = instance
+            sig = self.sig
+            if owner:
+                parent = self.__get__(None, owner)
+        try:
+            return self._instance_signals[key]
+        except KeyError:
+            new_signal = type(self)(self.name, doc=self.__doc__,
+                                    sig=self, _internal=True)
+            if parent:
+                new_signal.connect(parent,
                                    arg_adapter=_instance_arg_adapter(instance))
-                self._instance_signals[instance] = new_signal
-                return new_signal
+            self._instance_signals[key] = new_signal
+            return new_signal
 
     def connect(self, listener, *, weak=True, arg_adapter=None):
         """Add the given listener to this signal's list
@@ -194,6 +230,7 @@ class Signal:
     def __call__(self, *args, **kwargs):
         """Call all of this signal's listeners with the given arguments
         """
+        self.sig.bind(*args, **kwargs)
         result = []
         for (_h, arg_adapter), listener in self._listeners:
             is_signal = getattr(listener, '_is_gillcup_signal', None)
