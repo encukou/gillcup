@@ -141,7 +141,7 @@ class Signal:
                  _owner=None):
         self._weak_listeners = {}
         self._strong_listeners = {}
-        self._instance_signals = weakref.WeakKeyDictionary()
+        self._instance_signals = {}
         self._waiting_connections = []
 
         self.owner = _owner
@@ -162,16 +162,27 @@ class Signal:
             self.__doc__ = 'A signal'
 
     def __get__(self, instance, cls=None):
-        parent = None
         if instance is None:
             owner = cls
+        else:
+            owner = instance
+        key = id(owner)
+        try:
+            ref, signal = self._instance_signals[key]
+            return signal
+        except KeyError:
+            pass
+
+        parent = None
+        signature = self.signature
+        if instance is None:
             extra_arg = inspect.Parameter(
                 name='sender',
                 kind=inspect.Parameter.KEYWORD_ONLY,
                 default=None)
 
             def _params_gen():
-                existing = iter(self.signature.parameters.values())
+                existing = iter(signature.parameters.values())
                 for param in existing:
                     if param.kind in (inspect.Parameter.KEYWORD_ONLY,
                                       inspect.Parameter.VAR_KEYWORD):
@@ -183,22 +194,21 @@ class Signal:
                 else:
                     yield extra_arg
                 yield from existing
-            signature = self.signature.replace(parameters=list(_params_gen()))
+            signature = signature.replace(parameters=list(_params_gen()))
         else:
-            owner = instance
-            signature = self.signature
             if cls:
                 parent = self.__get__(None, cls)
-        try:
-            return self._instance_signals[owner]
-        except KeyError:
-            new_signal = type(self)(self.name, doc=self.__doc__,
-                                    signature=signature, _owner=owner)
-            if parent:
-                new_signal.connect(parent,
-                                   arg_adapter=_sender_arg_adapter(instance))
-            self._instance_signals[owner] = new_signal
-            return new_signal
+
+        ref = weakref.ref(owner,
+                          lambda r: _dict_discard(self._instance_signals, key))
+
+        new_signal = type(self)(self.name, doc=self.__doc__,
+                                signature=signature, _owner=owner)
+        if parent:
+            new_signal.connect(parent,
+                               arg_adapter=_sender_arg_adapter(instance))
+        self._instance_signals[key] = ref, new_signal
+        return new_signal
 
     def __repr__(self):
         if self.owner is None:

@@ -28,11 +28,17 @@ class Collector:
         assert set(self.collected) == set(expected)
         assert len(self.collected) == len(expected)
 
+    def check_sorted(self, *expected):
+        assert sorted(self.collected) == sorted(expected)
+
     def const_collector(self, item):
         return lambda: self.collect(item)
 
     def kwarg_collector(self, name):
         return lambda **kwargs: self.collect(kwargs[name])
+
+    def collect_all_args(self, *args, **kwargs):
+        self.collect((args, tuple(sorted((kwargs.items())))))
 
 @pytest.fixture
 def collector():
@@ -395,3 +401,25 @@ def test_default_weak_method(sig):
     gc.collect()
     sig(3)
     assert collected == []
+
+
+def test_on_unhashable_class(collector):
+    class Foo:
+        @signal
+        def value_changed(old_value, new_value):
+            """Notifies of a value change"""
+
+        def __eq__(self, other): return False
+        def __ne__(self, other): return True
+
+    foo = Foo()
+
+    with pytest.raises(TypeError):
+        hash(foo)
+
+    Foo.value_changed.connect(collector.collect_all_args)
+    foo.value_changed.connect(collector.collect_all_args)
+
+    foo.value_changed(1, 2)
+
+    collector.check_sorted(((1, 2), ()), ((1, 2), (('sender', foo), )))
