@@ -305,24 +305,24 @@ class Expression:
         return self.get() < _as_tuple(other)
 
     def __add__(self, other):
-        return Sum((self, other)).simplify()
+        return simplify(Sum((self, other)))
     __radd__ = __add__
 
     def __mul__(self, other):
-        return Product((self, other)).simplify()
+        return simplify(Product((self, other)))
     __rmul__ = __mul__
 
     def __sub__(self, other):
-        return Difference((self, other)).simplify()
+        return simplify(Difference((self, other)))
 
     def __rsub__(self, other):
-        return Difference((other, self)).simplify()
+        return simplify(Difference((other, self)))
 
     def __truediv__(self, other):
-        return Quotient((self, other)).simplify()
+        return simplify(Quotient((self, other)))
 
     def __rtruediv__(self, other):
-        return Quotient((other, self)).simplify()
+        return simplify(Quotient((other, self)))
 
     def __pos__(self):
         """Return this Expression unchanged"""
@@ -559,7 +559,7 @@ class Value(Expression):
 
 def _coerce(exp, size=1):
     if isinstance(exp, Expression):
-        return exp
+        return simplify(exp)
     else:
         tup = _as_tuple(exp, size)
         return Constant(*tup)
@@ -601,6 +601,9 @@ class Reduce(Expression):
         first = self._operands[0]
         for operand in self._operands[1:]:
             _check_len(operand, first)
+        for i, oper in enumerate(self._operands):
+            oper.replacement_available.connect(self._replace_operands)
+        self._replace_operands()
 
     def get(self):
         return _reduce_tuples(self._operands, self._op)
@@ -613,12 +616,21 @@ class Reduce(Expression):
     def children(self):
         return self._operands
 
-    def simplify(self):
-        self._operands = tuple(simplify(o) for o in self._operands)
-        if all(isinstance(o, Constant) for o in self._operands):
-            return Constant(*self)
-        else:
-            return self
+    def _replace_operands(self):
+        in_consts = True
+        new = []
+        for oper in self._operands:
+            oper = replace_child(oper.replacement, self._replace_operands)
+            if in_consts and not isinstance(oper, Constant):
+                if new:
+                    new = [Constant(*_reduce_tuples(new, self._op))]
+                in_consts = False
+            new.append(oper)
+        if in_consts:
+            new = [Constant(*_reduce_tuples(new, self._op))]
+        self._operands = new
+        if len(self._operands) == 1:
+            [self.replacement] = self._operands
 
 
 class Sum(Reduce):
@@ -687,10 +699,14 @@ class Quotient(Reduce):
 
 
 class Elementwise(Expression):
-    """Applies a function element-wise on a single Expression."""
+    """Applies a function element-wise on a single Expression.
+
+    Assumes the `op` function is pure.
+    """
     def __init__(self, operand, op):
         self._operand = _coerce(operand)
         self._op = op
+        self._operand.replacement_available.connect(self._replace_operand)
 
     def get(self):
         return tuple(map(self._op, self._operand.get()))
@@ -699,17 +715,16 @@ class Elementwise(Expression):
     def children(self):
         yield self._operand
 
+    def _replace_operand(self):
+        self._operand = o = replace_child(self._operand, self._replace_operand)
+        if isinstance(o, Constant):
+            self.replacement = Constant(*self)
+
 
 class Neg(Elementwise):
     """Element-wise negation"""
     def __init__(self, operand):
         super().__init__(operand, operator.neg)
-
-    def simplify(self):
-        if isinstance(simplify(self._operand), Constant):
-            return Constant(*self)
-        else:
-            return self
 
 
 def _get_slice_indices(source, index):
