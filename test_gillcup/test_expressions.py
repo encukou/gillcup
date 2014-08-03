@@ -2,11 +2,13 @@ import itertools
 import inspect
 import math
 import textwrap
+import contextlib
 
 import pytest
 
-from gillcup.expressions import Constant, Value, Concat, Interpolation
-from gillcup.expressions import Progress, dump
+from gillcup.expressions import Constant, Value, Concat, Interpolation, Slice
+from gillcup.expressions import Sum, Difference, Product, Quotient, Neg
+from gillcup.expressions import Progress, dump, simplify
 
 
 try:
@@ -75,6 +77,30 @@ def op(request):
         pos=lambda a: +a,
         neg=lambda a: -a,
     )[request.param]
+
+class Flag:
+    def __init__(self, value=False):
+        self.value = value
+
+    def set(self, value=True):
+        self.value = value
+
+    def unset(self):
+        self.value = False
+
+    def __bool__(self):
+        return self.value
+
+
+@contextlib.contextmanager
+def reduce_to_const(exp):
+    repl_available = Flag(simplify(exp) is not exp)
+    exp.replacement_available.connect(repl_available.set)
+    yield exp
+    print(dump(simplify(exp)))
+    assert exp == simplify(exp)
+    assert isinstance(simplify(exp), Constant), type(exp.replacement)
+    assert repl_available
 
 
 @pytest.mark.parametrize('exp', [Constant(3), Value(3)])
@@ -151,8 +177,8 @@ def test_value_fix_0():
     with pytest.raises(ValueError):
         exp.set(4)
     assert exp == 6
-    assert exp.simplify() == 6
-    assert isinstance(exp.simplify(), Constant)
+    assert simplify(exp) == 6
+    assert isinstance(simplify(exp), Constant)
 
 
 def test_value_fix_1():
@@ -162,8 +188,8 @@ def test_value_fix_1():
     with pytest.raises(ValueError):
         exp.set(4)
     assert exp == 6
-    assert exp.simplify() == 6
-    assert isinstance(exp.simplify(), Constant)
+    assert simplify(exp) == 6
+    assert isinstance(simplify(exp), Constant)
 
 
 def test_constant_zero_size():
@@ -254,7 +280,7 @@ def test_fixed_falue_constant_propegation(formula, args, maybe_numpy):
         value.fix()
     got = check_formula(maybe_numpy, formula, args, values)
     if got:
-        assert isinstance(got.simplify(), Constant)
+        assert isinstance(simplify(got), Constant)
 
 
 def check_dump(expression, expected):
@@ -358,7 +384,7 @@ def test_concat_simplification():
     """)
     val1.fix()
     val2.fix()
-    check_dump(cat.simplify(), 'Constant <1.0, 2.0, 3.0, 4.0, 5.0>')
+    check_dump(simplify(cat), 'Constant <1.0, 2.0, 3.0, 4.0, 5.0>')
 
 
 def test_replace_slice():
@@ -384,7 +410,7 @@ def test_constant_slice_simplification():
 
 def test_concat_simplification():
     exp = Concat(Constant(0, 1), Constant(2, 3))
-    check_dump(exp.simplify(), 'Constant <0.0, 1.0, 2.0, 3.0>')
+    check_dump(simplify(exp), 'Constant <0.0, 1.0, 2.0, 3.0>')
 
 
 def test_slice_replace_simplification():
@@ -402,7 +428,7 @@ def test_slice_replace_simplification2():
     val = val.replace(0, val[0] + 3)
     val = val.replace(2, val[2] + 3)
 
-    check_dump(val.simplify(), """
+    check_dump(simplify(val), """
         Concat <3.0, 4.0, 5.0>:
           + <3.0>:
             [0:1] <0.0>:
@@ -424,13 +450,13 @@ def test_interpolation():
     val2 = Value(10, 1, 0, 2)
     t = Value(0)
     exp = Interpolation(val1, val2, t)
-    assert exp == exp.simplify() == (0, 1, 5, 1)
+    assert exp == simplify(exp) == (0, 1, 5, 1)
 
     t.set(1)
-    assert exp == exp.simplify() == (10, 1, 0, 2)
+    assert exp == simplify(exp) == (10, 1, 0, 2)
 
     t.set(0.5)
-    assert exp == exp.simplify() == (5, 1, 2.5, 1.5)
+    assert exp == simplify(exp) == (5, 1, 2.5, 1.5)
 
 
 def test_interpolation_ramps():
@@ -439,14 +465,14 @@ def test_interpolation_ramps():
         exp = Interpolation(0, x, t)
         for i in range(-10, 20):
             t.set(i / 10)
-            assert exp == exp.simplify() == t * x
+            assert exp == simplify(exp) == t * x
 
 
 def test_interpolation_simplification():
     val1 = Value(0, 1, 5, 1)
     val2 = Value(10, 1, 0, 2)
-    assert Interpolation(val1, val2, 0).simplify() is val1
-    assert Interpolation(val1, val2, 1).simplify() is val2
+    assert simplify(Interpolation(val1, val2, 0)) is val1
+    assert simplify(Interpolation(val1, val2, 1)) is val2
 
 
 def test_interpolation_dump():
@@ -473,4 +499,62 @@ def test_progress_clamped(clock):
     assert exp == 0.5
     clock.advance_sync(1)
     assert exp == 1
-    assert isinstance(exp.simplify(), Constant)
+    assert isinstance(simplify(exp), Constant)
+
+
+def test_value_simplification():
+    with reduce_to_const(Value(1)) as exp:
+        exp.fix()
+
+
+def test_progress_simplification(clock):
+    with reduce_to_const(Progress(clock, 1)):
+        clock.advance_sync(1)
+
+
+@pytest.mark.parametrize('chain_length', [0, 1, 2, 3, 50])
+def test_interpolation_chain_simplification(chain_length):
+    t = Value(0)
+    exp = Interpolation(1, 0, t)
+    for i in range(chain_length):
+        exp = Interpolation(exp, i + 1, t)
+    print(id(exp))
+    with reduce_to_const(exp):
+        t.fix()
+
+
+def test_concat_simplification():
+    v1 = Value(1)
+    v2 = Value(2)
+    v3 = Value(3)
+    with reduce_to_const(Concat(v1, v2, v3)) as exp:
+        v1.fix()
+        v2.fix()
+        assert len(exp.children) == 2
+        v3.fix()
+
+
+@pytest.mark.parametrize(['start', 'end'], [
+    (None, None), (0, 1), (0, -1), (-1, None), (0, 0), (3, 2)])
+def test_slice_simplification(start, end):
+    val = Value(1, 2, 3, 4)
+    with reduce_to_const(Slice(val, slice(start, end))):
+        val.fix()
+
+
+def test_neg_simplification():
+    val = Value(1, 2, 3, 4)
+    with reduce_to_const(Neg(val)):
+        val.fix()
+
+
+@pytest.mark.parametrize('cls', [Sum, Difference, Product, Quotient])
+def test_reduce_simplification(cls):
+    v1 = Value(1)
+    v2 = Value(2)
+    v3 = Value(3)
+    with reduce_to_const(cls([v1, v2, v3])) as exp:
+        v1.fix()
+        v2.fix()
+        assert len(exp.children) == 2
+        v3.fix()

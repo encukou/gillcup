@@ -336,7 +336,7 @@ class Expression:
 
     def __neg__(self):
         """Return an element-wise negation of this Expression"""
-        return Neg(self).simplify()
+        return simplify(Neg(self))
 
     def replace(self, index, replacement):
         """Replace the given element (or slice) with a value
@@ -726,6 +726,7 @@ class Elementwise(Expression):
         self._operand = _coerce(operand)
         self._op = op
         self._operand.replacement_available.connect(self._replace_operand)
+        self._replace_operand()
 
     def get(self):
         return tuple(map(self._op, self._operand.get()))
@@ -782,8 +783,9 @@ class Slice(Expression):
         elif self._start <= 0 and self._stop >= len(source):
             self.replacement = source
         elif isinstance(source, Slice):
-            subslice = slice(self._start + src._start, self._stop + src._start)
-            self.replacement = Slice(src._source, subslice)
+            subslice = slice(self._start + source._start,
+                             self._stop + source._start)
+            self.replacement = simplify(Slice(source._source, subslice))
         else:
             source.replacement_available.connect(self._replace_source)
 
@@ -819,7 +821,7 @@ class Concat(Expression):
         self._children = tuple(_coerce(c) for c in children)
         self._len = sum(len(c) for c in self._children)
         self._simplify_children()
-        for child in children:
+        for child in self._children:
             child.replacement_available.connect(self._simplify_children)
 
     @property
@@ -919,6 +921,7 @@ class Interpolation(Expression):
         self._a.replacement_available.connect(self._replace_a)
         self._b.replacement_available.connect(self._replace_b)
         self._t.replacement_available.connect(self._replace_t)
+        self._replace_t()
 
     def get(self):
         t = float(self._t)
