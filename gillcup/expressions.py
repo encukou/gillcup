@@ -296,7 +296,7 @@ class Expression:
         >>> exp[:-1]
         <1.0, 2.0>
         """
-        return Slice(self, index).simplify()
+        return simplify(Slice(self, index))
 
     def __eq__(self, other):
         return self.get() == _as_tuple(other)
@@ -739,9 +739,19 @@ class Slice(Expression):
     Typical result of an `exp[start:stop]` operation
     """
     def __init__(self, source, index):
-        self._source = source
+        self._source = simplify(source)
         self._start, self._stop = _get_slice_indices(source, index)
         self._len = self._stop - self._start
+        if self._len <= 0:
+            self.replacement = Constant()
+            self._len = 0
+        elif self._start <= 0 and self._stop >= len(source):
+            self.replacement = source
+        elif isinstance(source, Slice):
+            subslice = slice(self._start + src._start, self._stop + src._start)
+            self.replacement = Slice(src._source, subslice)
+        else:
+            source.replacement_available.connect(self._replace_source)
 
     def __len__(self):
         return self._len
@@ -757,14 +767,10 @@ class Slice(Expression):
     def get(self):
         return self._source.get()[self._start:self._stop]
 
-    def simplify(self):
-        src = self._source
-        if self._start <= 0 and self._stop >= len(src):
-            return self._source
-        elif isinstance(src, Slice):
-            subslice = slice(self._start + src._start, self._stop + src._start)
-            return Slice(src._source, subslice)
-        return self
+    def _replace_source(self):
+        self._source = src = replace_child(self._source, self._replace_source)
+        if isinstance(src, Constant):
+            self.replacement = Constant(*self)
 
 
 class Concat(Expression):

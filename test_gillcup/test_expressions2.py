@@ -2,7 +2,7 @@ import contextlib
 
 import pytest
 
-from gillcup.expressions import Constant, Value, Concat, Interpolation
+from gillcup.expressions import Constant, Value, Concat, Interpolation, Slice
 from gillcup.expressions import Progress, dump, simplify
 
 class Flag:
@@ -21,13 +21,13 @@ class Flag:
 
 @contextlib.contextmanager
 def reduce_to_const(exp):
-    replacement_available_called = Flag()
-    exp.replacement_available.connect(replacement_available_called.set)
+    repl_available = Flag(simplify(exp) is not exp)
+    exp.replacement_available.connect(repl_available.set)
     yield
     print(dump(simplify(exp)))
     assert exp == simplify(exp)
     assert isinstance(simplify(exp), Constant), type(exp.replacement)
-    assert replacement_available_called
+    assert repl_available
 
 
 def test_value_simplification():
@@ -63,3 +63,11 @@ def test_concat_simplification():
         v2.fix()
         assert len(exp.children) == 2
         v3.fix()
+
+
+@pytest.mark.parametrize(['start', 'end'], [
+    (None, None), (0, 1), (0, -1), (-1, None), (0, 0), (3, 2)])
+def test_slice_simplification(start, end):
+    val = Value(1, 2, 3, 4)
+    with reduce_to_const(Slice(val, slice(start, end))):
+        val.fix()
