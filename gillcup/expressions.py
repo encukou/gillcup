@@ -491,14 +491,17 @@ def _replace_child(exp, listener):
 
 
 def _as_tuple(value, size=1):
-    if isinstance(value, Expression):
-        return value.get()
     try:
-        iterator = iter(value)
-    except TypeError:
-        return (float(value), ) * size
+        get = value.get
+    except AttributeError:
+        try:
+            iterator = iter(value)
+        except TypeError:
+            return (float(value), ) * size
+        else:
+            return tuple(float(v) for v in iterator)
     else:
-        return tuple(float(v) for v in iterator)
+        return get()
 
 
 class Constant(Expression):
@@ -577,11 +580,14 @@ class Value(Expression):
 
 
 def _coerce(exp, size=1):
-    if isinstance(exp, Expression):
-        return simplify(exp)
-    else:
+    try:
+        # See if this quacks like an Expression
+        exp.get
+    except AttributeError:
         tup = _as_tuple(exp, size)
         return Constant(*tup)
+    else:
+        return simplify(exp)
 
 
 def _coerce_all(exps):
