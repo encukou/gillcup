@@ -167,8 +167,7 @@ class Signal:
             owner = instance
         key = id(owner)
         try:
-            ref, signal = self._instance_signals[key]
-            return signal
+            return self._instance_signals[key]
         except KeyError:
             pass
 
@@ -198,15 +197,14 @@ class Signal:
             if cls:
                 parent = self.__get__(None, cls)
 
-        ref = weakref.ref(owner,
-                          lambda r: _dict_discard(self._instance_signals, key))
+        weakref.finalize(owner, self._instance_signals.pop, key, None)
 
         new_signal = type(self)(self.name, doc=self.__doc__,
                                 signature=signature, _owner=owner)
         if parent:
             new_signal.connect(parent,
                                arg_adapter=_sender_arg_adapter(instance))
-        self._instance_signals[key] = ref, new_signal
+        self._instance_signals[key] = new_signal
         return new_signal
 
     def __repr__(self):
