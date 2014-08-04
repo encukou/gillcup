@@ -227,9 +227,9 @@ class Clock:
 
     @util.fix_public_signature
     def sleep(self, delay, *, _category=0):
-        """Return a future that will complete after "dt" time units
+        """Return a future that will complete after "delay" time units
 
-        Scheduling for the past (dt<0) will raise an error.
+        Scheduling for the past (delay<0) will raise an error.
         """
         future = asyncio.Future()
         self.schedule(delay, future.set_result, None, _category=_category)
@@ -251,7 +251,7 @@ class Clock:
 
     @util.fix_public_signature
     def schedule(self, delay, callback, *args, _category=0):
-        """Schedule callback to be called after "dt" time units
+        """Schedule callback to be called after "delay" time units
         """
         global _next_index
         if delay < 0:
