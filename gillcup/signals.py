@@ -86,14 +86,6 @@ def _ref(obj, callback=None):
         return weakref.ref(obj, callback)
 
 
-def _dict_discard(dct, key):
-    try:
-        del dct[key]
-    except KeyError:
-        return False
-    return True
-
-
 def _sender_arg_adapter(sender):
     def func(*args, **kwargs):
         kwargs['sender'] = sender
@@ -244,7 +236,7 @@ class Signal:
             weak = inspect.ismethod(listener)
 
         def discard_the_weak(ref=None):
-            _dict_discard(self._weak_listeners, key)
+            self._weak_listeners.pop(key, None)
         if weak:
             if key in self._strong_listeners:
                 return
@@ -265,9 +257,9 @@ class Signal:
         values given in an earlier call to :meth:`connect`.
         """
         key = (_hashable_identity(listener), arg_adapter)
-        if _dict_discard(self._weak_listeners, key):
+        if self._weak_listeners.pop(key, None) is not None:
             return
-        if _dict_discard(self._strong_listeners, key):
+        if self._strong_listeners.pop(key, None) is not None:
             return
         raise LookupError(listener)
 
