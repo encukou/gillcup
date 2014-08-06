@@ -1,13 +1,12 @@
-from gillcup.util import autoname
+from gillcup.util import autoname_property, autoname
 
 
 def _simple_repr(self):
     return '<{}>'.format(type(self).__name__.lower())
 
 
+@autoname_property('name')
 class NamedProperty:
-    _gillcup_autoname_property = 'name'
-
     def __get__(self, instance, owner=None):
         if instance is None:
             return self
