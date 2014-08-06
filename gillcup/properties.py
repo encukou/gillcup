@@ -5,7 +5,7 @@ from gillcup.expressions import Constant, Box
 
 class AnimatedProperty:
     def __init__(self, *default, name=None):
-        self._instance_expressions = {}
+        self._boxes = {}
         self._default = Constant(*default)
 
         if name is None:
@@ -21,24 +21,24 @@ class AnimatedProperty:
         if instance is None:
             return self
         else:
-            try:
-                return self._instance_expressions[id(instance)]
-            except KeyError:
-                name = '{0} of {1!r}'.format(self.name, instance)
-                exp = Box(name, self._default)
-                self._instance_expressions[id(instance)] = exp
-                _make_slot(self._instance_expressions, instance)
-                return exp
+            return _get_box(self, instance)
 
     def __set__(self, instance, value):
-        _make_slot(self._instance_expressions, instance)
         prop_size = len(self._default)
-        self._instance_expressions[id(instance)] = _coerce(value, prop_size)
+        exp = _coerce(value, prop_size)
+        box = _get_box(self, instance)
+        box.value = exp
 
 
-def _make_slot(dct, instance):
-    if id(instance) not in dct:
-        weakref.finalize(instance, dct.pop, id(instance), None)
+def _get_box(prop, instance):
+    try:
+        return prop._boxes[id(instance)]
+    except KeyError:
+        weakref.finalize(instance, prop._boxes.pop, id(instance), None)
+        name = '{0} of {1!r}'.format(prop.name, instance)
+        box = Box(name, prop._default)
+        prop._boxes[id(instance)] = box
+        return box
 
 
 def _coerce(value, size):
@@ -54,6 +54,19 @@ def _coerce(value, size):
             assert len(value) == size
         return Constant(*value)
     else:
+        # Can't assign expressions directly to properties, because the
+        # intended behavior is ambiguous -- if we say:
+        #   item1.position = item2.position
+        # where position is animated, would that mean:
+        # * linking the properties together, so setting item2.position would
+        #   update item1.position?
+        #   (And if so, would it work in the opposite direction?)
+        # * setting just the expression, so the current animation would
+        #   continue on both but
+        # * just use the current value of item2.position as a constant?
+        # We'll want to provide ways to explicitly say any of the above,
+        # ant maaaybe if after some time it becomes clear that one of them
+        # is sufficiently more right than the others, also do it here.
         raise TypeError('Bad type %s - setting Expressions is not supported' %
                         type(value))
 
@@ -70,7 +83,6 @@ class _ComponentProperty:
             return self._parent.__get__(instance, owner)[self._index]
 
     def __set__(self, instance, value):
-        orig = self._parent.__get__(instance)
-        new = orig.replace(self._index, _coerce(value, 1))
-        _make_slot(self._parent._instance_expressions, instance)
-        self._parent._instance_expressions[id(instance)] = new
+        box = _get_box(self._parent, instance)
+        new = box.value.replace(self._index, _coerce(value, 1))
+        box.value = new

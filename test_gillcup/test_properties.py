@@ -3,7 +3,7 @@ import textwrap
 import pytest
 
 from gillcup.properties import AnimatedProperty
-from gillcup.expressions import dump
+from gillcup.expressions import Box, dump
 
 
 class Buzzer:
@@ -36,6 +36,19 @@ def test_setting_vector(buzzer):
     assert buzzer.x == 1
     assert buzzer.y == 2
     assert buzzer.z == 3
+
+
+def test_props_are_boxes(buzzer):
+    assert isinstance(buzzer.volume, Box)
+    buzzer.volume = 50
+    assert isinstance(buzzer.volume, Box)
+    buzzer.volume == (50,)
+    assert isinstance(buzzer.volume, Box)
+
+
+def test_attempt_setting_expression(buzzer):
+    with pytest.raises(TypeError):
+        buzzer.volume = buzzer.pitch
 
 
 def test_separate_instances_scalar(buzzer):
