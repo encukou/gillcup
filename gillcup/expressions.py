@@ -263,21 +263,23 @@ class Expression:
 
         If a simplified version does not exist, the value is self.
         """
-        replacement = self._replacement
-        if replacement is None:
+        try:
+            replacement = self.__replacement
+        except AttributeError:
             return self
         else:
-            while replacement._replacement is not None:
-                replacement = replacement._replacement
-            self._replacement = replacement
-            return replacement
+            while True:
+                try:
+                    replacement = replacement.__replacement
+                except AttributeError:
+                    self.__replacement = replacement
+                    return replacement
 
     @replacement.setter
     def replacement(self, new_exp):
-        if new_exp is not self._replacement:
-            self._replacement = new_exp
+        if new_exp is not self.replacement:
+            self.__replacement = new_exp
             self.replacement_available()
-    _replacement = None
 
     @property
     def children(self):
@@ -585,13 +587,14 @@ class Value(Expression):
 
         The value cannot be changed after :meth:`fix` is called.
         """
-        if self._replacement is not None:
+        if self.replacement is self:
+            value = tuple(float(v) for v in value)
+            if len(value) != self._size:
+                raise ValueError('Mismatched vector size: {} != {}'.format(
+                    len(value), self._size))
+            self._value = value
+        else:
             raise ValueError('value has been fixed')
-        value = tuple(float(v) for v in value)
-        if len(value) != self._size:
-            raise ValueError('Mismatched vector size: {} != {}'.format(
-                len(value), self._size))
-        self._value = value
 
     def fix(self, *value):
         """Freezes the current value.
