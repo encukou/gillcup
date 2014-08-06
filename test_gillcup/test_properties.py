@@ -3,7 +3,7 @@ import textwrap
 import pytest
 
 from gillcup.properties import AnimatedProperty
-from gillcup.expressions import Box, dump
+from gillcup.expressions import Box, Progress, dump
 
 
 class Buzzer:
@@ -90,3 +90,71 @@ def test_property_naming():
         <unnamed property> of <a Foo> <5.0>:
           Constant <5.0>
     """).strip()
+
+
+def test_iadd(buzzer):
+    buzzer.volume += 3
+    assert buzzer.volume == 3
+
+
+def test_set_progress(buzzer, clock):
+    buzzer.volume = Progress(clock, 2) * 100
+    assert buzzer.volume == 0
+    clock.advance_sync(1)
+    assert buzzer.volume == 50
+    clock.advance_sync(1)
+    assert buzzer.volume == 100
+
+
+def test_add_progress(buzzer, clock):
+    buzzer.pitch += Progress(clock, 2) * 20
+    assert buzzer.pitch == 440
+    clock.advance_sync(1)
+    assert buzzer.pitch == 450
+    clock.advance_sync(1)
+    assert buzzer.pitch == 460
+
+
+def test_set_to_property(buzzer):
+    buzzer.volume = buzzer.pitch
+    assert buzzer.volume == 440
+    assert buzzer.pitch == 440
+
+
+def test_set_to_property_animated(buzzer, clock):
+    buzzer.pitch += Progress(clock, 2) * 20
+    buzzer.volume = buzzer.pitch
+    assert buzzer.volume == 440
+    assert buzzer.pitch == 440
+    clock.advance_sync(1)
+    assert buzzer.volume == 450
+    assert buzzer.pitch == 450
+    clock.advance_sync(1)
+    assert buzzer.volume == 460
+    assert buzzer.pitch == 460
+
+
+def test_set_to_property_divergent(buzzer, clock):
+    buzzer.volume = buzzer.pitch
+    buzzer.pitch += Progress(clock, 2) * 20
+    assert buzzer.volume == 440
+    assert buzzer.pitch == 440
+    clock.advance_sync(1)
+    assert buzzer.volume == 440
+    assert buzzer.pitch == 450
+    clock.advance_sync(1)
+    assert buzzer.volume == 440
+    assert buzzer.pitch == 460
+
+
+def test_set_to_property_linked(buzzer, clock):
+    buzzer.volume.link(buzzer.pitch)
+    buzzer.pitch += Progress(clock, 2) * 20
+    assert buzzer.volume == 440
+    assert buzzer.pitch == 440
+    clock.advance_sync(1)
+    assert buzzer.volume == 450
+    assert buzzer.pitch == 450
+    clock.advance_sync(1)
+    assert buzzer.volume == 460
+    assert buzzer.pitch == 460
