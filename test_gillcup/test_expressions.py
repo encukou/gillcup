@@ -7,7 +7,7 @@ import contextlib
 import pytest
 
 from gillcup.expressions import Constant, Value, Concat, Interpolation, Slice
-from gillcup.expressions import Sum, Difference, Product, Quotient, Neg
+from gillcup.expressions import Sum, Difference, Product, Quotient, Neg, Box
 from gillcup.expressions import Progress, dump, simplify
 
 
@@ -600,3 +600,23 @@ def test_elementwise_manipulation_depth():
     for i in range(10):
         exp = exp.replace(i % 3, exp[i % 3] - i)
     check_depth(exp, 4)
+
+
+def test_box():
+    name = 'Boxed variable'
+    val = Value(0, 0, 0)
+    exp = Box(name, val)
+    assert exp == (0, 0, 0)
+    assert exp.pretty_name == name
+    val.fix(3, 3, 3)
+    assert exp == (3, 3, 3)
+    exp.value = Value(6, 6, 6)
+    assert exp == (6, 6, 6)
+
+
+def test_box_recursion():
+    val = Value(0, 0, 0)
+    box = Box('A strange box', val)
+    box.value = box
+    with pytest.raises(RuntimeError):
+        box.get()
