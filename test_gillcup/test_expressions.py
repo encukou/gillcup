@@ -616,7 +616,11 @@ def test_box():
 
 def test_box_recursion():
     val = Value(0, 0, 0)
-    box = Box('A strange box', val)
-    box.value = box
+    exp = Box('Box with itself inside', val)
+    exp.value = exp
     with pytest.raises(RuntimeError):
-        box.get()
+        exp.get()
+    check_dump(exp, """
+        Box with itself inside <RuntimeError while getting value>:  (&1)
+          Box with itself inside <RuntimeError while getting value>  (*1)
+    """)

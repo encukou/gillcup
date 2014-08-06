@@ -247,7 +247,11 @@ class Expression:
         return int(float(self))
 
     def __repr__(self):
-        return '<{}>'.format(', '.join(str(n) for n in self))
+        try:
+            value = tuple(self)
+        except Exception as e:
+            return '<%s while getting value>' % type(e).__name__
+        return '<{}>'.format(', '.join(str(n) for n in value))
 
     def get(self):
         """Return the current value of this expression, as a tuple."""
@@ -405,6 +409,24 @@ def dump(exp):
             Value <1.0>
             Value <2.0>
 
+    The dumper deals with repeated expressions using YAML-style markers:
+
+        >>> exp = Value(3, 3, 3) + 3
+        >>> exp = exp / exp
+        >>> print(dump(exp))
+        / <1.0, 1.0, 1.0>:
+          + <6.0, 6.0, 6.0>:  (&1)
+            Value <3.0, 3.0, 3.0>
+            Constant <3.0, 3.0, 3.0>
+          + <6.0, 6.0, 6.0>  (*1)
+
+        >>> exp = Value(3, 3, 3)
+        >>> print(dump(exp + exp + exp))
+        + <9.0, 9.0, 9.0>:
+          Value <3.0, 3.0, 3.0>  (&1)
+          Value <3.0, 3.0, 3.0>  (*1)
+          Value <3.0, 3.0, 3.0>  (*1)
+
     Expressions are encouraged to "lie" about their structure in
     :attr:`~Expression.children`, if it leads to better readibility.
     For example, an expression with several heterogeneous children
@@ -425,56 +447,68 @@ def dump(exp):
     the dump more readable.
     """
 
-    # Maps id() of every seen expression to the reference used for it
+    # Value of next marker to be assigned
+    counter = 1
+
+    # Memo of all exps seen so far, keyed by id(exp)
+    # a value of None → seen only once (don't print a marker)
+    # a number → print the number as a marker
     memo = {}
 
-    # holds the id() of all seen expressions
-    seen = set()
+    def gen(exp, indent):
+        """Generate the lines of the dump
 
-    # holds all seen expressions (so they don't get garbage-collected and
-    # replaced by a different expr with the same id)
-    seen_list = []
-
-    # Current reference value
-    counter = 0
-
-    def fill_memo(exp):
+        Yields records suitable for fmt() below, tuples of:
+        - indent: the indentation level, as int
+        - exp: the expression itself
+        - sigil: '&' if this is the first time we see this exp, '*' otherwise
+            (this is used in the YAML-style markers: '&' means definition,
+            '*' is reference)
+        - children_follow: True if exp's children are listed after this line.
+            If exp has no children, this is False
+            (used to display ':' if an indented block follows)
+        """
         nonlocal counter
-        num = memo.get(id(exp), None)
-        if num is None:
-            memo[id(exp)] = 0
-            for child in exp.children:
-                fill_memo(child)
-        elif not num:
-            counter += 1
-            memo[id(exp)] = counter
-
-    fill_memo(exp)
-
-    def gen(exp, indent=0):
-        base = '{dent}{name} {exp!r}'.format(
-            dent='  ' * indent,
-            name=exp.pretty_name,
-            exp=exp)
-        children = list(exp.children)
-        ref = memo.get(id(exp), None)
-        if id(exp) in seen:
-            yield '{}  (*{})'.format(base, ref)
+        try:
+            # Have we seen exp before?
+            entry = memo[id(exp)]
+        except KeyError:
+            # No! Record it, and yield it, along with any children
+            memo[id(exp)] = None
+            children = list(exp.children)
+            yield indent, exp, '&', bool(children)
+            for child in children:
+                yield from gen(child, indent + 1)
         else:
-            seen.add(id(exp))
-            seen_list.append(exp)
-            if ref:
-                refpart = '  (&{})'.format(ref)
-            else:
-                refpart = ''
-            if children:
-                yield base + ':' + refpart
-                for child in exp.children:
-                    yield from gen(child, indent + 1)
-            else:
-                yield base + refpart
+            # Yes! Yield it, but don't bother listing children again
+            yield indent, exp, '*', False
+            # If this is the second (but not third, etc.) time we've seen it,
+            # assign a marker value
+            if entry is None:
+                memo[id(exp)] = counter
+                counter += 1
 
-    return '\n'.join(gen(exp))
+    # Running exp() to exhaustion will fill up `memo`
+    entries = list(gen(exp, 0))
+
+    def fmt(indent, exp, sigil, children_follow):
+        """Format a single line of the dump
+
+        See gen() for the input
+        """
+        marker = memo.get(id(exp))
+        if marker is None:
+            postfix = ''
+        else:
+            postfix = '  (%s%s)' % (sigil, marker)
+        return '{indent}{exp.pretty_name} {exp}{colon}{postfix}'.format(
+            indent='  ' * indent,
+            exp=exp,
+            colon=':' if children_follow else '',
+            postfix=postfix,
+        )
+
+    return '\n'.join(fmt(*entry) for entry in entries)
 
 
 def _replace_child(exp, listener):
