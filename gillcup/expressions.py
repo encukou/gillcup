@@ -97,6 +97,7 @@ Compound Expressions
 .. autoclass:: gillcup.expressions.Reduce
 .. autoclass:: gillcup.expressions.Elementwise
 .. autoclass:: gillcup.expressions.Interpolation
+.. autoclass:: gillcup.expressions.Box
 
 Arithmetic Expressions
 ......................
@@ -117,7 +118,6 @@ Debugging helpers
 -----------------
 
 .. autofunction:: gillcup.expressions.dump
-.. autoclass:: gillcup.expressions.NamedContainer
 
 
 Helpers
@@ -408,7 +408,7 @@ def dump(exp):
     Expressions are encouraged to "lie" about their structure in
     :attr:`~Expression.children`, if it leads to better readibility.
     For example, an expression with several heterogeneous children
-    can wrap each child in a :class:`NamedContainer`::
+    can wrap each child in a :class:`Box`::
 
         >>> exp = Interpolation(Value(0), Value(10), Value(0.5))
         >>> print(dump(exp))
@@ -421,7 +421,7 @@ def dump(exp):
             Value <0.5>
 
     Here the ``start``, ``end``, and ``t`` are dynamically generated
-    :class:`NamedContainers <NamedContainer>` whose only purpose is to make
+    :class:`Box` expressions whose only purpose is to provide the name to make
     the dump more readable.
     """
 
@@ -905,21 +905,25 @@ class Concat(Expression):
         return Concat(*new_children)
 
 
-class NamedContainer(Expression):
-    """No-op unary expression
+class Box(Expression):
+    """Mutable container expression
 
-    Useful to show structure of complicated expressions
-    in :func:`dump`-like tools.
+    Proxies to another Expression.
 
     :param name: The name used in :meth:`pretty_name` and :func:`dump`
-    :param val: An expression this evaluates to
+    :param value: An expression this evaluates to.
+                  May be changed after creation by setting the
+                  :attr:`value` attribute.
+
+    Also useful to show structure of complicated expressions when debugging,
+    see :func:`dump` for an example.
     """
-    def __init__(self, name, val):
+    def __init__(self, name, value):
         self._name = name
-        self._val = val
+        self.value = value
 
     def get(self):
-        return self._val.get()
+        return self.value.get()
 
     @property
     def pretty_name(self):
@@ -927,7 +931,7 @@ class NamedContainer(Expression):
 
     @property
     def children(self):
-        yield self._val
+        yield self.value
 
 
 class Interpolation(Expression):
@@ -973,9 +977,9 @@ class Interpolation(Expression):
 
     @property
     def children(self):
-        yield NamedContainer('start', self._start)
-        yield NamedContainer('end', self._end)
-        yield NamedContainer('t', self._t)
+        yield Box('start', self._start)
+        yield Box('end', self._end)
+        yield Box('t', self._t)
 
 
 class Progress(Expression):

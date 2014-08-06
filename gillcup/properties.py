@@ -1,12 +1,17 @@
 import weakref
 
-from gillcup.expressions import Constant
+from gillcup.expressions import Constant, Box
 
 
 class AnimatedProperty:
-    def __init__(self, *default):
+    def __init__(self, *default, name=None):
         self._instance_expressions = {}
         self._default = Constant(*default)
+
+        if name is None:
+            self.name = '<unnamed property>'
+        else:
+            self.name = name
 
     def __iter__(self):
         for index in range(len(self._default)):
@@ -19,7 +24,9 @@ class AnimatedProperty:
             try:
                 return self._instance_expressions[id(instance)]
             except KeyError:
-                exp = self._instance_expressions[id(instance)] = self._default
+                name = '{0} of {1!r}'.format(self.name, instance)
+                exp = Box(name, self._default)
+                self._instance_expressions[id(instance)] = exp
                 _make_slot(self._instance_expressions, instance)
                 return exp
 

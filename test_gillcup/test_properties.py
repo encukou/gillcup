@@ -1,6 +1,9 @@
+import textwrap
+
 import pytest
 
 from gillcup.properties import AnimatedProperty
+from gillcup.expressions import dump
 
 
 class Buzzer:
@@ -47,3 +50,30 @@ def test_separate_instances_vector(buzzer):
     buzzer2.x = 5
     assert buzzer2.position == (5, 0, 0)
     assert buzzer.position == (0, 0, 0)
+
+
+def test_property_naming():
+    class Foo:
+        namedprop = AnimatedProperty(5, name='namedprop')
+        unnamedprop = AnimatedProperty(5)
+
+        def __repr__(self):
+            return '<a Foo>'
+
+    assert Foo.namedprop.name == 'namedprop'
+    assert Foo.unnamedprop.name == '<unnamed property>'
+
+    foo = Foo()
+
+    assert foo.namedprop.pretty_name == 'namedprop of <a Foo>'
+    assert foo.unnamedprop.pretty_name == '<unnamed property> of <a Foo>'
+
+    assert dump(foo.namedprop) == textwrap.dedent("""
+        namedprop of <a Foo> <5.0>:
+          Constant <5.0>
+    """).strip()
+
+    assert dump(foo.unnamedprop) == textwrap.dedent("""
+        <unnamed property> of <a Foo> <5.0>:
+          Constant <5.0>
+    """).strip()
