@@ -16,3 +16,36 @@ def fix_public_signature(func):
     ])
     func.__signature__ = new_signature
     return func
+
+
+def autoname(cls):
+    """Decorator that automatically names class items with autoname properties
+
+    An autoname property is a descriptor thet has the
+    "_gillcup_autoname_property" attribute
+    set to where the name should be stored, like this::
+
+        >>> class MyDescriptor:
+        ...     _gillcup_autoname_property = 'name'
+        ...
+        ...     def __get__(self, instance, owner=None):
+        ...         if instance is None:
+        ...             return self
+        ...         else:
+        ...             return '<{} of {}>'.format(self.name, instance)
+
+        >>> @autoname
+        ... class Spaceship:
+        ...     position = MyDescriptor()
+        ...     velocity = MyDescriptor()
+
+        >>> Spaceship().position
+        '<position of <...Spaceship object at ...>>'
+        >>> Spaceship().velocity
+        '<velocity of <...Spaceship object at ...>>'
+    """
+    for name, value in cls.__dict__.items():
+        name_prop = getattr(type(value), '_gillcup_autoname_property', None)
+        if name_prop is not None:
+            setattr(value, name_prop, name)
+    return cls
