@@ -3,7 +3,7 @@ import textwrap
 import pytest
 
 from gillcup.properties import AnimatedProperty
-from gillcup.expressions import Box, Progress, dump
+from gillcup.expressions import Progress, dump
 
 
 class Buzzer:
@@ -38,19 +38,6 @@ def test_setting_vector(buzzer):
     assert buzzer.z == 3
 
 
-def test_props_are_boxes(buzzer):
-    assert isinstance(buzzer.volume, Box)
-    buzzer.volume = 50
-    assert isinstance(buzzer.volume, Box)
-    buzzer.volume == (50,)
-    assert isinstance(buzzer.volume, Box)
-
-
-def test_attempt_setting_expression(buzzer):
-    with pytest.raises(TypeError):
-        buzzer.volume = buzzer.pitch
-
-
 def test_separate_instances_scalar(buzzer):
     buzzer2 = Buzzer()
     buzzer2.volume = 50
@@ -78,16 +65,17 @@ def test_property_naming():
 
     foo = Foo()
 
-    assert foo.namedprop.pretty_name == 'namedprop of <a Foo>'
-    assert foo.unnamedprop.pretty_name == '<unnamed property> of <a Foo>'
+    assert foo.namedprop.pretty_name == 'snapshot of namedprop of <a Foo>'
+    assert foo.unnamedprop.pretty_name == (
+        'snapshot of <unnamed property> of <a Foo>')
 
     assert dump(foo.namedprop) == textwrap.dedent("""
-        namedprop of <a Foo> <5.0>:
+        snapshot of namedprop of <a Foo> <5.0>:
           Constant <5.0>
     """).strip()
 
     assert dump(foo.unnamedprop) == textwrap.dedent("""
-        <unnamed property> of <a Foo> <5.0>:
+        snapshot of <unnamed property> of <a Foo> <5.0>:
           Constant <5.0>
     """).strip()
 
@@ -147,6 +135,7 @@ def test_set_to_property_divergent(buzzer, clock):
     assert buzzer.pitch == 460
 
 
+''' TODO: Linking
 def test_set_to_property_linked(buzzer, clock):
     buzzer.volume.link(buzzer.pitch)
     buzzer.pitch += Progress(clock, 2) * 20
@@ -158,3 +147,4 @@ def test_set_to_property_linked(buzzer, clock):
     clock.advance_sync(1)
     assert buzzer.volume == 460
     assert buzzer.pitch == 460
+'''
