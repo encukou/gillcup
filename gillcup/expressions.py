@@ -1020,6 +1020,13 @@ class Concat(Expression):
                     isinstance(new_children[-1], Constant)):
                 new_const = Constant(*new_children[-1].get() + child.get())
                 new_children[-1] = new_const
+            elif (isinstance(child, Slice) and
+                    new_children and
+                    isinstance(new_children[-1], Slice) and
+                    child._source is new_children[-1]._source and
+                    child._start == new_children[-1]._stop):
+                new_index = slice(new_children[-1]._start, child._stop)
+                new_children[-1] = simplify(Slice(child._source, new_index))
             else:
                 new_children.append(child)
         self._children = tuple(new_children)

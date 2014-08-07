@@ -548,6 +548,31 @@ def test_concat_empty_exp_removal():
     """)
 
 
+@pytest.mark.parametrize('i', [0, 1, 2])
+def test_concat_of_slice_simplification_0(i):
+    val = Value(0, 1, 2)
+    exp = Concat(val[0], val[1], val[2])
+    val.fix()
+    exp = simplify(exp[i])
+    check_dump(exp, "Constant <%s.0>" % i)
+
+
+def test_concat_of_slice_simplification_1():
+    exp = Concat(Value(0, 1), Value(2))
+    exp = simplify(exp[1])
+    check_dump(exp, """
+        [1:2] <1.0>:
+          Value <0.0, 1.0>
+    """)
+
+
+def test_concat_of_slice_simplification_2():
+    exp = Value(0, 1, 2)
+    exp = Concat(exp[0], exp[1], exp[2])
+    exp = simplify(exp)
+    check_dump(exp, "Value <0.0, 1.0, 2.0>")
+
+
 @pytest.mark.parametrize(['start', 'end'], [
     (None, None), (0, 1), (0, -1), (-1, None), (0, 0), (3, 2)])
 def test_slice_simplification(start, end):
