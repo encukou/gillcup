@@ -68,17 +68,17 @@ def test_property_naming():
 
     foo = Foo()
 
-    assert foo.namedprop.pretty_name == 'value of namedprop of <a Foo>'
+    assert foo.namedprop.pretty_name == '<a Foo>.namedprop value'
     assert foo.unnamedprop.pretty_name == (
-        'value of <unnamed property> of <a Foo>')
+        '<a Foo>.<unnamed property> value')
 
     assert dump(foo.namedprop) == textwrap.dedent("""
-        value of namedprop of <a Foo> <5.0>:
+        <a Foo>.namedprop value <5.0>:
           Constant <5.0>
     """).strip()
 
     assert dump(foo.unnamedprop) == textwrap.dedent("""
-        value of <unnamed property> of <a Foo> <5.0>:
+        <a Foo>.<unnamed property> value <5.0>:
           Constant <5.0>
     """).strip()
 
@@ -187,8 +187,8 @@ def test_recursive_link(buzzer, clock):
 def test_link_dump_method(buzzer, clock):
     buzzer.volume.link(buzzer.pitch)
     assert dump(buzzer.volume) == textwrap.dedent("""
-        value of volume of <test buzzer> <440.0>:
-          linked pitch of <test buzzer> <440.0>:
+        <test buzzer>.volume value <440.0>:
+          linked <test buzzer>.pitch <440.0>:
             Constant <440.0>
     """).strip()
 
@@ -196,9 +196,9 @@ def test_link_dump_method(buzzer, clock):
 def test_link_dump_function(buzzer, clock):
     buzzer.volume = link(buzzer.pitch) + 4
     assert dump(buzzer.volume) == textwrap.dedent("""
-        value of volume of <test buzzer> <444.0>:
+        <test buzzer>.volume value <444.0>:
           + <444.0>:
-            linked pitch of <test buzzer> <440.0>:
+            linked <test buzzer>.pitch <440.0>:
               Constant <440.0>
             Constant <4.0>
     """).strip()

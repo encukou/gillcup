@@ -143,9 +143,7 @@ class _PropertyValue(Expression):
 
     @property
     def pretty_name(self):
-        # TODO: Is "value" a good name?
-        return 'value of {0} of {1!r}'.format(
-            self._prop.name, self._instance)
+        return '{0!r}.{1} value'.format(self._instance, self._prop.name)
 
     @property
     def children(self):
@@ -169,7 +167,7 @@ class _Linked(Expression):
 
     @property
     def pretty_name(self):
-        return 'linked {0} of {1!r}'.format(self._prop.name, self._instance)
+        return 'linked {0!r}.{1}'.format(self._instance, self._prop.name)
 
     @property
     def children(self):
