@@ -2,14 +2,17 @@ import textwrap
 
 import pytest
 
-from gillcup.properties import AnimatedProperty
+from gillcup.properties import AnimatedProperty, link
 from gillcup.expressions import Progress, dump
 
 
 class Buzzer:
-    volume = AnimatedProperty(0)
-    pitch = AnimatedProperty(440)
-    position = x, y, z = AnimatedProperty(0, 0, 0)
+    volume = AnimatedProperty(0, name='volume')
+    pitch = AnimatedProperty(440, name='pitch')
+    position = x, y, z = AnimatedProperty(0, 0, 0, name='position')
+
+    def __repr__(self):
+        return '<test buzzer>'
 
 
 @pytest.fixture
@@ -65,17 +68,17 @@ def test_property_naming():
 
     foo = Foo()
 
-    assert foo.namedprop.pretty_name == 'snapshot of namedprop of <a Foo>'
+    assert foo.namedprop.pretty_name == 'value of namedprop of <a Foo>'
     assert foo.unnamedprop.pretty_name == (
-        'snapshot of <unnamed property> of <a Foo>')
+        'value of <unnamed property> of <a Foo>')
 
     assert dump(foo.namedprop) == textwrap.dedent("""
-        snapshot of namedprop of <a Foo> <5.0>:
+        value of namedprop of <a Foo> <5.0>:
           Constant <5.0>
     """).strip()
 
     assert dump(foo.unnamedprop) == textwrap.dedent("""
-        snapshot of <unnamed property> of <a Foo> <5.0>:
+        value of <unnamed property> of <a Foo> <5.0>:
           Constant <5.0>
     """).strip()
 
@@ -135,8 +138,7 @@ def test_set_to_property_divergent(buzzer, clock):
     assert buzzer.pitch == 460
 
 
-''' TODO: Linking
-def test_set_to_property_linked(buzzer, clock):
+def test_set_to_property_linked_method(buzzer, clock):
     buzzer.volume.link(buzzer.pitch)
     buzzer.pitch += Progress(clock, 2) * 20
     assert buzzer.volume == 440
@@ -147,4 +149,61 @@ def test_set_to_property_linked(buzzer, clock):
     clock.advance_sync(1)
     assert buzzer.volume == 460
     assert buzzer.pitch == 460
-'''
+
+
+def test_set_to_property_linked_function(buzzer, clock):
+    buzzer.volume = link(buzzer.pitch)
+    buzzer.pitch += Progress(clock, 2) * 20
+    assert buzzer.volume == 440
+    assert buzzer.pitch == 440
+    clock.advance_sync(1)
+    assert buzzer.volume == 450
+    assert buzzer.pitch == 450
+    clock.advance_sync(1)
+    assert buzzer.volume == 460
+    assert buzzer.pitch == 460
+
+
+def test_set_to_expression_with_linked_property(buzzer, clock):
+    buzzer.volume = link(buzzer.pitch)
+    buzzer.pitch += Progress(clock, 2) * 20
+    assert buzzer.volume == 440
+    assert buzzer.pitch == 440
+    clock.advance_sync(1)
+    assert buzzer.volume == 450
+    assert buzzer.pitch == 450
+    clock.advance_sync(1)
+    assert buzzer.volume == 460
+    assert buzzer.pitch == 460
+
+
+def test_recursive_link(buzzer, clock):
+    buzzer.volume = link(buzzer.volume)
+    with pytest.raises(RuntimeError):
+        buzzer.volume.get()
+    assert str(buzzer.volume) == '<RuntimeError while getting value>'
+
+
+def test_link_dump_method(buzzer, clock):
+    buzzer.volume.link(buzzer.pitch)
+    assert dump(buzzer.volume) == textwrap.dedent("""
+        value of volume of <test buzzer> <440.0>:
+          linked pitch of <test buzzer> <440.0>:
+            Constant <440.0>
+    """).strip()
+
+
+def test_link_dump_function(buzzer, clock):
+    buzzer.volume = link(buzzer.pitch) + 4
+    assert dump(buzzer.volume) == textwrap.dedent("""
+        value of volume of <test buzzer> <444.0>:
+          + <444.0>:
+            linked pitch of <test buzzer> <440.0>:
+              Constant <440.0>
+            Constant <4.0>
+    """).strip()
+
+
+def test_link_function_idempotent(buzzer, clock):
+    linked = link(buzzer.volume)
+    assert linked is link(linked)
