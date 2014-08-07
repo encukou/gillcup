@@ -988,7 +988,8 @@ class Concat(Expression):
     Usually created as a result of :meth:`~Expression.replace`.
     """
     def __init__(self, *children):
-        self._children = tuple(coerce(c) for c in children)
+        children_gen = (coerce(c) for c in children)
+        self._children = tuple(c for c in children_gen if len(c))
         self._len = sum(len(c) for c in self._children)
         self._simplify_children()
         for child in self._children:

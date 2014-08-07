@@ -539,6 +539,15 @@ def test_concat_simplification():
         v3.fix()
 
 
+def test_concat_empty_exp_removal():
+    exp = Concat(Value(), Value(1), Value(2, 3))
+    check_dump(exp, """
+        Concat <1.0, 2.0, 3.0>:
+          Value <1.0>
+          Value <2.0, 3.0>
+    """)
+
+
 @pytest.mark.parametrize(['start', 'end'], [
     (None, None), (0, 1), (0, -1), (-1, None), (0, 0), (3, 2)])
 def test_slice_simplification(start, end):
