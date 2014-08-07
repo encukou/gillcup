@@ -1,7 +1,6 @@
 import itertools
 import inspect
 import math
-import textwrap
 import contextlib
 
 import pytest
@@ -288,14 +287,12 @@ def test_fixed_falue_constant_propegation(formula, args, maybe_numpy):
         assert isinstance(simplify(got), Constant)
 
 
-def check_dump(expression, expected):
-    dumped = dump(expression)
-    print(dumped)
-    expected = textwrap.dedent(expected.strip('\n').rstrip())
-    assert dumped == expected
+def test_check_dump(check_dump):
+    with pytest.raises(AssertionError):
+        check_dump(Value(3), 'bogus string')
 
 
-def test_dump():
+def test_dump(check_dump):
     val = Value(3) + 1
     check_dump(val - 4 * val - 5, """
         - <-17.0>:
@@ -347,7 +344,7 @@ def test_index_get():
     assert len(val[:-1]) == 2
 
 
-def test_basic_slice_simplification():
+def test_basic_slice_simplification(check_dump):
     val = Value(1, 2, 3)
     assert val[:] is val
     check_dump(val[:-1][:-1], """
@@ -376,12 +373,12 @@ def test_concat():
     assert cat == (8, 2, 5, 4)
 
 
-def test_simple_concat_simplification():
+def test_simple_concat_simplification(check_dump):
     exp = Concat(Constant(0, 1), Constant(2, 3))
     check_dump(simplify(exp), 'Constant <0.0, 1.0, 2.0, 3.0>')
 
 
-def test_complex_concat_simplification():
+def test_complex_concat_simplification(check_dump):
     val1 = Value(1)
     val2 = Value(4, 5)
     cat = Concat(val1, 2, 3, val2)
@@ -411,14 +408,14 @@ def test_replace_slice():
     assert val.replace(slice(None, None), ()) == ()
 
 
-def test_constant_slice_simplification():
+def test_constant_slice_simplification(check_dump):
     const = Constant(0, 1, 2)
     check_dump(const[:-1], 'Constant <0.0, 1.0>')
     check_dump(const[1:], 'Constant <1.0, 2.0>')
     check_dump(const[1], 'Constant <1.0>')
 
 
-def test_slice_replace_simplification():
+def test_slice_replace_simplification(check_dump):
     val = Value(0, 1, 2)
     val = val.replace(0, 1)
     val = val.replace(1, 1)
@@ -427,7 +424,7 @@ def test_slice_replace_simplification():
     check_dump(val, 'Constant <1.0, 1.0, 1.0>')
 
 
-def test_slice_replace_simplification2():
+def test_slice_replace_simplification2(check_dump):
     val = Value(0, 1, 2)
     val = val.replace(1, val[1] + 3)
     val = val.replace(0, val[0] + 3)
@@ -480,7 +477,7 @@ def test_interpolation_simplification():
     assert simplify(Interpolation(val1, val2, 1)) is val2
 
 
-def test_interpolation_dump():
+def test_interpolation_dump(check_dump):
     val1 = Value(0, 0)
     val2 = Value(2, 10)
     exp = Interpolation(val1, val2, Value(0.5))
@@ -539,7 +536,7 @@ def test_concat_simplification():
         v3.fix()
 
 
-def test_concat_empty_exp_removal():
+def test_concat_empty_exp_removal(check_dump):
     exp = Concat(Value(), Value(1), Value(2, 3))
     check_dump(exp, """
         Concat <1.0, 2.0, 3.0>:
@@ -549,7 +546,7 @@ def test_concat_empty_exp_removal():
 
 
 @pytest.mark.parametrize('i', [0, 1, 2])
-def test_concat_of_slice_simplification_0(i):
+def test_concat_of_slice_simplification_0(i, check_dump):
     val = Value(0, 1, 2)
     exp = Concat(val[0], val[1], val[2])
     val.fix()
@@ -557,7 +554,7 @@ def test_concat_of_slice_simplification_0(i):
     check_dump(exp, "Constant <%s.0>" % i)
 
 
-def test_concat_of_slice_simplification_1():
+def test_concat_of_slice_simplification_1(check_dump):
     exp = Concat(Value(0, 1), Value(2))
     exp = simplify(exp[1])
     check_dump(exp, """
@@ -566,7 +563,7 @@ def test_concat_of_slice_simplification_1():
     """)
 
 
-def test_concat_of_slice_simplification_2():
+def test_concat_of_slice_simplification_2(check_dump):
     exp = Value(0, 1, 2)
     exp = Concat(exp[0], exp[1], exp[2])
     exp = simplify(exp)
@@ -605,7 +602,7 @@ def test_concat_of_slice_simplification_2():
           Value <3.0, 4.0, 5.0>
     """),
 ])
-def test_slice_of_concat_simplification_3(start, end, dump):
+def test_slice_of_concat_simplification_3(start, end, dump, check_dump):
     val = Concat(Value(0, 1, 2), Value(3, 4, 5))
 
     check_dump(simplify(val[start:end]), dump)
@@ -690,7 +687,7 @@ def test_box():
     assert exp == (6, 6, 6)
 
 
-def test_box_recursion():
+def test_box_recursion(check_dump):
     val = Value(0, 0, 0)
     exp = Box('Box with itself inside', val)
     exp.value = exp

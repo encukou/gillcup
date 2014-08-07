@@ -1,9 +1,7 @@
-import textwrap
-
 import pytest
 
 from gillcup.properties import AnimatedProperty, link
-from gillcup.expressions import Progress, dump
+from gillcup.expressions import Progress
 
 
 class Buzzer:
@@ -55,7 +53,7 @@ def test_separate_instances_vector(buzzer):
     assert buzzer.position == (0, 0, 0)
 
 
-def test_property_naming():
+def test_property_naming(check_dump):
     class Foo:
         namedprop = AnimatedProperty(5, name='namedprop')
         unnamedprop = AnimatedProperty(5)
@@ -69,18 +67,17 @@ def test_property_naming():
     foo = Foo()
 
     assert foo.namedprop.pretty_name == '<a Foo>.namedprop value'
-    assert foo.unnamedprop.pretty_name == (
-        '<a Foo>.<unnamed property> value')
+    assert foo.unnamedprop.pretty_name == '<a Foo>.<unnamed property> value'
 
-    assert dump(foo.namedprop) == textwrap.dedent("""
+    check_dump(foo.namedprop, """
         <a Foo>.namedprop value <5.0>:
           Constant <5.0>
-    """).strip()
+    """)
 
-    assert dump(foo.unnamedprop) == textwrap.dedent("""
+    check_dump(foo.unnamedprop, """
         <a Foo>.<unnamed property> value <5.0>:
           Constant <5.0>
-    """).strip()
+    """)
 
 
 def test_iadd(buzzer):
@@ -184,24 +181,24 @@ def test_recursive_link(buzzer, clock):
     assert str(buzzer.volume) == '<RuntimeError while getting value>'
 
 
-def test_link_dump_method(buzzer, clock):
+def test_link_dump_method(buzzer, clock, check_dump):
     buzzer.volume.link(buzzer.pitch)
-    assert dump(buzzer.volume) == textwrap.dedent("""
+    check_dump(buzzer.volume, """
         <test buzzer>.volume value <440.0>:
           linked <test buzzer>.pitch <440.0>:
             Constant <440.0>
-    """).strip()
+    """)
 
 
-def test_link_dump_function(buzzer, clock):
+def test_link_dump_function(buzzer, clock, check_dump):
     buzzer.volume = link(buzzer.pitch) + 4
-    assert dump(buzzer.volume) == textwrap.dedent("""
+    check_dump(buzzer.volume, """
         <test buzzer>.volume value <444.0>:
           + <444.0>:
             linked <test buzzer>.pitch <440.0>:
               Constant <440.0>
             Constant <4.0>
-    """).strip()
+    """)
 
 
 def test_link_function_idempotent(buzzer, clock):
