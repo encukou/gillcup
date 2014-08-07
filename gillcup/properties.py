@@ -1,3 +1,4 @@
+import re
 import weakref
 
 from gillcup.expressions import Expression, Constant, coerce, simplify
@@ -8,14 +9,14 @@ class AnimatedProperty:
         self._instance_expressions = {}
         self._default = Constant(*default)
 
-        if name is None:
-            self.name = '<unnamed property>'
-        else:
-            self.name = name
+        size = len(self._default)
+        self.name, component_names = _get_names(name, size)
+
+        self._components = tuple(_ComponentProperty(self, i, name)
+                                 for i, name in enumerate(component_names))
 
     def __iter__(self):
-        for index in range(len(self._default)):
-            yield _ComponentProperty(self, index)
+        yield from self._components
 
     def __get__(self, instance, owner=None):
         if instance is None:
@@ -34,6 +35,27 @@ class AnimatedProperty:
             weakref.finalize(instance, self._instance_expressions.pop,
                              id(instance), None)
         self._instance_expressions[id(instance)] = simplify(exp)
+
+
+def _get_names(name, size):
+    component_names = None
+    if name:
+        name, sep, component_names_str = name.partition(':')
+        if sep:
+            name = name.strip()
+            component_names = re.split('[\s,]', component_names_str.strip())
+            if len(component_names) != size:
+                raise ValueError(
+                    'Bad number of component names: {} != {}'.format(
+                        len(component_names), size))
+
+    if not name:
+        name = '<unnamed property>'
+
+    if not component_names:
+        component_names = ['{}[{}]'.format(name, i) for i in range(size)]
+
+    return name, component_names
 
 
 def link(prop):
@@ -178,9 +200,10 @@ class _Linked(Expression):
 
 
 class _ComponentProperty:
-    def __init__(self, parent, index):
+    def __init__(self, parent, index, name):
         self._parent = parent
         self._index = index
+        self.name = name
 
     def __get__(self, instance, owner=None):
         if instance is None:

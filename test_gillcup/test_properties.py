@@ -9,7 +9,7 @@ from gillcup.expressions import Progress, dump
 class Buzzer:
     volume = AnimatedProperty(0, name='volume')
     pitch = AnimatedProperty(440, name='pitch')
-    position = x, y, z = AnimatedProperty(0, 0, 0, name='position')
+    position = x, y, z = AnimatedProperty(0, 0, 0, name='position: x y z')
 
     def __repr__(self):
         return '<test buzzer>'
@@ -207,3 +207,34 @@ def test_link_dump_function(buzzer, clock):
 def test_link_function_idempotent(buzzer, clock):
     linked = link(buzzer.volume)
     assert linked is link(linked)
+
+
+def test_default_naming():
+    class Foo:
+        bar = b, a, r = AnimatedProperty(0, 0, 0)
+
+    assert Foo.bar.name == '<unnamed property>'
+    assert Foo.b.name == '<unnamed property>[0]'
+    assert Foo.a.name == '<unnamed property>[1]'
+    assert Foo.r.name == '<unnamed property>[2]'
+
+
+def test_single_name():
+    class Foo:
+        bar = b, a, r = AnimatedProperty(0, 0, 0, name='bar')
+
+    assert Foo.bar.name == 'bar'
+    assert Foo.b.name == 'bar[0]'
+    assert Foo.a.name == 'bar[1]'
+    assert Foo.r.name == 'bar[2]'
+
+
+@pytest.mark.parametrize('name', ['bar:x y z', 'bar: x y z', 'bar:x,y,z'])
+def test_component_naming(name):
+    class Foo:
+        bar = b, a, r = AnimatedProperty(0, 0, 0, name=name)
+
+    assert Foo.bar.name == 'bar'
+    assert Foo.b.name == 'x'
+    assert Foo.a.name == 'y'
+    assert Foo.r.name == 'z'
