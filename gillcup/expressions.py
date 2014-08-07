@@ -124,6 +124,7 @@ Helpers
 -------
 
 .. autofunction:: gillcup.expressions.simplify
+.. autofunction:: gillcup.expressions.coerce
 .. autofunction:: gillcup.expressions.safediv
 
 """
@@ -136,8 +137,100 @@ from gillcup.signals import signal
 
 
 def simplify(exp):
-    """Return a simplified version the given expression, if it exists"""
+    """Return a simplified version the given expression
+
+    Let's use :class:`Sum` as an example expression.
+    The Sum keeps a list of the expressions it adds together:
+
+        >>> val = Sum([Value(1), Value(2), Value(3)])
+        >>> print(dump(val))
+        + <6.0>:
+          Value <1.0>
+          Value <2.0>
+          Value <3.0>
+
+    Usually, expressions are simplified automatically.
+    For example, if the Sum expression is given constants,
+    it adds them together directly:
+
+        >>> val = Sum([1, 2, 3])
+        >>> print(dump(val))
+        + <6.0>:
+          Constant <6.0>
+
+    Calling :func:`simplify` is not needed to get this kind of simplification.
+
+    However, some expressions can be simplified even further:
+    this Sum can just be entirely replaced with the constant.
+    However, we cannot really change the types of objects,
+    so in this case we have the Sum signal that it can be replaced
+    with a simpler expression::
+
+        >>> simplified = simplify(val)
+        >>> print(dump(simplified))
+        Constant <6.0>
+
+    If the expression cannot be simplified, :func:`simplify` simply returns
+    the original unchanged:
+
+        >>> print(dump(simplify(Value(1))))
+        Value <1.0>
+
+    Some expressions can be simplified at some time after initialization,
+    for example after calling :meth:`Value.fix` or when a :class:`Progress`
+    reaches its end time.
+    When this happens, the expression's
+    :meth:`~Expression.replacement_available` signal is triggered,
+    and :func:`simplify` will start returning the new replacement.
+    """
     return exp.replacement
+
+
+def coerce(value, *, size=None, strict=True):
+    """Turn an Expression, constant, or number into an Expression
+
+    :param value: The value to be coerced
+    :param size: The size of the resulting expression
+    :param strict: If true, output size is enforced.
+
+    ..
+
+        >>> coerce([1, 2, 3])
+        <1.0, 2.0, 3.0>
+        >>> coerce(Value(1, 2, 3))
+        <1.0, 2.0, 3.0>
+
+    If an Expression is given, it is simplified (see :meth:`simplify`).
+
+
+    If :token:`strict` is true, and :token:`size` is given, the size of
+    input expressions and iterable values is checked::
+
+        >>> coerce((1, 2), size=3)
+        Traceback (most recent call last):
+          ...
+        ValueError: Mismatched vector size: 2 != 3
+
+        >>> coerce((1, 2), size=3, strict=False)
+        <1.0, 2.0>
+
+    Numeric inputs are repeated :token:`size` times
+    (regardless of :token:`strict`)::
+
+        >>> coerce(2)
+        <2.0>
+        >>> coerce(2, size=3)
+        <2.0, 2.0, 2.0>
+    """
+    try:
+        value.get  # See if this quacks like an Expression
+    except AttributeError:
+        tup = _nonexpression_as_tuple(value, size, strict)
+        return Constant(*tup)
+    else:
+        if strict and size is not None:
+            _check_len(value, size)
+        return simplify(value)
 
 
 @functools.total_ordering
@@ -156,15 +249,19 @@ class Expression:
 
         Replacing:
 
-            Sometimes when an expression is simplified, it may make sense to
-            replace it by a different type.
-            For example, after an animation ends the value will not change
-            any more, and can be represented by a Constant.
+            See :func:`simplify` for details on simplification.
 
-            To make a request for such a replacement, store the new expression
-            in the :attr:`replacement` attribute.
+            To request replacement, store the simplified expression in the
+            :attr:`replacement` attribute.
             This will automatically trigger the :meth:`replacement_available`
             signal.
+
+            Note that the original expression must continue to match the
+            replacement even after this request is made.
+
+            A compound expression should listen on the replacement_available
+            signal of its components, so it can update itself when they are
+            simplified.
 
             .. autoattribute:: replacement
             .. automethod:: replacement_available
@@ -392,7 +489,7 @@ class Expression:
             <-1.0, 3.0>
         """
         start, stop = _get_slice_indices(self, index)
-        replacement = _coerce(replacement, stop - start)
+        replacement = coerce(replacement, size=stop - start, strict=False)
         return simplify(Concat(self[:start], replacement, self[stop:]))
 
 
@@ -526,17 +623,29 @@ def _replace_child(exp, listener):
         return replacement
 
 
-def _as_tuple(value, size=1):
+def _nonexpression_as_tuple(value, size=None, strict=True):
+    try:
+        iterator = iter(value)
+    except TypeError:
+        if size is None:
+            return (float(value), )
+        else:
+            return (float(value), ) * size
+    else:
+        result = tuple(float(v) for v in iterator)
+        if strict and size is not None:
+            _check_len(result, size)
+        return result
+
+
+def _as_tuple(value, size=None):
     try:
         get = value.get
     except AttributeError:
-        try:
-            iterator = iter(value)
-        except TypeError:
-            return (float(value), ) * size
-        else:
-            return tuple(float(v) for v in iterator)
+        return _nonexpression_as_tuple(value, size)
     else:
+        if size is not None:
+            _check_len(value, size)
         return get()
 
 
@@ -616,17 +725,6 @@ class Value(Expression):
             return type(self).__name__
 
 
-def _coerce(exp, size=1):
-    try:
-        # See if this quacks like an Expression
-        exp.get
-    except AttributeError:
-        tup = _as_tuple(exp, size)
-        return Constant(*tup)
-    else:
-        return simplify(exp)
-
-
 def _coerce_all(exps):
     exps = tuple(exps)
     for exp in exps:
@@ -638,7 +736,7 @@ def _coerce_all(exps):
             break
     else:
         size = 1
-    return tuple(_coerce(e, size) for e in exps)
+    return tuple(coerce(e, size=size) for e in exps)
 
 
 def _reduce_tuples(operands, op):
@@ -646,10 +744,16 @@ def _reduce_tuples(operands, op):
     return tuple(map(reducer, zip(*operands)))
 
 
-def _check_len(a, b):
+def _check_len_match(a, b):
     if len(a) != len(b):
         raise ValueError('Mismatched vector size: {} != {}'.format(
             len(a), len(b)))
+
+
+def _check_len(exp, expected):
+    if len(exp) != expected:
+        raise ValueError('Mismatched vector size: {} != {}'.format(
+            len(exp), expected))
 
 
 class Reduce(Expression):
@@ -673,7 +777,7 @@ class Reduce(Expression):
         self._operands = tuple(_coerce_all(operands))
         first = self._operands[0]
         for operand in self._operands[1:]:
-            _check_len(operand, first)
+            _check_len_match(operand, first)
         for i, oper in enumerate(self._operands):
             oper.replacement_available.connect(self._replace_operands)
         self._replace_operands()
@@ -789,7 +893,7 @@ class Elementwise(Expression):
     Assumes the `op` function is pure.
     """
     def __init__(self, operand, op):
-        self._operand = _coerce(operand)
+        self._operand = coerce(operand)
         self._op = op
         self._operand.replacement_available.connect(self._replace_operand)
         self._replace_operand()
@@ -884,7 +988,7 @@ class Concat(Expression):
     Usually created as a result of :meth:`~Expression.replace`.
     """
     def __init__(self, *children):
-        self._children = tuple(_coerce(c) for c in children)
+        self._children = tuple(coerce(c) for c in children)
         self._len = sum(len(c) for c in self._children)
         self._simplify_children()
         for child in self._children:
@@ -984,7 +1088,7 @@ class Interpolation(Expression):
     """
     def __init__(self, start, end, t):
         self._start, self._end = _coerce_all([start, end])
-        self._t = _coerce(t, 1)
+        self._t = coerce(t, size=1)
         if len(self._t) != 1:
             raise ValueError('Interpolation coefficient must be '
                              'a single number')

@@ -264,8 +264,12 @@ def test_bad_lengths(op):
             op(Value(1, 2), (3,))
         with pytest.raises(ValueError):
             op((3,), Value(1, 2))
+        with pytest.raises(ValueError):
+            op(Value(1), (2, 3))
+        with pytest.raises(ValueError):
+            op((1, 2), Value(3))
     else:
-        raise ValueError(num_args)
+        raise ValueError(num_args)  # extend the test if this happens
 
 
 def test_constant_propagation(formula, args, maybe_numpy):
