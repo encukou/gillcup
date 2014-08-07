@@ -13,9 +13,31 @@ class Buzzer:
         return '<test buzzer>'
 
 
+class MultichannelBuzzer:
+    """A Buzzer that emits 3 simultaneous tones
+
+    Not good programming practice!
+    This is just to test that ``volume`` and ``pitch`` work exactly the same
+    when they are a top-level property as when they are a component.
+    """
+    volumes = volume, vol2, vol3 = AnimatedProperty(
+        0, 0, 0, name='volumes:volume vol2 vol3')
+    pitches = pitch, pitch2, pitch3 = AnimatedProperty(
+        440, 440, 440, name='pitches: pitch pitch2 pitch3')
+    position = x, y, z = AnimatedProperty(0, 0, 0, name='position: x y z')
+
+    def __repr__(self):
+        return '<test buzzer>'
+
+
+@pytest.fixture(params=[Buzzer, MultichannelBuzzer])
+def buzzer_class(request):
+    return request.param
+
+
 @pytest.fixture
-def buzzer():
-    return Buzzer()
+def buzzer(buzzer_class):
+    return buzzer_class()
 
 
 def test_defaults(buzzer):
@@ -37,13 +59,6 @@ def test_setting_vector(buzzer):
     assert buzzer.x == 1
     assert buzzer.y == 2
     assert buzzer.z == 3
-
-
-def test_separate_instances_scalar(buzzer):
-    buzzer2 = Buzzer()
-    buzzer2.volume = 50
-    assert buzzer2.volume == 50
-    assert buzzer.volume == 0
 
 
 def test_separate_instances_vector(buzzer):
@@ -174,31 +189,65 @@ def test_set_to_expression_with_linked_property(buzzer, clock):
     assert buzzer.pitch == 460
 
 
-def test_recursive_link(buzzer, clock):
+def test_recursive_link(buzzer, buzzer_class, clock):
+    if buzzer_class == MultichannelBuzzer:
+        # TODO: This gets rather nasty with component property; fix!
+        raise pytest.xfail(
+            'INTERNALERROR> RuntimeError: maximum recursion depth exceeded')
     buzzer.volume = link(buzzer.volume)
     with pytest.raises(RuntimeError):
         buzzer.volume.get()
     assert str(buzzer.volume) == '<RuntimeError while getting value>'
 
 
-def test_link_dump_method(buzzer, clock, check_dump):
+def test_link_dump_method(buzzer, buzzer_class, clock, check_dump):
+    # The dump is different for normal properties and for components
     buzzer.volume.link(buzzer.pitch)
-    check_dump(buzzer.volume, """
-        <test buzzer>.volume value <440.0>:
-          linked <test buzzer>.pitch <440.0>:
-            Constant <440.0>
-    """)
+    if buzzer_class == Buzzer:
+        check_dump(buzzer.volume, """
+            <test buzzer>.volume value <440.0>:
+              linked <test buzzer>.pitch <440.0>:
+                Constant <440.0>
+        """)
+    elif buzzer_class == MultichannelBuzzer:
+        check_dump(buzzer.volume, """
+            <test buzzer>.volume (volumes[0]) value <440.0>:
+              <test buzzer>.volumes value <440.0, 0.0, 0.0>:
+                Concat <440.0, 0.0, 0.0>:
+                  linked <test buzzer>.pitch (pitches[0]) <440.0>:
+                    <test buzzer>.pitches value <440.0, 440.0, 440.0>:
+                      Constant <440.0, 440.0, 440.0>
+                  Constant <0.0, 0.0>
+        """)
+    else:
+        raise TypeError(buzzer_class)
 
 
-def test_link_dump_function(buzzer, clock, check_dump):
+def test_link_dump_function(buzzer, buzzer_class, clock, check_dump):
+    # The dump is different for normal properties and for components
     buzzer.volume = link(buzzer.pitch) + 4
-    check_dump(buzzer.volume, """
-        <test buzzer>.volume value <444.0>:
-          + <444.0>:
-            linked <test buzzer>.pitch <440.0>:
-              Constant <440.0>
-            Constant <4.0>
-    """)
+    if buzzer_class == Buzzer:
+        check_dump(buzzer.volume, """
+            <test buzzer>.volume value <444.0>:
+              + <444.0>:
+                linked <test buzzer>.pitch <440.0>:
+                  Constant <440.0>
+                Constant <4.0>
+        """)
+    elif buzzer_class == MultichannelBuzzer:
+        check_dump(buzzer.volume, """
+            <test buzzer>.volume (volumes[0]) value <444.0>:
+              <test buzzer>.volumes value <444.0, 0.0, 0.0>:
+                Concat <444.0, 0.0, 0.0>:
+                  + <444.0>:
+                    linked <test buzzer>.pitch (pitches[0]) <440.0>:
+                      <test buzzer>.pitches value <440.0, 440.0, 440.0>:
+                        Constant <440.0, 440.0, 440.0>
+                    Constant <4.0>
+                  Constant <0.0, 0.0>
+        """)
+    else:
+        raise TypeError(buzzer_class)
 
 
 def test_link_function_idempotent(buzzer, clock):

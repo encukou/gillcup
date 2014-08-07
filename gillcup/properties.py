@@ -158,7 +158,7 @@ class _PropertyValue(Expression):
     def __init__(self, prop, instance, expression):
         self._prop = prop
         self._instance = instance
-        self.replacement = expression
+        self.replacement = simplify(expression)
 
     def get(self):
         return self.replacement.get()
@@ -209,9 +209,67 @@ class _ComponentProperty:
         if instance is None:
             return self
         else:
-            return self._parent.__get__(instance, owner)[self._index]
+            exp = self._parent.__get__(instance, owner)
+            return _ComponentPropertyValue(self, self._parent, instance, exp,
+                                           self._index)
 
     def __set__(self, instance, value):
         exp = self._parent.__get__(instance)
         new = exp.replace(self._index, coerce(value, size=1))
         self._parent.__set__(instance, new)
+
+
+class _ComponentPropertyValue(Expression):
+    def __init__(self, prop, parent, instance, expression, index):
+        self._prop = prop
+        self._parent = parent
+        self._instance = instance
+        self._index = index
+        self.replacement = simplify(expression[self._index])
+
+    def get(self):
+        return self.replacement.get()
+
+    @property
+    def pretty_name(self):
+        return '{0!r}.{1} ({2}[{3}]) value'.format(self._instance,
+                                                   self._prop.name,
+                                                   self._parent.name,
+                                                   self._index)
+
+    @property
+    def children(self):
+        yield self._parent.__get__(self._instance)
+
+    def _gillcup_propexp_link(self):
+        return _LinkedComponent(self._prop, self._parent, self._instance,
+                                self._index)
+
+    def link(self, source):
+        linked = link(source)
+        self._prop.__set__(self._instance, linked)
+
+
+class _LinkedComponent(Expression):
+    def __init__(self, prop, parent, instance, index):
+        self._prop = prop
+        self._parent = parent
+        self._instance = instance
+        self._index = index
+
+    def get(self):
+        return (self._parent.__get__(self._instance).get()[self._index], )
+
+    @property
+    def pretty_name(self):
+        return 'linked {0!r}.{1} ({2}[{3}])'.format(self._instance,
+                                                    self._prop.name,
+                                                    self._parent.name,
+                                                    self._index)
+
+    @property
+    def children(self):
+        yield self._parent.__get__(self._instance)
+
+    def _gillcup_propexp_link(self):
+        return self
