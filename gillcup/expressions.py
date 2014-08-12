@@ -79,6 +79,19 @@ the number will be repeated::
     `here <http://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html>`_.
 
 
+Expression invariants
+---------------------
+
+These invariants are assumed:
+
+* The size (as determined by :func:`len`) of every Expression is constant
+  throughout the Expression's lifetime.
+* For any Expression ``exp``, the simplified Expression (``exp.replacement``)
+  has the same value as ``exp``
+* While any Expression is being evaluated, the value of any (other) Expression
+  stays constant.
+
+
 Reference
 ---------
 
@@ -352,7 +365,12 @@ class Expression:
         return '<{}>'.format(', '.join(str(n) for n in value))
 
     def get(self):
-        """Return the current value of this expression, as a tuple."""
+        """Return the current value of this expression, as a tuple.
+
+        This method should be kept free of side effects; in particular,
+        it may not change (even indirectly) the value of any other
+        Expression.
+        """
         raise NotImplementedError()
 
     @property
