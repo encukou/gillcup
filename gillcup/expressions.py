@@ -131,6 +131,7 @@ Helpers
 
 import operator
 import functools
+import itertools
 import math
 
 from gillcup.signals import signal
@@ -941,7 +942,7 @@ def _get_slice_indices(source, index):
 class Slice(Expression):
     """Slice of an Expression
 
-    Typical result of an `exp[start:stop]` operation
+    Typical result of an ``exp[start:stop]`` operation
     """
     def __init__(self, source, index):
         self._source = simplify(source)
@@ -952,12 +953,9 @@ class Slice(Expression):
             self._len = 0
         elif self._start <= 0 and self._stop >= len(source):
             self.replacement = source
-        elif isinstance(source, Slice):
-            subslice = slice(self._start + source._start,
-                             self._stop + source._start)
-            self.replacement = simplify(Slice(source._source, subslice))
         else:
             source.replacement_available.connect(self._replace_source)
+            self._replace_source()
 
     def __len__(self):
         return self._len
@@ -977,6 +975,39 @@ class Slice(Expression):
         self._source = src = _replace_child(self._source, self._replace_source)
         if isinstance(src, Constant):
             self.replacement = Constant(*self)
+        elif isinstance(src, Slice):
+            self._source = src._source
+            self._start = self._start + src._start
+            self._stop = self._stop + src._start
+        elif isinstance(src, Concat):
+            start = self._start
+            new_children = []
+            children_iter = iter(list(src._children))
+            for child in children_iter:
+                if start > len(child):
+                    start -= len(child)
+                else:
+                    if start:
+                        first_child = child[start:]
+                    else:
+                        first_child = child
+                    break
+            else:
+                raise AssertionError('out of children (at start)')
+            length_remaining = self._len
+            for child in itertools.chain([first_child], children_iter):
+                if not length_remaining:
+                    break
+                assert length_remaining > 0
+                if length_remaining > len(child):
+                    new_children.append(child)
+                    length_remaining -= len(child)
+                else:
+                    new_children.append(child[:length_remaining])
+                    break
+            else:
+                raise AssertionError('out of children (at end)')
+            self.replacement = Concat(*new_children)
 
 
 class Concat(Expression):
@@ -988,7 +1019,8 @@ class Concat(Expression):
     Usually created as a result of :meth:`~Expression.replace`.
     """
     def __init__(self, *children):
-        self._children = tuple(coerce(c) for c in children)
+        children_gen = (coerce(c) for c in children)
+        self._children = tuple(c for c in children_gen if len(c))
         self._len = sum(len(c) for c in self._children)
         self._simplify_children()
         for child in self._children:
@@ -1019,6 +1051,13 @@ class Concat(Expression):
                     isinstance(new_children[-1], Constant)):
                 new_const = Constant(*new_children[-1].get() + child.get())
                 new_children[-1] = new_const
+            elif (isinstance(child, Slice) and
+                    new_children and
+                    isinstance(new_children[-1], Slice) and
+                    child._source is new_children[-1]._source and
+                    child._start == new_children[-1]._stop):
+                new_index = slice(new_children[-1]._start, child._stop)
+                new_children[-1] = simplify(Slice(child._source, new_index))
             else:
                 new_children.append(child)
         self._children = tuple(new_children)
