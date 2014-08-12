@@ -346,7 +346,8 @@ def test_single_name():
     assert Foo.r.name == 'bar[2]'
 
 
-@pytest.mark.parametrize('name', ['bar:x y z', 'bar: x y z', 'bar:x,y,z'])
+@pytest.mark.parametrize('name', ['bar:x y z', 'bar: x y z', 'bar:x,y,z',
+                                  'bar : x  y  z', 'bar  :  x , y , z'])
 def test_component_naming(name):
     class Foo:
         bar = b, a, r = AnimatedProperty(0, 0, 0, name=name)
@@ -355,3 +356,9 @@ def test_component_naming(name):
     assert Foo.b.name == 'x'
     assert Foo.a.name == 'y'
     assert Foo.r.name == 'z'
+
+
+@pytest.mark.parametrize('name', ['bar:x y', 'bar: x,,y z', 'bar:'])
+def test_bad_component_naming(name):
+    with pytest.raises(ValueError):
+        AnimatedProperty(0, 0, 0, name=name)

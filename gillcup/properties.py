@@ -43,11 +43,12 @@ def _get_names(name, size):
         name, sep, component_names_str = name.partition(':')
         if sep:
             name = name.strip()
-            component_names = re.split('[\s,]', component_names_str.strip())
+            component_names = re.split(r'\s+(?!,)|\s*,\s*',
+                                       component_names_str.strip())
             if len(component_names) != size:
                 raise ValueError(
-                    'Bad number of component names: {} != {}'.format(
-                        len(component_names), size))
+                    'Bad number of component names: {} != {}: {}'.format(
+                        len(component_names), size, component_names))
 
     if not name:
         name = '<unnamed property>'
