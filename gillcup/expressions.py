@@ -98,14 +98,14 @@ Reference
 .. autoclass:: gillcup.expressions.Expression
 
 Basic Expressions
------------------
+.................
 
 .. autoclass:: gillcup.expressions.Constant
 .. autoclass:: gillcup.expressions.Value
 .. autoclass:: gillcup.expressions.Progress
 
 Compound Expressions
---------------------
+....................
 
 .. autoclass:: gillcup.expressions.Reduce
 .. autoclass:: gillcup.expressions.Elementwise
@@ -113,7 +113,7 @@ Compound Expressions
 .. autoclass:: gillcup.expressions.Box
 
 Arithmetic Expressions
-......................
+~~~~~~~~~~~~~~~~~~~~~~
 
 For the following, using the appropriate operator is preferred
 to constructing them directly:
@@ -128,13 +128,13 @@ to constructing them directly:
 .. autoclass:: gillcup.expressions.Concat
 
 Debugging helpers
------------------
+.................
 
 .. autofunction:: gillcup.expressions.dump
 
 
 Helpers
--------
+.......
 
 .. autofunction:: gillcup.expressions.simplify
 .. autofunction:: gillcup.expressions.coerce
@@ -311,8 +311,8 @@ class Expression:
 
                 *a.k.a.* :token:`__add__(other)` etc.
 
-                Return a nes Expression that evluates an element-wise operation
-                on the value.
+                Return a nes Expression that evaluates an element-wise
+                operation on two values.
 
                 These operations create a :class:`Sum`, :class:`Difference`,
                 :class:`Product`, or :class:`Quotient`, respectively.
