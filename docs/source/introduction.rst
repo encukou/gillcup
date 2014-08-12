@@ -27,4 +27,5 @@ Design
 
    clock
    expressions
+   properties
    signals
