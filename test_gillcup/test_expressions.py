@@ -573,6 +573,44 @@ def test_concat_of_slice_simplification_2():
     check_dump(exp, "Value <0.0, 1.0, 2.0>")
 
 
+@pytest.mark.parametrize(['start', 'end', 'dump'], [
+    (0, 1, """
+        [0:1] <0.0>:
+          Value <0.0, 1.0, 2.0>
+    """),
+    (0, 2, """
+        [0:2] <0.0, 1.0>:
+          Value <0.0, 1.0, 2.0>
+    """),
+    (0, 3, """
+        Value <0.0, 1.0, 2.0>
+    """),
+    (0, 4, """
+        Concat <0.0, 1.0, 2.0, 3.0>:
+          Value <0.0, 1.0, 2.0>
+          [0:1] <3.0>:
+            Value <3.0, 4.0, 5.0>
+    """),
+    (1, 5, """
+        Concat <1.0, 2.0, 3.0, 4.0>:
+          [1:3] <1.0, 2.0>:
+            Value <0.0, 1.0, 2.0>
+          [0:2] <3.0, 4.0>:
+            Value <3.0, 4.0, 5.0>
+    """),
+    (2, 100, """
+        Concat <2.0, 3.0, 4.0, 5.0>:
+          [2:3] <2.0>:
+            Value <0.0, 1.0, 2.0>
+          Value <3.0, 4.0, 5.0>
+    """),
+])
+def test_slice_of_concat_simplification_3(start, end, dump):
+    val = Concat(Value(0, 1, 2), Value(3, 4, 5))
+
+    check_dump(simplify(val[start:end]), dump)
+
+
 @pytest.mark.parametrize(['start', 'end'], [
     (None, None), (0, 1), (0, -1), (-1, None), (0, 0), (3, 2)])
 def test_slice_simplification(start, end):
