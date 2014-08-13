@@ -8,6 +8,7 @@ Gillcup comprises several related modules:
 *   The :mod:`~gillcup.properties` enable extra behavior when *expressions*
     are used as properties of objects.
 *   The :mod:`~gillcup.signals` provide notifications.
+*   The :mod:`~gillcup.animations` provide higher-level animation tools.
 
 """
 import asyncio
