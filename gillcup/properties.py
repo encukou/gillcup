@@ -53,6 +53,10 @@ specifying their default value, and an optional name::
     >>> beeper.pitch
     <440.0>
 
+.. note:: See the :ref:`Autonaming <property-autonaming>` section
+          for a more convenient naming method.
+
+
 It should be noted that, except for the additional features described here,
 most of Python's normal attribute/value mechanics are preserved -- the example
 at the beginning of this section runs fine with the ``Beeper`` class
@@ -253,7 +257,9 @@ and its individual components::
     >>> class Point3D:
     ...     pos = x, y, z = AnimatedProperty(0, 0, 0, name='pos: x y z')
 
-Note the shorthand syntax for naming all the properties.
+Note the shorthand syntax for naming all the properties
+(but see the :ref:`Autonaming <property-autonaming>` section
+for a more convenient naming method).
 
 The component properties defined this way are synchronized
 with their parent vector::
@@ -270,12 +276,37 @@ with their parent vector::
     >>> point.pos
     <42.0, 20.0, 30.0>
 
+.. _property-autonaming:
+
+Autonaming
+----------
+
+The :func:`autoname` decorator, when applied to a class,
+names all its animated properties according to the attribute name they
+are assigned to.
+This means you can avoid repeating the name,
+and still have the properties named for easier debugging::
+
+    >>> @autoname
+    ... class Buzzer3D:
+    ...     volume = AnimatedProperty(0)
+    ...     pitch = AnimatedProperty(440)
+    ...     pos = x, y, z = AnimatedProperty(0, 0, 0)
+
+    >>> Buzzer3D.volume.name
+    'volume'
+    >>> Buzzer3D.pos.name
+    'pos'
+    >>> Buzzer3D.x.name
+    'x'
+
+
 Reference
 ---------
 
 .. autoclass:: AnimatedProperty
 .. autofunction:: link
-
+.. autofunction:: autoname
 
 """
 
@@ -283,8 +314,22 @@ import re
 import weakref
 
 from gillcup.expressions import Expression, Constant, coerce, simplify
+from gillcup.util import autoname as _autoname, autoname_property
 
 
+def autoname(cls):
+    """Class decorator that automatically names properties
+
+    Every AnimatedProperty defined directly on the decorated class
+    has its name set to the atribute name it is bound to.
+
+    See the :ref:`Autonaming <property-autonaming>` section
+    of the documentation for discussion.
+    """
+    return _autoname(cls)
+
+
+@autoname_property('name')
 class AnimatedProperty:
     """Descriptor for Expression-valued properties.
 
@@ -430,6 +475,7 @@ class _Linked(Expression):
         return self
 
 
+@autoname_property('name')
 class _ComponentProperty:
     def __init__(self, parent, index, name):
         self._parent = parent

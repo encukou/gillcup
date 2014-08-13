@@ -19,7 +19,7 @@ def fix_public_signature(func):
 
 
 def autoname_property(attrname):
-    """Descriptor for creating autoname properties, for use with @autoname
+    """Decorator for creating autoname properties, for use with @autoname
 
     :param name: Name of the attribute that should hold the property's name
 
@@ -42,7 +42,6 @@ def autoname_property(attrname):
 
 def autoname(cls):
     """Decorator that automatically names class items with autoname properties
-
     An autoname property is made with the :func:`autoname_property` decorator,
     like this::
 
