@@ -1184,35 +1184,54 @@ class Progress(Expression):
     """Gives linear progress according to a Clock
 
     The value of this expression is
-    0 at the start (``clock``'s current time + ``delay``),
-    and 1 at the end (``duration`` time units after start).
+    0 at the start (:token:`clock`'s current time + :token:`delay`),
+    and 1 at the end (:token:`duration` time units after start).
     Between those two times, it changes smoothly as the clock advances.
 
-    If ``clamp`` is true, the value stays 0 before the start and 1 after end.
+    If :token:`clamp` is true, the value stays 0 before the start
+    and 1 after end.
     Otherwise, it is extrapolated: it will be negative before the start,
     and greater than 1 after the end.
+
+    :token:`duration` may not be negative.
+
+    If :token:`duration` is zero, the value changes from 0 to 1 abruptly
+    at :token:`delay` time units in the future.
+    In this case, :token:`clamp` must be true.
     """
     def __init__(self, clock, duration, *, delay=0, clamp=True):
         self._clock = clock
         self._start = clock.time + float(delay)
         self._duration = float(duration)
-        if self._duration == 0:
-            raise ZeroDivisionError()
+        if self._duration < 0:
+            raise ValueError('negative duration')
+        if not clamp and not duration:
+            raise ValueError('extrapolation to infinity')
         self._clamp = clamp
         if clamp:
-            clock.schedule(delay + duration, self._fix)
+            end_time = delay + duration
+            if end_time >= 0:
+                clock.schedule(end_time, self._fix)
+            else:
+                self._fix()
 
     def __len__(self):
         return 1
 
     def get(self):
-        rv = (self._clock.time - self._start) / self._duration
-        if self._clamp:
-            if rv <= 0:
-                return (0, )
-            elif rv >= 1:
-                return (1, )
-        return (rv, )
+        progress_time = self._clock.time - self._start
+        if self._duration:
+            rv = progress_time / self._duration
+            if self._clamp:
+                if rv <= 0:
+                    return (0, )
+                elif rv >= 1:
+                    return (1, )
+            return (rv, )
+        elif progress_time < 0:
+            return (0, )
+        else:
+            return (1, )
 
     def _fix(self):
         self.replacement = Constant(1)

@@ -1,3 +1,5 @@
+import pytest
+
 from gillcup.animations import anim
 
 
@@ -60,3 +62,42 @@ def test_anim_delay_infinite(clock):
     assert animation == 4
     clock.advance_sync(1)
     assert animation == 5
+
+
+def test_anim_negative_duration(clock):
+    animation = anim(1, 3, -2, clock, delay=2)
+    assert animation == 3
+    clock.advance_sync(1)
+    assert animation == 2
+    clock.advance_sync(1)
+    assert animation == 1
+    clock.advance_sync(1)
+    assert animation == 1
+
+
+def test_anim_negative_duration_past(clock):
+    animation = anim(1, 3, -2, clock)
+    assert animation == 1
+    clock.advance_sync(1)
+    assert animation == 1
+
+
+def test_anim_heaviside(clock):
+    animation = anim(1, 3, 0, clock, delay=1)
+    assert animation == 1
+    clock.advance_sync(1)
+    assert animation == 3
+    clock.advance_sync(1)
+    assert animation == 3
+
+
+def test_anim_heaviside_past(clock):
+    animation = anim(1, 3, 0, clock, delay=-1)
+    assert animation == 3
+    clock.advance_sync(1)
+    assert animation == 3
+
+
+def test_anim_heaviside_infinite(clock):
+    with pytest.raises(ValueError):
+        anim(1, 3, 0, clock, infinite=True)
