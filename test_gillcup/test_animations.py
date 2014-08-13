@@ -8,6 +8,8 @@ def test_anim_basic(clock):
     assert animation == 2
     clock.advance_sync(1)
     assert animation == 3
+    clock.advance_sync(1)
+    assert animation == 3
 
 
 def test_anim_basic_vector(clock):
@@ -17,3 +19,16 @@ def test_anim_basic_vector(clock):
     assert animation == (2, 3)
     clock.advance_sync(1)
     assert animation == (3, 4)
+
+
+def test_anim_delay(clock):
+    animation = anim(1, 3, 2, clock, delay=1)
+    assert animation == 1
+    clock.advance_sync(1)
+    assert animation == 1
+    clock.advance_sync(1)
+    assert animation == 2
+    clock.advance_sync(1)
+    assert animation == 3
+    clock.advance_sync(1)
+    assert animation == 3
