@@ -11,7 +11,7 @@ Reference
 from gillcup.expressions import Interpolation, Progress
 
 
-def anim(start, end, duration, clock, *, delay=0):
+def anim(start, end, duration, clock, *, delay=0, infinite=False):
     """Create an animated expression
 
     Returns an expression that morphs between :token:`start` and :token:`end`
@@ -31,6 +31,15 @@ def anim(start, end, duration, clock, *, delay=0):
     :param clock: The :class:`~gillcup.clock.Clock` that controls the
                   animation's time
     :param delay: Time at which the animation starts
+    :param infinite: If false, the animation starts at :token:`delay` time
+                     units after :func:`anim` is called,
+                     and ends :token:`duration` time units after it starts.
+                     Outside of this time interval, the value is clamped at
+                     :token:`start` (before) or :token:`end` (after).
+
+                     If true, animation is not clamped.
+                     Outside of the mentioned interval, the value is
+                     extrapolated past :token:`start` and :token:`end`.
     """
-    progress = Progress(clock, duration, delay=delay)
+    progress = Progress(clock, duration, delay=delay, clamp=not infinite)
     return Interpolation(start, end, progress)
