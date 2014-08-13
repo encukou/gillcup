@@ -101,3 +101,13 @@ def test_anim_heaviside_past(clock):
 def test_anim_heaviside_infinite(clock):
     with pytest.raises(ValueError):
         anim(1, 3, 0, clock, infinite=True)
+
+
+@pytest.mark.parametrize('n', [0, 1, 0.5, 2, -1, 100])
+def test_anim_strength(clock, n):
+    animation = anim(1, 3, 2, clock, strength=n)
+    assert animation == 1
+    clock.advance_sync(1)
+    assert animation == 1 + n
+    clock.advance_sync(1)
+    assert animation == 1 + n * 2
