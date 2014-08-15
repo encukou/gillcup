@@ -1,4 +1,4 @@
 The Gillcup Easings
 ===================
 
-.. automodule:: gillcup.easing
+.. automodule:: gillcup.easings

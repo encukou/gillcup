@@ -11,10 +11,17 @@ For other types, use attributes: **out** (slows down over time), **in_out**
 The ease-in is also available in **in_**. For example,
 ``gillcup.easing.quadratic.in_out`` gives a nice natural-looking tween.
 
+Reference
+---------
+
+.. attribute:: easings
+
+    A dictionary mapping the names of built-in easings to the corresponding
+    functions
 
 
 Polynomial easing functions
----------------------------
+...........................
 
 .. autofunction:: linear
 .. autofunction:: quad
@@ -23,14 +30,14 @@ Polynomial easing functions
 .. autofunction:: quint
 
 Other simple easing functions
------------------------------
+.............................
 
 .. autofunction:: sine
 .. autofunction:: expo
 .. autofunction:: circ
 
 Parametrizable easing functions
--------------------------------
+...............................
 
 Use keyword arguments to override the defaults.
 
@@ -38,14 +45,15 @@ Use keyword arguments to override the defaults.
 .. autofunction:: back
 .. autofunction:: bounce
 
-.. note:: Use :func:`functools.partial` to make easing
-          functions with your own parameters.
+.. note:: Use :func:`partial` to make easing
+          functions with different parameters.
 
 Helpers for creating new easing functions
------------------------------------------
+.........................................
 
 .. autofunction:: easing
 .. autofunction:: normalized
+.. autofunction:: partial
 
 
 .. autofunction:: ease_out
@@ -54,6 +62,7 @@ Helpers for creating new easing functions
 .. autofunction:: ease_in
 """
 
+import functools
 import math
 import inspect
 
@@ -138,6 +147,19 @@ def easing(func):
     return func
 
 
+def partial(func, **kwargs):
+    """Combines :func:`functools.partial` and :func:`easing`.
+
+    For example, a large overshoot tween can be created as::
+
+        >>> from gillcup import easings
+        >>> large_overshoot = easings.partial(easings.back, amount=100)
+        >>> large_overshoot.out(0.9)
+        1.89...
+    """
+    return easing(functools.partial(func, **kwargs))
+
+
 def _easing(func):
     func = easing(func)
     easings[func.__name__] = func
@@ -177,7 +199,7 @@ def quint(t):
 @_easing
 def sine(t):
     """Sinusoidal easing: Quarter of a cosine wave"""
-    return 1 - math.cos(t / tau / 4)
+    return 1 - math.cos(t * tau / 4)
 
 
 @_easing
@@ -193,7 +215,9 @@ def expo(t):
 @_easing
 def circ(t):
     """Circular easing"""
-    return -math.sqrt(1 - t * t) - 1
+    if t >= 1:
+        return 1
+    return 1 - math.sqrt(1 - t * t)
 
 
 @_easing
