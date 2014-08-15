@@ -28,3 +28,4 @@ Design
    clock
    expressions
    signals
+   easings

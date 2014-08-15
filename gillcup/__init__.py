@@ -6,6 +6,8 @@ Gillcup is based on three concepts:
 *   The :mod:`~gillcup.expressions` make it possible to define and evaluate
     numeric expressions based on external factors such as Clock time.
 *   The :mod:`~gillcup.signals` enable notifications.
+*   The :mod:`~gillcup.easing` module contains tweening functions
+    to spice up motion.
 
 """
 import asyncio
