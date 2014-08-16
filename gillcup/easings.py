@@ -153,13 +153,11 @@ def easing(func):
     Adds the :token:`in_`, :token:`out`, :token:`in_out` and :token:`out_in`
     functions to an easing function.
 
+    .. easing_graph:: staircase
+
         >>> @easing
         ... def staircase(t, *, steps=5):
         ...     return ((t * steps) // 1) / steps
-
-    ..
-
-        .. easing_graph:: staircase
 
     """
     func.in_ = func
@@ -174,15 +172,12 @@ def normalized(func):
 
     Normalizing is done so that func(0) == 0 and func(1) == 1.
 
+    .. easing_graph:: wiggly
 
         >>> @easing
         ... @normalized
         ... def wiggly(t):
         ...     return (t + 10) ** 2 + math.cos(t * 50)
-
-    ..
-
-        .. easing_graph:: wiggly
 
     If func(0) == func(1), :exc:`ZeroDivision` is raised.
 
@@ -204,20 +199,18 @@ def normalized(func):
 def partial(func, **kwargs):
     """Combines :func:`functools.partial` and :func:`easing`.
 
-    For example, a large overshoot tween can be created as::
+    For example, a large overshoot tween can be created as:
+
+    .. easing_graph:: large_overshoot
 
         >>> from gillcup import easings
         >>> large_overshoot = easings.partial(easings.back, amount=4)
         >>> large_overshoot.out(0.4)
         1.3...
 
-    ..
-
-        .. easing_graph:: large_overshoot
-
     """
     partl = functools.partial(func, **kwargs)
-    partl.__name__ = '{}⟨{}⟩'.format(
+    partl.__name__ = '<{}:{}>'.format(
         func.__name__,
         ', '.join('{}={}'.format(k, v) for k, v in kwargs.items())
     )

@@ -2,7 +2,6 @@
 # The parts that Gillcup uses should work...
 
 import io
-import math
 import inspect
 from xml.etree import ElementTree
 
@@ -11,6 +10,7 @@ from docutils import nodes
 from sphinx.util.compat import Directive
 from matplotlib import pyplot
 import numpy
+import markupsafe
 
 from gillcup import easings
 
@@ -104,30 +104,28 @@ class EasingGraph(Directive):
     def run(self):
         node = easing_graph()
         node['name'] = self.content[0]
+        content = self.content[1:]
+        node['content'] = '\n'.join(content)
+        node['code'] = '\n'.join(l[4:] for l in content
+                                 if l.startswith(('>>> ', '... ')))
+
+        if node['content']:
+            code_node = nodes.literal_block(node['content'], node['content'])
+            code_node['language'] = 'py3'
+            code_node['linenos'] = False
+            node.children = [code_node]
         return [node]
 
 
 def html_visit_easing_graph(self, node):
     print(node['name'], '  ', end='\r')
-    if node['name'] == 'large_overshoot':
-        func = easings.partial(easings.back, amount=4)
-    elif node['name'] == 'staircase':
-
-        @easings.easing
-        def staircase(t, *, steps=5):
-            return ((t * steps) // 1) / steps
-
-        func = staircase
-    elif node['name'] == 'wiggly':
-
-        @easings.easing
-        @easings.normalized
-        def wiggly(t):
-            return (t + 10) ** 2 + math.cos(t * 50)
-
-        func = wiggly
+    if node['code']:
+        environ = {n: getattr(easings, n) for n in dir(easings)}
+        exec(node['code'], environ)
+        func = environ[node['name']]
     else:
         func = easings.easings[node['name']]
+    func_name = markupsafe.escape(func.__name__)
     overshoots = 0.5
     figsize = 4
     pyplot.figure(figsize=(figsize, (1 + overshoots * 2) * figsize))
@@ -190,15 +188,16 @@ def html_visit_easing_graph(self, node):
         self.body.append(ElementTree.tostring(et, encoding="unicode"))
         self.body.append('</div>')
         self.body.append('<div style="text-align:center;">')
-        self.body.append('&nbsp;{}{}&nbsp;'.format(func.__name__, suffix))
+        self.body.append('&nbsp;{}{}&nbsp;'.format(func_name, suffix))
+        print(func_name)
         self.body.append('</div>')
         self.body.append('</div>')
     self.body.append('<br style="clear:both;">')
-    raise nodes.SkipNode
+    return []
 
 
 def setup(app):
     app.add_autodocumenter(SpecialMethodDocumenter)
     app.add_node(easing_graph,
-                 html=(html_visit_easing_graph, None))
+                 html=(lambda s, n: [], html_visit_easing_graph))
     app.add_directive('easing_graph', EasingGraph)
