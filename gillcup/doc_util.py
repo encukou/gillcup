@@ -2,6 +2,7 @@
 # The parts that Gillcup uses should work...
 
 import io
+import inspect
 from xml.etree import ElementTree
 
 import sphinx.ext.autodoc
@@ -110,7 +111,7 @@ def html_visit_easing_graph(self, node):
         func = easings.partial(easings.back, amount=4)
     else:
         func = easings.easings[node['name']]
-    overshoots = 0.4
+    overshoots = 0.5
     pyplot.figure(figsize=(5, (1 + overshoots * 2) * 5))
     xes = [n / 100 for n in range(101)]
     attrnames = [None, 'out', 'in_out', 'out_in']
@@ -148,6 +149,16 @@ def html_visit_easing_graph(self, node):
         pyplot.plot([0, 0], [0, 1], 'k')
         pyplot.plot([1, 1], [0, 1], 'k')
         pyplot.plot(xes, [f(n) for n in xes])
+        for arg in inspect.signature(f).parameters.values():
+            if arg.kind == inspect.Parameter.KEYWORD_ONLY:
+                pyplot.plot(
+                    xes,
+                    [f(n, **{arg.name: arg.default * 1.5}) for n in xes],
+                    color=[0, 0, 1, 0.2])
+                pyplot.plot(
+                    xes,
+                    [f(n, **{arg.name: arg.default * .5}) for n in xes],
+                    color=[0, 0, 1, 0.2])
         sio = io.StringIO()
         pyplot.savefig(sio, format='svg', transparent=True)
         ElementTree.register_namespace('', "http://www.w3.org/2000/svg")

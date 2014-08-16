@@ -9,7 +9,7 @@ Each of the functions defined here can be used directly for an
 For other types, use attributes: **out** (slows down over time), **in_out**
 (speeds up, then slows down), and **out_in** (slows down, then speeds up).
 The ease-in is also available in **in_**. For example,
-``gillcup.easing.quadratic.in_out`` gives a nice natural-looking tween.
+``gillcup.easing.quad.in_out`` gives a nice natural-looking tween.
 
 Reference
 ---------
@@ -191,25 +191,25 @@ def linear(t):
 
 @_easing
 def quad(t):
-    """Quadratic easing: t → t**2"""
+    """Quadratic easing: t → t²"""
     return t * t
 
 
 @_easing
 def cubic(t):
-    """Cubic easing: t → t**3"""
+    """Cubic easing: t → t³"""
     return t ** 3
 
 
 @_easing
 def quart(t):
-    """Quartic easing: t → t**4"""
+    """Quartic easing: t → t⁴"""
     return t ** 4
 
 
 @_easing
 def quint(t):
-    """Quintic easing: t → t**5"""
+    """Quintic easing: t → t⁵"""
     return t ** 5
 
 
