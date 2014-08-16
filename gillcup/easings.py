@@ -252,6 +252,11 @@ def partial(func, **kwargs):
 
     """
     partl = functools.wraps(func)(functools.partial(func, **kwargs))
+    old_signature = inspect.signature(func)
+    partl.__signature__ = old_signature.replace(parameters=[
+        p.replace(default=kwargs[name]) if name in kwargs else p
+        for name, p in old_signature.parameters.items()
+    ])
     partl.__name__ = '<{}:{}>'.format(
         func.__name__,
         ', '.join('{}={}'.format(k, v) for k, v in kwargs.items())
