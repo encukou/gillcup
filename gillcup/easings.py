@@ -11,6 +11,9 @@ For other types, use attributes: **out** (slows down over time), **in_out**
 The ease-in is also available in **in_**. For example,
 ``gillcup.easing.quad.in_out`` gives a nice natural-looking tween.
 
+.. note:: Some formulas in this documentation use
+          the circular unit :math:`τ ≈ 6.283185`.
+
 Reference
 ---------
 
@@ -55,8 +58,8 @@ Other simple easing functions
 
     .. easing_graph:: circ
 
-Parametrizable easing functions
-...............................
+Parametrized easing functions
+.............................
 
 Use keyword arguments to override the defaults.
 
@@ -104,7 +107,7 @@ import functools
 import math
 import inspect
 
-tau = math.pi * 2
+tau = math.pi * 2  # http://www.tauday.com/
 
 
 standard_easings = {}
@@ -360,17 +363,18 @@ def elastic(t, *, amplitude=1, period=0.3):
 
     .. math::
         \begin{aligned}
-            &\mathrm{elastic}(t, a, p) = -2A ^ {10t}
-                                   \sin\frac{sτ}{p} \\
+            &\mathrm{elastic}(t, a, p) =
+                -2A ^ {10t}
+                \sin\left(
+                        \left(
+                            t - \frac{p}{τ}\arcsin\frac{1}{A}
+                        \right)
+                        \frac{τ}{p}
+                    \right)\\
             &\text{where:} \\
             &A = \begin{cases}
                     1                   & \text{if } a < 1 \\
                     a                   & \text{otherwise} \\
-                \end{cases} \\
-            &s = \begin{cases}
-                    (t - \frac{p}{4}    & \text{if } a < 1 \\
-                    (t - \frac{p}{τ} \arcsin\frac{1}{a})
-                                        & \text{otherwise}  \\
                 \end{cases} \\
         \end{aligned}
     """
