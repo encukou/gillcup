@@ -427,9 +427,18 @@ def plot(func, *, overshoots=None, figsize=5, sampling_frequency=110,
     from matplotlib import pyplot
     import numpy
 
+    def set_next_gid(patch):
+        nonlocal counter
+        counter += 1
+        gid = 'tooltipped-patch-%s' % counter
+        patch.set_gid(gid)
+        return gid
+    counter = 0
+
     fig = pyplot.figure(figsize=(figsize,
                                  (1 + (overshoots or 0) * 2) * figsize))
     fig.set_canvas(pyplot.gcf().canvas)
+    fig._gillcup_tooltips = {}
     ax = fig.add_subplot(111)
     ax.axis('off')
     ax.set_xlim([0, 1])
@@ -449,14 +458,21 @@ def plot(func, *, overshoots=None, figsize=5, sampling_frequency=110,
             color = 'k' if p in (0, 1) else [0.9, 0.9, 0.9]
             ax.plot([p, p], [0, 1], color=color)
             ax.plot([0, 1], [p, p], color=color)
-    ax.plot(xes, _get_points(func, xes), 'b')
     if kwarg_variations:
         for arg in inspect.signature(func).parameters.values():
             if arg.kind == inspect.Parameter.KEYWORD_ONLY:
                 for variation_factor in kwarg_variations:
                     value = arg.default * variation_factor
                     part = partial(func, **{arg.name: value})
-                    ax.plot(xes, _get_points(part, xes), color=[0, 0, 1, 0.2])
+                    patches = ax.plot(xes, _get_points(part, xes),
+                                      color=[0, 0, 1, 0.2])
+                    for patch in patches:
+                        gid = set_next_gid(patch)
+                        fig._gillcup_tooltips[gid] = part.__name__
+    patches = ax.plot(xes, _get_points(func, xes), 'b')
+    for patch in patches:
+        gid = set_next_gid(patch)
+        fig._gillcup_tooltips[gid] = func.__name__
 
     pyplot.close(fig)
     return fig
@@ -483,9 +499,18 @@ def format_svg(func, css_width="13em", **kwargs):
     fig.savefig(sio, format='svg', transparent=True)
     ElementTree.register_namespace('', "http://www.w3.org/2000/svg")
     ElementTree.register_namespace('xlink', 'http://www.w3.org/1999/xlink')
-    et = ElementTree.fromstring(sio.getvalue())
+    et, by_id = ElementTree.XMLID(sio.getvalue())
     et.attrib['width'] = css_width
     del et.attrib['height']
+    for gid, tooltip in fig._gillcup_tooltips.items():
+        by_id[gid].attrib['class'] = 'tooltipped'
+        by_id[gid].attrib['title'] = tooltip
+    css = et.getchildren()[0][0]
+    css.text = css.text + """
+        .tooltipped:hover path {
+            stroke-width:10px;
+            stroke:#000088;
+        }"""
     return ElementTree.tostring(et, encoding="unicode")
 
 
@@ -530,7 +555,7 @@ def gallery_html(func, kwarg_variations=(0.5, 1.5), overshoots=0.5,
         """).format(
             overshoots=int(100 * (overshoots or 0)),
             svg=svg,
-            func_name=func.__name__,
+            func_name=f.__name__,
         ))
 
     result.append('<br style="clear:both;">')
