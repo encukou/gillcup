@@ -216,7 +216,7 @@ def normalized(func, *, default_kwargs=None):
         ...     '''Wiggly tween (to demonstrate @normalized)'''
         ...     return (t + 10) ** 2 + math.cos(t * 50)
 
-    If func(0) == func(1), :exc:`ZeroDivision` is raised.
+    If func(0) == func(1), :exc:`ZeroDivisionError` is raised.
     """
     if not default_kwargs:
         default_kwargs = {}
