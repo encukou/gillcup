@@ -262,7 +262,7 @@ def back(t, *, amount=1.70158):
 
 
 @_easing
-def bounce(t, *, amplitude=7.5625):
+def bounce(t, *, amplitude=1):
     """Bouncy easing"""
     if t == 1:
         return 1
@@ -276,7 +276,7 @@ def bounce(t, *, amplitude=7.5625):
         return 1 - amplitude * (1 - (7.5625 * t * t + .9375))
     else:
         t -= 21 / 22
-        return -amplitude * (1 - (7.5625 * t * t + .984375))
+        return 1 - amplitude * (1 - (7.5625 * t * t + .984375))
 
 
 def partial(func, **kwargs):
