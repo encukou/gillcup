@@ -179,7 +179,7 @@ def easing(func):
     return func
 
 
-def normalized(func):
+def normalized(func, *, default_kwargs=None):
     """Decorator that normalizes an easing function
 
     Normalizing is done so that func(0) == 0 and func(1) == 1.
@@ -193,16 +193,22 @@ def normalized(func):
         ...     return (t + 10) ** 2 + math.cos(t * 50)
 
     If func(0) == func(1), :exc:`ZeroDivision` is raised.
-
     """
-    minimum = func(0)
-    maximum = func(1)
-    if (minimum, maximum) == (0, 1):
-        return func
+    if not default_kwargs:
+        default_kwargs = {}
+
+    minimum = func(0, **default_kwargs)
+    maximum = func(1, **default_kwargs)
     scale = 1 / (maximum - minimum)
 
     def _normalized(t, **kwargs):
-        return (func(t, **kwargs) - minimum) * scale
+        if kwargs == default_kwargs:
+            return (func(t, **kwargs) - minimum) * scale
+        else:
+            i_minimum = func(0, **kwargs)
+            i_maximum = func(1, **kwargs)
+            i_scale = 1 / (i_maximum - i_minimum)
+            return (func(t, **kwargs) - i_minimum) * i_scale
     _wraps_easing(_normalized, func, None)
     _normalized.__doc__ = func.__doc__
 

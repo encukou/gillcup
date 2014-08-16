@@ -23,6 +23,8 @@ other_easings = collections.OrderedDict(
         (easings.back, dict(amount=2)),
         (easings.bounce, dict(amplitude=1.5)),
         (easings.bounce, dict(amplitude=2)),
+        (easings.expo, dict(exponent=2)),
+        (easings.expo, dict(exponent=50)),
     ])
 
 
