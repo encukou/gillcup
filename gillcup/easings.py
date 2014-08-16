@@ -108,7 +108,7 @@ standard_easings = {}
 def _wraps_easing(decorated, orig, postfix):
     decorated.__signature__ = inspect.signature(orig)
     if postfix:
-        postfix = '_' + postfix
+        postfix = '.' + postfix
     else:
         postfix = ''
     try:
@@ -165,6 +165,7 @@ def easing(func):
 
         >>> @easing
         ... def staircase(t, *, steps=5):
+        ...     '''Discontinuous tween (to demonstrate @easing)'''
         ...     return ((t * steps) // 1) / steps
 
     Functions decorated as an ``@easing`` will display as a graph
@@ -188,6 +189,7 @@ def normalized(func):
         >>> @easing
         ... @normalized
         ... def wiggly(t):
+        ...     '''Wiggly tween (to demonstrate @normalized)'''
         ...     return (t + 10) ** 2 + math.cos(t * 50)
 
     If func(0) == func(1), :exc:`ZeroDivision` is raised.
@@ -220,7 +222,7 @@ def partial(func, **kwargs):
         1.3...
 
     """
-    partl = functools.partial(func, **kwargs)
+    partl = functools.wraps(func)(functools.partial(func, **kwargs))
     partl.__name__ = '<{}:{}>'.format(
         func.__name__,
         ', '.join('{}={}'.format(k, v) for k, v in kwargs.items())
@@ -268,7 +270,7 @@ def cubic(t):
 def quart(t):
     r"""Quartic easing
 
-    .. math:: \mathrm{quart}(t) → t ^ 4
+    .. math:: \mathrm{quart}(t) = t ^ 4
     """
     return t ** 4
 
@@ -277,7 +279,7 @@ def quart(t):
 def quint(t):
     r"""Quintic easing
 
-    .. math:: \mathrm{quint}(t) → t ^ 5
+    .. math:: \mathrm{quint}(t) = t ^ 5
     """
     return t ** 5
 
@@ -354,7 +356,7 @@ def back(t, *, amount=1.70158):
     r"""Overshoot easing
 
     .. math:: \mathrm{back}(t, x) =
-              t^2 · (t(x + 1) - x)
+              t^2 (t(x + 1) - x)
 
     The default :token:`amount` results in 10% overshoot.
     """
