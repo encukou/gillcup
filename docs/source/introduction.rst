@@ -29,3 +29,4 @@ Design
    expressions
    properties
    signals
+   easings
