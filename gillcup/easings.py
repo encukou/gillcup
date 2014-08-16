@@ -24,17 +24,39 @@ Polynomial easing functions
 ...........................
 
 .. autofunction:: linear
+
+    .. easing_graph:: linear
+
 .. autofunction:: quad
+
+    .. easing_graph:: quad
+
 .. autofunction:: cubic
+
+    .. easing_graph:: cubic
+
 .. autofunction:: quart
+
+    .. easing_graph:: quart
+
 .. autofunction:: quint
+
+    .. easing_graph:: quint
 
 Other simple easing functions
 .............................
 
 .. autofunction:: sine
+
+    .. easing_graph:: sine
+
 .. autofunction:: expo
+
+    .. easing_graph:: expo
+
 .. autofunction:: circ
+
+    .. easing_graph:: circ
 
 Parametrizable easing functions
 ...............................
@@ -42,8 +64,16 @@ Parametrizable easing functions
 Use keyword arguments to override the defaults.
 
 .. autofunction:: elastic
+
+    .. easing_graph:: elastic
+
 .. autofunction:: back
+
+    .. easing_graph:: back
+
 .. autofunction:: bounce
+
+    .. easing_graph:: bounce
 
 .. note:: Use :func:`partial` to make easing
           functions with different parameters.
@@ -147,19 +177,6 @@ def easing(func):
     return func
 
 
-def partial(func, **kwargs):
-    """Combines :func:`functools.partial` and :func:`easing`.
-
-    For example, a large overshoot tween can be created as::
-
-        >>> from gillcup import easings
-        >>> large_overshoot = easings.partial(easings.back, amount=100)
-        >>> large_overshoot.out(0.9)
-        1.89...
-    """
-    return easing(functools.partial(func, **kwargs))
-
-
 def _easing(func):
     func = easing(func)
     easings[func.__name__] = func
@@ -260,3 +277,26 @@ def bounce(t, *, amplitude=7.5625):
     else:
         t -= 21 / 22
         return -amplitude * (1 - (7.5625 * t * t + .984375))
+
+
+def partial(func, **kwargs):
+    """Combines :func:`functools.partial` and :func:`easing`.
+
+    For example, a large overshoot tween can be created as::
+
+        >>> from gillcup import easings
+        >>> large_overshoot = easings.partial(easings.back, amount=4)
+        >>> large_overshoot.out(0.4)
+        1.3...
+
+    ..
+
+        .. easing_graph:: large_overshoot
+
+    """
+    partl = functools.partial(func, **kwargs)
+    partl.__name__ = '{}⟨{}⟩'.format(
+        func.__name__,
+        ', '.join('{}={}'.format(k, v) for k, v in kwargs.items())
+    )
+    return easing(partl)

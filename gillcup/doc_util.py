@@ -1,11 +1,16 @@
 # Private Sphinx extension for making special methods look better.
 # The parts that Gillcup uses should work...
 
+import io
+from xml.etree import ElementTree
+
 import sphinx.ext.autodoc
+from docutils import nodes
+from sphinx.util.compat import Directive
 
+from matplotlib import pyplot
 
-def setup(app):
-    app.add_autodocumenter(SpecialMethodDocumenter)
+from gillcup import easings
 
 
 class SpecialMethodDocumenter(sphinx.ext.autodoc.MethodDocumenter):
@@ -83,3 +88,84 @@ class SpecialMethodDocumenter(sphinx.ext.autodoc.MethodDocumenter):
                 self.add_line('', '<autodoc>')
                 self.add_line('   *a.k.a.* :token:`%s%s`' % (self.name, sig),
                               '<autodoc>')
+
+
+class easing_graph(nodes.General, nodes.Element):
+    pass
+
+
+class EasingGraph(Directive):
+    has_content = True
+    required_arguments = 0
+    optional_arguments = 0
+
+    def run(self):
+        node = easing_graph()
+        node['name'] = self.content[0]
+        return [node]
+
+
+def html_visit_easing_graph(self, node):
+    if node['name'] == 'large_overshoot':
+        func = easings.partial(easings.back, amount=4)
+    else:
+        func = easings.easings[node['name']]
+    overshoots = 0.4
+    pyplot.figure(figsize=(5, (1 + overshoots * 2) * 5))
+    xes = [n / 100 for n in range(101)]
+    attrnames = [None, 'out', 'in_out', 'out_in']
+    ref_plots = {n: [] for n in attrnames}
+    for name in ['linear', 'quint']:
+        otherfunc = easings.easings[name]
+        for attrname in attrnames:
+            if attrname:
+                f = getattr(otherfunc, attrname)
+            else:
+                f = otherfunc
+            ref_plots[attrname].append([f(n) for n in xes])
+    for attrname in attrnames:
+        self.body.append('<div style="width:24%;float:left;">')
+        self.body.append('<div style="text-align:center;'
+                         'margin-top:-{0}%;'
+                         'margin-bottom:-{0}%">'.format(int(100 * overshoots)))
+        if attrname:
+            f = getattr(func, attrname)
+            suffix = '.' + attrname
+        else:
+            f = func
+            suffix = ''
+        pyplot.cla()
+        pyplot.axis('off')
+        pyplot.ylim([-overshoots, 1 + overshoots])
+        for i in range(1, 10):
+            p = i / 10
+            pyplot.plot([p, p], [0, 1], color=[0, 0, 1., 0.05])
+            pyplot.plot([0, 1], [p, p], color=[0, 0, 1., 0.05])
+        for p in ref_plots[attrname]:
+            pyplot.plot(xes, p, color=[0, 0, 0, 0.1])
+        pyplot.plot([0, 1], [0, 0], 'k')
+        pyplot.plot([0, 1], [1, 1], 'k')
+        pyplot.plot([0, 0], [0, 1], 'k')
+        pyplot.plot([1, 1], [0, 1], 'k')
+        pyplot.plot(xes, [f(n) for n in xes])
+        sio = io.StringIO()
+        pyplot.savefig(sio, format='svg', transparent=True)
+        ElementTree.register_namespace('', "http://www.w3.org/2000/svg")
+        et = ElementTree.fromstring(sio.getvalue())
+        et.attrib['width'] = '100%'
+        del et.attrib['height']
+        self.body.append(ElementTree.tostring(et, encoding="unicode"))
+        self.body.append('</div>')
+        self.body.append('<div style="text-align:center;">')
+        self.body.append('&nbsp;{}{}&nbsp;'.format(func.__name__, suffix))
+        self.body.append('</div>')
+        self.body.append('</div>')
+    self.body.append('<br style="clear:both;">')
+    raise nodes.SkipNode
+
+
+def setup(app):
+    app.add_autodocumenter(SpecialMethodDocumenter)
+    app.add_node(easing_graph,
+                 html=(html_visit_easing_graph, None))
+    app.add_directive('easing_graph', EasingGraph)
