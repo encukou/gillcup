@@ -1,6 +1,11 @@
+import math
+
 import pytest
 
 from gillcup.animations import anim
+
+τ = math.pi * 2
+ε = 0.00000001
 
 
 def test_anim_basic(clock):
@@ -111,3 +116,35 @@ def test_anim_strength(clock, n):
     assert animation == 1 + n
     clock.advance_sync(1)
     assert animation == 1 + n * 2
+
+
+def test_easing_name(clock):
+    animation = anim(1, 3, 2, clock, easing='quad')
+    assert animation == 1
+    clock.advance_sync(1)
+    assert animation == 1.5
+    clock.advance_sync(1)
+    assert animation == 3
+    clock.advance_sync(1)
+    assert animation == 3
+
+
+def test_easing_func_infinite(clock):
+    animation = anim(1, 3, 2, clock, easing=math.sin, infinite=True)
+    assert abs(float(animation) - 1) < ε
+    clock.advance_sync(τ / 4)
+    assert abs(float(animation) - (1 + 2 / math.sqrt(2))) < ε
+    clock.advance_sync(τ / 4)
+    assert abs(float(animation) - 3) < ε
+    clock.advance_sync(τ / 4)
+    assert abs(float(animation) - (1 + 2 / math.sqrt(2))) < ε
+    clock.advance_sync(τ / 4)
+    assert abs(float(animation) - 1) < ε
+    clock.advance_sync(τ / 4)
+    assert abs(float(animation) - (1 - 2 / math.sqrt(2))) < ε
+    clock.advance_sync(τ / 4)
+    assert abs(float(animation) - -1) < ε
+    clock.advance_sync(τ / 4)
+    assert abs(float(animation) - (1 - 2 / math.sqrt(2))) < ε
+    clock.advance_sync(τ / 4)
+    assert abs(float(animation) - 1) < ε

@@ -8,10 +8,12 @@ Reference
 
 """
 
-from gillcup.expressions import Interpolation, Progress
+from gillcup.expressions import Interpolation, Progress, Elementwise
+from gillcup import easings
 
 
-def anim(start, end, duration, clock, *, delay=0, infinite=False, strength=1):
+def anim(start, end, duration, clock, *,
+         delay=0, easing=None, infinite=False, strength=1):
     """Create an animated expression
 
     Returns an expression that morphs between :token:`start` and :token:`end`
@@ -40,6 +42,12 @@ def anim(start, end, duration, clock, *, delay=0, infinite=False, strength=1):
     :param clock: The :class:`~gillcup.clock.Clock` that controls the
                   animation's time
     :param delay: Time from now at which the animation starts
+    :param easing: An easing to apply. This should be a pure function.
+                   The value is passed to
+                   :func:`easings.get <gillcup.easings.get>`, so it can
+                   be a string naming one of the standard easings.
+
+                   None specifies an identity funcion (i.e. linear easing).
     :param infinite: If false, the animation starts at :token:`delay` time
                      units after :func:`anim` is called,
                      and ends :token:`duration` time units after it starts.
@@ -58,4 +66,7 @@ def anim(start, end, duration, clock, *, delay=0, infinite=False, strength=1):
         duration = -duration
         delay -= duration
     progress = Progress(clock, duration, delay=delay, clamp=not infinite)
+    if easing:
+        easing_func = easings.get(easing)
+        progress = Elementwise(progress, easing_func)
     return Interpolation(start, end, progress * strength)
