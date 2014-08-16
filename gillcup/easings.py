@@ -14,11 +14,12 @@ The ease-in is also available in **in_**. For example,
 Reference
 ---------
 
+.. autofunction:: get
+
 .. attribute:: standard_easings
 
     A dictionary mapping the names of built-in easings to the corresponding
     functions
-
 
 Power easing functions
 ......................
@@ -107,6 +108,22 @@ tau = math.pi * 2
 
 
 standard_easings = {}
+
+
+def get(key):
+    """Look up an easing function
+
+    If :token:`key` is a string, it will be looked up
+    in the :data:`standard_easings`.
+    The key can be e.g. ``quad``, ``expo.out``, or ``bounce.in_out``.
+
+    If :token:`key` is callable, it is simply returned.
+    """
+    if isinstance(key, str):
+        return standard_easings[key]
+    if callable(key):
+        return key
+    raise LookupError(key)
 
 
 def _wraps_easing(decorated, orig, postfix):
@@ -226,8 +243,7 @@ def partial(func, **kwargs):
 
     .. easing_graph:: large_overshoot
 
-        >>> from gillcup import easings
-        >>> large_overshoot = easings.partial(easings.back, amount=4)
+        >>> large_overshoot = partial(back, amount=4)
         >>> large_overshoot.out(0.4)
         1.3...
 
@@ -426,8 +442,8 @@ def plot(func, *, overshoots=None, figsize=5, sampling_frequency=110,
 
     Requires numpy and matplotlib installed.
 
-    :param func: The function to plot,
-                 or a string which is looked up in :data:`known_easings`
+    :param func: The function to plot. Looked up by :func:`get`, so it can
+                 be a name of one of the standard easings.
     :param overshoots: Extra vertical space for the graph; None means automatic
     :param figsize: Size of the figure
     :param sampling_frequency:
@@ -502,8 +518,7 @@ def plot(func, *, overshoots=None, figsize=5, sampling_frequency=110,
 
 @functools.lru_cache()
 def _get_points(func, xes):
-    if isinstance(func, str):
-        func = standard_easings[func]
+    func = get(func)
     return [func(x) for x in xes]
 
 
@@ -545,10 +560,11 @@ def gallery_html(func, kwarg_variations=(0.5, 1.5), overshoots=0.5,
     Returns an Unicode string with the SVG file.
 
     See :func:`plot` for the arguments and dependencies.
-    For gallery_html, :token:`func` may not be a string,
-    and :token:`reference` is not currently customizable.
+    For gallery_html, :token:`reference` is not currently customizable.
     """
     import markupsafe
+
+    func = get(func)
 
     result = []
 
