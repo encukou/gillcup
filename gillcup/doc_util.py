@@ -2,14 +2,15 @@
 # The parts that Gillcup uses should work...
 
 import io
+import math
 import inspect
 from xml.etree import ElementTree
 
 import sphinx.ext.autodoc
 from docutils import nodes
 from sphinx.util.compat import Directive
-
 from matplotlib import pyplot
+import numpy
 
 from gillcup import easings
 
@@ -107,13 +108,32 @@ class EasingGraph(Directive):
 
 
 def html_visit_easing_graph(self, node):
+    print(node['name'], '  ', end='\r')
     if node['name'] == 'large_overshoot':
         func = easings.partial(easings.back, amount=4)
+    elif node['name'] == 'staircase':
+
+        @easings.easing
+        def staircase(t, *, steps=5):
+            return ((t * steps) // 1) / steps
+
+        func = staircase
+    elif node['name'] == 'wiggly':
+
+        @easings.easing
+        @easings.normalized
+        def wiggly(t):
+            return (t + 10) ** 2 + math.cos(t * 50)
+
+        func = wiggly
     else:
         func = easings.easings[node['name']]
     overshoots = 0.5
-    pyplot.figure(figsize=(5, (1 + overshoots * 2) * 5))
-    xes = [n / 100 for n in range(101)]
+    figsize = 4
+    pyplot.figure(figsize=(figsize, (1 + overshoots * 2) * figsize))
+    # The discontinuities in `bounce` are at k/11, so make the sampling
+    # interval 1/(K*11). Choose K=10, for interval 1/110
+    xes = numpy.array([n / 110 for n in range(111)])
     attrnames = [None, 'out', 'in_out', 'out_in']
     ref_plots = {n: [] for n in attrnames}
     for name in ['linear', 'quint']:
@@ -123,7 +143,7 @@ def html_visit_easing_graph(self, node):
                 f = getattr(otherfunc, attrname)
             else:
                 f = otherfunc
-            ref_plots[attrname].append([f(n) for n in xes])
+            ref_plots[attrname].append(numpy.array([f(n) for n in xes]))
     for attrname in attrnames:
         self.body.append('<div style="width:24%;float:left;">')
         self.body.append('<div style="text-align:center;'
@@ -138,17 +158,18 @@ def html_visit_easing_graph(self, node):
         pyplot.cla()
         pyplot.axis('off')
         pyplot.ylim([-overshoots, 1 + overshoots])
+        pyplot.gca().fill_between(xes, *ref_plots[attrname],
+                                  facecolor=[0, 0.01, 0, 0.05],
+                                  linewidth=0.0)
         for i in range(1, 10):
             p = i / 10
-            pyplot.plot([p, p], [0, 1], color=[0, 0, 1., 0.05])
-            pyplot.plot([0, 1], [p, p], color=[0, 0, 1., 0.05])
-        for p in ref_plots[attrname]:
-            pyplot.plot(xes, p, color=[0, 0, 0, 0.1])
+            pyplot.plot([p, p], [0, 1], color=[0.9, 0.9, 0.9])
+            pyplot.plot([0, 1], [p, p], color=[0.9, 0.9, 0.9])
         pyplot.plot([0, 1], [0, 0], 'k')
         pyplot.plot([0, 1], [1, 1], 'k')
         pyplot.plot([0, 0], [0, 1], 'k')
         pyplot.plot([1, 1], [0, 1], 'k')
-        pyplot.plot(xes, [f(n) for n in xes])
+        pyplot.plot(xes, [f(n) for n in xes], 'b')
         for arg in inspect.signature(f).parameters.values():
             if arg.kind == inspect.Parameter.KEYWORD_ONLY:
                 pyplot.plot(
@@ -162,6 +183,7 @@ def html_visit_easing_graph(self, node):
         sio = io.StringIO()
         pyplot.savefig(sio, format='svg', transparent=True)
         ElementTree.register_namespace('', "http://www.w3.org/2000/svg")
+        ElementTree.register_namespace('xlink', 'http://www.w3.org/1999/xlink')
         et = ElementTree.fromstring(sio.getvalue())
         et.attrib['width'] = '100%'
         del et.attrib['height']

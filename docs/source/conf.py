@@ -36,6 +36,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.coverage',
     'sphinx.ext.viewcode',
+    'sphinx.ext.mathjax',
     'gillcup.doc_util',
 ]
 
