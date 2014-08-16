@@ -14,7 +14,7 @@ The ease-in is also available in **in_**. For example,
 Reference
 ---------
 
-.. attribute:: easings
+.. attribute:: standard_easings
 
     A dictionary mapping the names of built-in easings to the corresponding
     functions
@@ -85,13 +85,16 @@ Helpers for creating new easing functions
 .. autofunction:: normalized
 .. autofunction:: partial
 
+Presentation helpers
+....................
 
-.. autofunction:: ease_out
-.. autofunction:: ease_in_out
-.. autofunction:: ease_out_in
-.. autofunction:: ease_in
+.. autofunction:: plot
+.. autofunction:: format_svg
+.. autofunction:: gallery_html
+
 """
 
+import io
 import functools
 import math
 import inspect
@@ -99,10 +102,10 @@ import inspect
 tau = math.pi * 2
 
 
-easings = {}
+standard_easings = {}
 
 
-def _wraps(decorated, orig, postfix):
+def _wraps_easing(decorated, orig, postfix):
     decorated.__signature__ = inspect.signature(orig)
     if postfix:
         postfix = '_' + postfix
@@ -112,38 +115,43 @@ def _wraps(decorated, orig, postfix):
         decorated.__name__ = str(orig.__name__ + postfix)
     except AttributeError:
         pass
+    decorated._repr_svg_ = lambda: format_svg(decorated)
     return decorated
 
 
-def ease_out(func):
+def _ease_out(func):
     """Given an "in" easing function, return corresponding "out" function"""
     def _ease_out(t, **kwargs):
         return 1 - func(1 - t, **kwargs)
-    return _wraps(_ease_out, func, 'out')
+    return _wraps_easing(_ease_out, func, 'out')
 
 
-def ease_out_in(func):
+def _ease_out_in(func):
     """Given an "in" easing function, return corresponding "out-in" function"""
     def _ease_out_in(t, **kwargs):
         if t < 0.5:
             return (1 - func(1 - 2 * t, **kwargs)) / 2
         else:
             return func(2 * (t - .5), **kwargs) / 2 + .5
-    return _wraps(_ease_out_in, func, 'out_in')
+    return _wraps_easing(_ease_out_in, func, 'out_in')
 
 
-def ease_in_out(func):
+def _ease_in_out(func):
     """Given an "in" easing function, return corresponding "in-out" function"""
     def _ease_in_out(t, **kwargs):
         if t < 0.5:
             return func(2 * t, **kwargs) / 2
         else:
             return 1 - func(1 - 2 * (t - .5), **kwargs) / 2
-    return _wraps(_ease_in_out, func, 'in_out')
+    return _wraps_easing(_ease_in_out, func, 'in_out')
 
 
-def ease_in(func):
-    """Return :token:`func` itself. Included for symmetry."""
+def _ease_in(func):
+    """Create an "in" easing function. Adds presentation-related attributes.
+
+    Note that :token:`func` is modified in-place.
+    """
+    func._repr_svg_ = lambda: format_svg(func)
     return func
 
 
@@ -159,11 +167,14 @@ def easing(func):
         ... def staircase(t, *, steps=5):
         ...     return ((t * steps) // 1) / steps
 
+    Functions decorated as an ``@easing`` will display as a graph
+    when printed out in IPython Notebook.
+
     """
-    func.in_ = func
-    func.out = ease_out(func)
-    func.in_out = ease_in_out(func)
-    func.out_in = ease_out_in(func)
+    func.in_ = _ease_in(func)
+    func.out = _ease_out(func)
+    func.in_out = _ease_in_out(func)
+    func.out_in = _ease_out_in(func)
     return func
 
 
@@ -190,7 +201,7 @@ def normalized(func):
 
     def _normalized(t, **kwargs):
         return (func(t, **kwargs) - minimum) * scale
-    _wraps(_normalized, func, None)
+    _wraps_easing(_normalized, func, None)
     _normalized.__doc__ = func.__doc__
 
     return _normalized
@@ -219,7 +230,10 @@ def partial(func, **kwargs):
 
 def _easing(func):
     func = easing(func)
-    easings[func.__name__] = func
+    standard_easings[func.__name__] = func
+    for variant in ['in_', 'out', 'in_out', 'out_in']:
+        name = '{}.{}'.format(func.__name__, variant)
+        standard_easings[name] = getattr(func, variant)
     return func
 
 
@@ -380,3 +394,142 @@ def bounce(t, *, amplitude=1):
         return 1 - amplitude * (1 - 121 / 16 * t * t - 63 / 64)
     else:
         return 1
+
+
+def plot(func, *, overshoots=None, figsize=5, sampling_frequency=110,
+         reference=None, grid_frequency=10, kwarg_variations=None):
+    """Plot an easing function using matplotlib
+
+    Requires numpy and matplotlib installed.
+
+    :param func: The function to plot,
+                 or a string which is looked up in :data:`known_easings`
+    :param overshoots: Extra vertical space for the graph; None means automatic
+    :param figsize: Size of the figure
+    :param sampling_frequency:
+        Sampling frequency to use.
+        The default is divisible by 11 to show the discontinuities
+        of :func:`bounce`.
+    :param reference: Two easing functions to show as reference, or None
+    :param grid_frequency: Frequency of grid lines, or None for no grid
+    :param kwarg_variations: For every keyword argument of the function,
+                             extra graphs are drawn with that argument
+                             multiplied by each variation factor
+
+    Returns a pyplot graph. Use its ``show()`` method to show it,
+    or ``savefig(filename)`` to save.
+    See `pyplot docs`_ for more info.
+
+    .. _pyplot docs: http://matplotlib.org/contents.html
+    """
+    from matplotlib import pyplot
+    import numpy
+
+    fig = pyplot.figure(figsize=(figsize,
+                                 (1 + (overshoots or 0) * 2) * figsize))
+    fig.set_canvas(pyplot.gcf().canvas)
+    ax = fig.add_subplot(111)
+    ax.axis('off')
+    ax.set_xlim([0, 1])
+    if overshoots is not None:
+        ax.set_ylim([-overshoots, 1 + overshoots])
+    xes = tuple(n / sampling_frequency for n in range(sampling_frequency + 1))
+
+    if reference:
+        ref1, ref2 = [numpy.array(_get_points(n, xes))
+                      for n in reference]
+        ax.fill_between(xes, ref1, ref2,
+                        facecolor=[0, 0.01, 0, 0.05],
+                        linewidth=0.0)
+    if grid_frequency:
+        for i in list(range(grid_frequency + 1)) + [0]:
+            p = i / grid_frequency
+            color = 'k' if p in (0, 1) else [0.9, 0.9, 0.9]
+            ax.plot([p, p], [0, 1], color=color)
+            ax.plot([0, 1], [p, p], color=color)
+    ax.plot(xes, _get_points(func, xes), 'b')
+    if kwarg_variations:
+        for arg in inspect.signature(func).parameters.values():
+            if arg.kind == inspect.Parameter.KEYWORD_ONLY:
+                for variation_factor in kwarg_variations:
+                    value = arg.default * variation_factor
+                    part = partial(func, **{arg.name: value})
+                    ax.plot(xes, _get_points(part, xes), color=[0, 0, 1, 0.2])
+
+    pyplot.close(fig)
+    return fig
+
+
+@functools.lru_cache()
+def _get_points(func, xes):
+    if isinstance(func, str):
+        func = standard_easings[func]
+    return [func(x) for x in xes]
+
+
+def format_svg(func, css_width="13em", **kwargs):
+    """Plot an easing function as an SVG file.
+
+    Returns an Unicode string.
+
+    See :func:`plot` for arguments and dependencies.
+    """
+    from xml.etree import ElementTree
+
+    fig = plot(func, **kwargs)
+    sio = io.StringIO()
+    fig.savefig(sio, format='svg', transparent=True)
+    ElementTree.register_namespace('', "http://www.w3.org/2000/svg")
+    ElementTree.register_namespace('xlink', 'http://www.w3.org/1999/xlink')
+    et = ElementTree.fromstring(sio.getvalue())
+    et.attrib['width'] = css_width
+    del et.attrib['height']
+    return ElementTree.tostring(et, encoding="unicode")
+
+
+def gallery_html(func, kwarg_variations=(0.5, 1.5), overshoots=0.5,
+                 css_width='100%', **kwargs):
+    """Format a family of easing functions as a HTML gallery of inline SVGs.
+
+    :token:`func` is a function that was decorated with :func:`easing`.
+
+    Returns an Unicode string with the SVG file.
+
+    See :func:`plot` for the arguments and dependencies.
+    For gallery_html, :token:`func` may not be a string,
+    and :token:`reference` is not currently customizable.
+    """
+    import markupsafe
+
+    result = []
+
+    for attrname in ['in_', 'out', 'in_out', 'out_in']:
+        f = getattr(func, attrname)
+
+        reference = ('linear.' + attrname, 'quint.' + attrname)
+        svg = markupsafe.Markup(format_svg(f,
+                                           reference=reference,
+                                           overshoots=overshoots,
+                                           css_width=css_width,
+                                           kwarg_variations=kwarg_variations,
+                                           **kwargs))
+
+        result.append(markupsafe.Markup("""
+            <div style="width:24%;float:left;">
+                <div style="text-align:center;
+                            margin-top:-{overshoots}%;
+                            margin-bottom:-{overshoots}%">
+                    {svg}
+                </div>
+                <div style="text-align:center;">
+                    &nbsp;{func_name}&nbsp;
+                </div>
+            </div>
+        """).format(
+            overshoots=int(100 * (overshoots or 0)),
+            svg=svg,
+            func_name=func.__name__,
+        ))
+
+    result.append('<br style="clear:both;">')
+    return '\n'.join(result)

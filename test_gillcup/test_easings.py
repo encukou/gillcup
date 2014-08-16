@@ -26,9 +26,13 @@ other_easings = collections.OrderedDict(
     ])
 
 
+std_easing_names = [n for n in easings.standard_easings if '.' not in n]
+
+
 @pytest.fixture(
-    params=list(easings.easings.values()) + list(other_easings.values()),
-    ids=list(easings.easings.keys()) + list(other_easings.keys()),
+    params=([easings.standard_easings[n] for n in std_easing_names] +
+            list(other_easings.values())),
+    ids=std_easing_names + list(other_easings.keys()),
 )
 def easing(request):
     return request.param
