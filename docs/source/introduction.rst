@@ -30,3 +30,4 @@ Design
    properties
    signals
    animations
+   easings

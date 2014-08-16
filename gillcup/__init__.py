@@ -9,6 +9,8 @@ Gillcup comprises several related modules:
     are used as properties of objects.
 *   The :mod:`~gillcup.signals` provide notifications.
 *   The :mod:`~gillcup.animations` provide higher-level animation tools.
+*   The :mod:`~gillcup.easings` module contains tweening functions
+    to spice up motion.
 
 """
 import asyncio

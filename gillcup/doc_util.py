@@ -1,11 +1,13 @@
-# Private Sphinx extension for making special methods look better.
+# Private Sphinx extension.
 # The parts that Gillcup uses should work...
 
+import io
+
 import sphinx.ext.autodoc
+from docutils import nodes
+from sphinx.util.compat import Directive
 
-
-def setup(app):
-    app.add_autodocumenter(SpecialMethodDocumenter)
+from gillcup import easings
 
 
 class SpecialMethodDocumenter(sphinx.ext.autodoc.MethodDocumenter):
@@ -83,3 +85,119 @@ class SpecialMethodDocumenter(sphinx.ext.autodoc.MethodDocumenter):
                 self.add_line('', '<autodoc>')
                 self.add_line('   *a.k.a.* :token:`%s%s`' % (self.name, sig),
                               '<autodoc>')
+
+
+class easing_graph(nodes.General, nodes.Element):
+    pass
+
+
+class EasingGraph(Directive):
+    has_content = True
+    required_arguments = 0
+    optional_arguments = 0
+
+    def run(self):
+        node = easing_graph()
+        node['name'] = self.content[0]
+        content = self.content[1:]
+        node['content'] = '\n'.join(content)
+        node['code'] = '\n'.join(l[4:] for l in content
+                                 if l.startswith(('>>> ', '... ')))
+
+        if node['content']:
+            code_node = nodes.literal_block(node['content'], node['content'])
+            code_node['language'] = 'py3'
+            code_node['linenos'] = False
+            node.children = [code_node]
+        return [node]
+
+
+def eg_leave_factory(gallery_factory, **kwargs):
+    def leave_easing_graph(self, node):
+        print(node['name'], '  ', end='\r')
+        if node['code']:
+            environ = {n: getattr(easings, n) for n in dir(easings)}
+            exec(node['code'], environ)
+            func = environ[node['name']]
+        else:
+            func = easings.standard_easings[node['name']]
+        self.body.append(gallery_factory(func, **kwargs))
+        return []
+    return leave_easing_graph
+
+
+def noop_visit(self, node):
+    return []
+
+
+def gallery_latex(func, kwarg_variations=(0.5, 1.5), overshoots=0.5,
+                  css_width='100%', caption=None, **kwargs):
+    """Format a family of easing functions as a LaTEX/TikZ snippet.
+
+    Turns out it's not very easy to get just the pgf commands
+    out of matplotlib, so this thing uses some magic :(
+    """
+
+    from matplotlib.backends.backend_pgf import RendererPgf, RendererBase
+
+    class Renderer(RendererPgf):
+        def __init__(self, figure, fh):
+            RendererBase.__init__(self)
+            self.dpi = figure.dpi
+            self.fh = fh
+            self.figure = figure
+            self.image_counter = 0
+
+    result = []
+
+    result.append(r"""
+        \begin{figure}[h]
+    """.strip())
+
+    for attrname in ['in_', 'out', 'in_out', 'out_in']:
+        f = getattr(func, attrname)
+
+        reference = ('linear.' + attrname, 'quint.' + attrname)
+        fig = easings.plot(f,
+                           reference=reference,
+                           kwarg_variations=kwarg_variations,
+                           **kwargs)
+        sio = io.StringIO()
+
+        fig.draw(Renderer(fig, sio))
+
+        result.append(r"""
+            \begin{subfigure}[b]{0.2\textwidth}
+                \makeatletter
+                \begin{tikzpicture}[scale=\textwidth/5in]
+                    %(pgf)s
+                \end{tikzpicture}
+                \makeatother
+                \caption{%(func_name)s}
+            \end{subfigure}
+            \hfill
+        """.strip() % dict(
+            pgf=sio.getvalue().strip(),
+            func_name=f.__name__.replace('_', r'\_'),
+        ))
+
+    caption = (caption or
+               (func.__doc__ or '').partition('\n')[0].partition(':')[0] or
+               func.__name__)
+
+    result.append(r"""
+        \caption{%(caption)s}
+        \end{figure}
+    """.strip() % {'caption': caption})
+
+    return '\n'.join(result)
+
+
+def setup(app):
+    app.add_autodocumenter(SpecialMethodDocumenter)
+    app.add_node(
+        easing_graph,
+        html=(noop_visit, eg_leave_factory(easings.gallery_html)),
+        latex=(noop_visit, eg_leave_factory(gallery_latex)),
+    )
+    app.add_directive('easing_graph', EasingGraph)

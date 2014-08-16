@@ -36,6 +36,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.coverage',
     'sphinx.ext.viewcode',
+    'sphinx.ext.mathjax',
     'gillcup.doc_util',
 ]
 
@@ -198,7 +199,11 @@ latex_elements = {
 #'pointsize': '10pt',
 
 # Additional stuff for the LaTeX preamble.
-#'preamble': '',
+'preamble': '''
+    \usepackage{tikz}
+    \usepackage{fontspec}
+    \usepackage{subcaption}
+    ''',
 }
 
 # Grouping the document tree into LaTeX files. List of tuples
