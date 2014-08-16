@@ -20,8 +20,8 @@ Reference
     functions
 
 
-Polynomial easing functions
-...........................
+Power easing functions
+......................
 
 .. autofunction:: linear
 
@@ -62,6 +62,10 @@ Use keyword arguments to override the defaults.
 .. autofunction:: expo
 
     .. easing_graph:: expo
+
+.. autofunction:: power
+
+    .. easing_graph:: power
 
 .. autofunction:: elastic
 
@@ -288,6 +292,18 @@ def quint(t):
     .. math:: \mathrm{quint}(t) = t ^ 5
     """
     return t ** 5
+
+
+@_easing
+def power(t, *, exponent=2):
+    r"""Power interpolation
+
+    .. math:: \mathrm{power}(t, r) = t ^ r
+
+    The :func:`linear`, :func:`quad`, :func:`cubic`, :func:`quart` and
+    :func:`quint` are special cases of this.
+    """
+    return t ** exponent
 
 
 @_easing
