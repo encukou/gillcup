@@ -8,9 +8,9 @@ from gillcup import easings
 
 other_easings = collections.OrderedDict(
     ('{name}({args})'.format(
-        name=func.__name__,
+        name=easing.__name__,
         args=', '.join('{}={}'.format(*item) for item in args.items())),
-     easings.partial(func, **args)) for func, args in [
+     easing.parametrized(**args)) for easing, args in [
         (easings.elastic, dict(period=0.1)),
         (easings.elastic, dict(amplitude=0.5, period=0.1)),
         (easings.elastic, dict(amplitude=2, period=0.1)),

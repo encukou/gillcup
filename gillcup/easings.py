@@ -27,34 +27,34 @@ Reference
 Power easing functions
 ......................
 
-.. autofunction:: linear
+.. autofunction:: linear(t)
 
     .. easing_graph:: linear
 
-.. autofunction:: quad
+.. autofunction:: quad(t)
 
     .. easing_graph:: quad
 
-.. autofunction:: cubic
+.. autofunction:: cubic(t)
 
     .. easing_graph:: cubic
 
-.. autofunction:: quart
+.. autofunction:: quart(t)
 
     .. easing_graph:: quart
 
-.. autofunction:: quint
+.. autofunction:: quint(t)
 
     .. easing_graph:: quint
 
 Other simple easing functions
 .............................
 
-.. autofunction:: sine
+.. autofunction:: sine(t)
 
     .. easing_graph:: sine
 
-.. autofunction:: circ
+.. autofunction:: circ(t)
 
     .. easing_graph:: circ
 
@@ -63,39 +63,35 @@ Parametrized easing functions
 
 Use keyword arguments to override the defaults.
 
-.. autofunction:: expo
+.. ::
+    .. autofunction:: expo(t)
 
-    .. easing_graph:: expo
+        .. easing_graph:: expo
 
-.. autofunction:: power
+.. autofunction:: power(t)
 
     .. easing_graph:: power
 
-.. autofunction:: elastic
+.. autofunction:: elastic(t)
 
     .. easing_graph:: elastic
 
-.. autofunction:: back
+.. autofunction:: back(t)
 
     .. easing_graph:: back
 
-.. autofunction:: bounce
+.. autofunction:: bounce(t)
 
     .. easing_graph:: bounce
 
-.. autofunction:: cubic_bezier
+.. autofunction:: cubic_bezier(t)
 
     .. easing_graph:: cubic_bezier
-
-.. note:: Use :func:`partial` to make easing
-          functions with different parameters.
 
 Helpers for creating new easing functions
 .........................................
 
 .. autofunction:: easing
-.. autofunction:: normalized
-.. autofunction:: partial
 
 Presentation helpers
 ....................
@@ -110,6 +106,8 @@ import io
 import functools
 import math
 import inspect
+
+from gillcup.util.decorator import reify
 
 tau = math.pi * 2  # http://www.tauday.com/
 
@@ -133,54 +131,125 @@ def get(key):
     raise LookupError(key)
 
 
-def _wraps_easing(decorated, orig, postfix):
-    decorated.__signature__ = inspect.signature(orig)
-    if postfix:
-        postfix = '.' + postfix
-    else:
-        postfix = ''
-    try:
-        decorated.__name__ = str(orig.__name__ + postfix)
-    except AttributeError:
-        pass
-    decorated._repr_svg_ = lambda: format_svg(decorated)
-    return decorated
-
-
-def _ease_out(func):
-    """Given an "in" easing function, return corresponding "out" function"""
+def _ease_out_func(func):
     def _ease_out(t, **kwargs):
         return 1 - func(1 - t, **kwargs)
-    return _wraps_easing(_ease_out, func, 'out')
+    return _ease_out
 
 
-def _ease_out_in(func):
-    """Given an "in" easing function, return corresponding "out-in" function"""
-    def _ease_out_in(t, **kwargs):
-        if t < 0.5:
-            return (1 - func(1 - 2 * t, **kwargs)) / 2
-        else:
-            return func(2 * (t - .5), **kwargs) / 2 + .5
-    return _wraps_easing(_ease_out_in, func, 'out_in')
-
-
-def _ease_in_out(func):
-    """Given an "in" easing function, return corresponding "in-out" function"""
+def _ease_in_out_func(func):
     def _ease_in_out(t, **kwargs):
         if t < 0.5:
             return func(2 * t, **kwargs) / 2
         else:
             return 1 - func(1 - 2 * (t - .5), **kwargs) / 2
-    return _wraps_easing(_ease_in_out, func, 'in_out')
+    return _ease_in_out
 
 
-def _ease_in(func):
-    """Create an "in" easing function. Adds presentation-related attributes.
+def _ease_out_in_func(func):
+    def _ease_out_in(t, **kwargs):
+        if t < 0.5:
+            return (1 - func(1 - 2 * t, **kwargs)) / 2
+        else:
+            return func(2 * (t - .5), **kwargs) / 2 + .5
+    return _ease_out_in
 
-    Note that :token:`func` is modified in-place.
-    """
-    func._repr_svg_ = lambda: format_svg(func)
-    return func
+
+def _normalize(func):
+    start_value = func(0)
+    stop_value = func(1)
+    if start_value == stop_value:
+        raise ValueError(
+            'bad easing function: f(0) == f(1) == %s' % start_value)
+    if (abs(start_value - 0) > 0.0000001 or
+            abs(stop_value - 1) > 0.0000001):
+        scale = 1 / (stop_value - start_value)
+        denorm_func = func
+
+        def _normalized(t):
+            return (denorm_func(t) - start_value) * scale
+
+        return _normalized
+    else:
+        return func
+
+
+class _Easing:
+    def __init__(self, func, *, filters=(_normalize,), kwargs=None):
+        orig_func = func
+        if kwargs:
+            func = functools.partial(func, **kwargs)
+        kwargs = kwargs or {}
+        for filt in filters:
+            func = filt(func)
+        self.filters = filters
+        self.orig_func = orig_func
+        self.func = func
+        self.kwargs = kwargs
+
+        name_parts = [orig_func.__name__]
+        if kwargs:
+            name_parts.append('.p(')
+            name_parts.append(', '.join('{}={}'.format(*i)
+                                        for i in kwargs.items()))
+            name_parts.append(')')
+        self.__name__ = ''.join(name_parts)
+
+        self.__doc__ = self.orig_func.__doc__
+
+    def __repr__(self):
+        r = ('<{mod}.{qn}: t → {fmod}.{fqn}(t, {kwa}), at 0x{id:x}>')
+        return r.format(
+            mod=self.__module__,
+            qn=type(self).__qualname__,
+            fmod=self.orig_func.__module__,
+            fqn=self.orig_func.__qualname__,
+            kwa=', '.join('{}={}'.format(*i) for i in self.kwargs.items()),
+            id=id(self),
+        )
+
+    def __call__(self, t):
+        return self.func(t)
+
+    @reify
+    def in_(self):
+        return self
+
+    @reify
+    def out(self):
+        rval = _Easing(self.orig_func, kwargs=self.kwargs,
+                       filters=self.filters + (_ease_out_func,))
+        rval.out = self
+        return rval
+
+    @reify
+    def in_out(self):
+        return _Easing(self.orig_func, kwargs=self.kwargs,
+                       filters=self.filters + (_ease_in_out_func,))
+
+    @reify
+    def out_in(self):
+        return _Easing(self.orig_func, kwargs=self.kwargs,
+                       filters=self.filters + (_ease_out_in_func,))
+
+    def _repr_svg_(self):
+        return format_svg(self)
+
+    def parametrized(self, **kwargs):
+        """Returns an easing with new parameters
+
+        For example, a large overshoot tween can be created as:
+
+        .. easing_graph:: large_overshoot
+
+            >>> large_overshoot = back.parametrized(amount=4)
+            >>> large_overshoot.out(0.4)
+            1.3...
+
+        """
+        new_kwargs = dict(self.kwargs)
+        new_kwargs.update(kwargs)
+        return _Easing(self.orig_func, kwargs=new_kwargs)
 
 
 def easing(func):
@@ -192,7 +261,7 @@ def easing(func):
     .. easing_graph:: staircase
 
         >>> @easing
-        ... def staircase(t, *, steps=5):
+        ... def staircase(t, steps=5):
         ...     '''Discontinuous tween (to demonstrate @easing)'''
         ...     return ((t * steps) // 1) / steps
 
@@ -200,75 +269,10 @@ def easing(func):
     when printed out in IPython Notebook.
 
     """
-    func.in_ = _ease_in(func)
-    func.out = _ease_out(func)
-    func.in_out = _ease_in_out(func)
-    func.out_in = _ease_out_in(func)
-    return func
+    return _Easing(func)
 
 
-def normalized(func, *, default_kwargs=None):
-    """Decorator that normalizes an easing function
-
-    Normalizing is done so that func(0) == 0 and func(1) == 1.
-
-    .. easing_graph:: wiggly
-
-        >>> @easing
-        ... @normalized
-        ... def wiggly(t):
-        ...     '''Wiggly tween (to demonstrate @normalized)'''
-        ...     return (t + 10) ** 2 + math.cos(t * 50)
-
-    If func(0) == func(1), :exc:`ZeroDivisionError` is raised.
-    """
-    if not default_kwargs:
-        default_kwargs = {}
-
-    minimum = func(0, **default_kwargs)
-    maximum = func(1, **default_kwargs)
-    scale = 1 / (maximum - minimum)
-
-    def _normalized(t, **kwargs):
-        if kwargs == default_kwargs:
-            return (func(t, **kwargs) - minimum) * scale
-        else:
-            i_minimum = func(0, **kwargs)
-            i_maximum = func(1, **kwargs)
-            i_scale = 1 / (i_maximum - i_minimum)
-            return (func(t, **kwargs) - i_minimum) * i_scale
-    _wraps_easing(_normalized, func, None)
-    _normalized.__doc__ = func.__doc__
-
-    return _normalized
-
-
-def partial(func, **kwargs):
-    """Combines :func:`functools.partial` and :func:`easing`.
-
-    For example, a large overshoot tween can be created as:
-
-    .. easing_graph:: large_overshoot
-
-        >>> large_overshoot = partial(back, amount=4)
-        >>> large_overshoot.out(0.4)
-        1.3...
-
-    """
-    partl = functools.wraps(func)(functools.partial(func, **kwargs))
-    old_signature = inspect.signature(func)
-    partl.__signature__ = old_signature.replace(parameters=[
-        p.replace(default=kwargs[name]) if name in kwargs else p
-        for name, p in old_signature.parameters.items()
-    ])
-    partl.__name__ = '<{}:{}>'.format(
-        func.__name__,
-        ', '.join('{}={}'.format(k, v) for k, v in kwargs.items())
-    )
-    return easing(partl)
-
-
-def _easing(func):
+def _easing(func=None):
     func = easing(func)
     standard_easings[func.__name__] = func
     for variant in ['in_', 'out', 'in_out', 'out_in']:
@@ -323,7 +327,7 @@ def quint(t):
 
 
 @_easing
-def power(t, *, exponent=2):
+def power(t, exponent=2):
     r"""Power interpolation
 
     .. math:: \mathrm{power}(t, r) = t ^ r
@@ -344,8 +348,7 @@ def sine(t):
 
 
 @_easing
-@normalized
-def expo(t, *, exponent=10):
+def expo(t, exponent=10):
     r"""Exponential easing
 
     .. math:: \mathrm{expo}^\prime(t, x) = 2 ^ {x (t - 1)}
@@ -367,12 +370,12 @@ def circ(t):
 
 
 @_easing
-def elastic(t, *, amplitude=1, period=0.3):
+def elastic(t, period=0.3, amplitude=1):
     r"""Elastic easing
 
     .. math::
         \begin{aligned}
-            &\mathrm{elastic}(t, a, p) =
+            &\mathrm{elastic}(t, p, a) =
                 -2A ^ {10t}
                 \sin\left(
                         \left(
@@ -403,7 +406,7 @@ def elastic(t, *, amplitude=1, period=0.3):
 
 
 @_easing
-def back(t, *, amount=1.70158):
+def back(t, amount=1.70158):
     r"""Overshoot easing
 
     .. math:: \mathrm{back}(t, x) =
@@ -415,7 +418,7 @@ def back(t, *, amount=1.70158):
 
 
 @_easing
-def bounce(t, *, amplitude=1):
+def bounce(t, amplitude=1):
     r"""Bouncy easing
 
     .. math::
@@ -450,7 +453,7 @@ def bounce(t, *, amplitude=1):
 
 
 @_easing
-def cubic_bezier(t, *, x1=1, y1=0.5, x2=0, y2=0.5):
+def cubic_bezier(t, x1=1, y1=0.5, x2=0, y2=0.5):
     r"""Cubic Bézier easing
 
     The *x1* and *x2* parameters must be in the interval [0, 1].
@@ -608,19 +611,24 @@ def plot(func, *, overshoots=None, figsize=5, sampling_frequency=110,
             ax.plot([p, p], [0, 1], color=color)
             ax.plot([0, 1], [p, p], color=color)
     if kwarg_variations:
-        for arg in inspect.signature(func).parameters.values():
-            if arg.kind == inspect.Parameter.KEYWORD_ONLY:
-                for variation_factor in kwarg_variations:
-                    value = arg.default * variation_factor
-                    part = partial(func, **{arg.name: value})
-                    try:
-                        pts = _get_points(part, xes)
-                    except ValueError:
-                        continue
-                    patches = ax.plot(xes, pts, color=[0, 0, 1, 0.2])
-                    for patch in patches:
-                        gid = set_next_gid(patch)
-                        fig._gillcup_tooltips[gid] = part.__name__
+        try:
+            parametrized = func.parametrized
+        except AttributeError:
+            pass
+        else:
+            for arg in inspect.signature(parametrized).parameters.values():
+                if arg.kind == inspect.Parameter.KEYWORD_ONLY:
+                    for variation_factor in kwarg_variations:
+                        value = arg.default * variation_factor
+                        part = parametrized(**{arg.name: value})
+                        try:
+                            pts = _get_points(part, xes)
+                        except ValueError:
+                            continue
+                        patches = ax.plot(xes, pts, color=[0, 0, 1, 0.2])
+                        for patch in patches:
+                            gid = set_next_gid(patch)
+                            fig._gillcup_tooltips[gid] = part.__name__
     patches = ax.plot(xes, _get_points(func, xes), 'b')
     for patch in patches:
         gid = set_next_gid(patch)
