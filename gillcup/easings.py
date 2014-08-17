@@ -88,6 +88,8 @@ Use keyword arguments to override the defaults.
 
     .. easing_graph:: cubic_bezier
 
+.. autoclass:: ParametrizationWarning
+
 Helpers for creating new easing functions
 .........................................
 
@@ -106,13 +108,19 @@ import io
 import functools
 import math
 import inspect
+import warnings
 
 from gillcup.util.decorator import reify
+from gillcup.util.signature import fix_public_signature
 
 tau = math.pi * 2  # http://www.tauday.com/
 
 
 standard_easings = {}
+
+
+class ParametrizationWarning(UserWarning):
+    """Warning when parametrizing an easing function"""
 
 
 def get(key):
@@ -134,7 +142,7 @@ def get(key):
 def _ease_out_func(func):
     def _ease_out(t, **kwargs):
         return 1 - func(1 - t, **kwargs)
-    return _ease_out
+    return _ease_out, '.out'
 
 
 def _ease_in_out_func(func):
@@ -143,7 +151,7 @@ def _ease_in_out_func(func):
             return func(2 * t, **kwargs) / 2
         else:
             return 1 - func(1 - 2 * (t - .5), **kwargs) / 2
-    return _ease_in_out
+    return _ease_in_out, '.in_out'
 
 
 def _ease_out_in_func(func):
@@ -152,7 +160,7 @@ def _ease_out_in_func(func):
             return (1 - func(1 - 2 * t, **kwargs)) / 2
         else:
             return func(2 * (t - .5), **kwargs) / 2 + .5
-    return _ease_out_in
+    return _ease_out_in, '.out_in'
 
 
 def _normalize(func):
@@ -169,33 +177,102 @@ def _normalize(func):
         def _normalized(t):
             return (denorm_func(t) - start_value) * scale
 
-        return _normalized
+        return _normalized, ''
     else:
-        return func
+        return func, ''
 
 
 class _Easing:
-    def __init__(self, func, *, filters=(_normalize,), kwargs=None):
+    @fix_public_signature
+    def __init__(self, func, *, kwargs=None, _filters=(_normalize,)):
+
         orig_func = func
-        if kwargs:
-            func = functools.partial(func, **kwargs)
-        kwargs = kwargs or {}
-        for filt in filters:
-            func = filt(func)
-        self.filters = filters
-        self.orig_func = orig_func
-        self.func = func
-        self.kwargs = kwargs
 
         name_parts = [orig_func.__name__]
         if kwargs:
+            func = functools.partial(func, **kwargs)
             name_parts.append('.p(')
             name_parts.append(', '.join('{}={}'.format(*i)
                                         for i in kwargs.items()))
             name_parts.append(')')
+
+        kwargs = kwargs or {}
+        for filt in _filters:
+            func, name_part = filt(func)
+            name_parts.append(name_part)
+        self.filters = _filters
+        self.orig_func = orig_func
+        self.func = func
+        self.kwargs = kwargs
+
         self.__name__ = ''.join(name_parts)
 
         self.__doc__ = self.orig_func.__doc__
+
+        self._make_parametrized_method()
+
+    def _make_parametrized_method(self):
+        i_p = inspect.Parameter
+
+        def yield_parameters():
+            have_t = False
+            only_keywords = False
+            for param in inspect.signature(self.orig_func).parameters.values():
+                if not have_t:
+                    if param.kind in (
+                            i_p.POSITIONAL_ONLY,
+                            i_p.POSITIONAL_OR_KEYWORD,
+                            i_p.VAR_POSITIONAL):
+                        have_t = True
+                    elif param.kind in (i_p.KEYWORD_ONLY, i_p.VAR_KEYWORD):
+                        # Function has no positional argument, t!
+                        # Test if that's the case
+                        self.orig_func(0)
+                        # If we get here, the function is lying.
+                        # This means we aren't able to bind positional
+                        # arguments to keyword ones.
+                        # Bail out with a warning.
+                        warnings.warn('could not process function signature',
+                                      ParametrizationWarning)
+                        yield i_p('kwargs', kind=i_p.VAR_KEYWORD)
+                        return
+                    else:
+                        raise LookupError(param.kind)
+                elif param.kind == i_p.POSITIONAL_OR_KEYWORD and only_keywords:
+                    yield param.replace(kind=i_p.KEYWORD_ONLY)
+                elif param.kind in (
+                        i_p.POSITIONAL_ONLY,
+                        i_p.POSITIONAL_OR_KEYWORD,
+                        i_p.KEYWORD_ONLY,
+                        i_p.VAR_KEYWORD):
+                    yield param
+                elif param.kind == i_p.VAR_POSITIONAL:
+                    only_keywords = True
+                else:
+                    raise LookupError(param.kind)
+
+        param_list = list(yield_parameters())
+        signature = inspect.Signature(parameters=param_list)
+
+        def parametrized(*args, **kwargs):
+            new_kwargs = dict(self.kwargs)
+            new_kwargs.update(kwargs)
+            for arg, param in zip(args, param_list + [None]):
+                if not param or param.kind not in (
+                        inspect.Parameter.POSITIONAL_ONLY,
+                        inspect.Parameter.POSITIONAL_OR_KEYWORD):
+                    raise TypeError('extra positional argument: %s' % arg)
+                elif param.name in kwargs:
+                    raise TypeError('duplicate argument: %s' % param.name)
+                else:
+                    new_kwargs[param.name] = arg
+            return _Easing(self.orig_func, _filters=self.filters,
+                           kwargs=new_kwargs)
+
+        parametrized.__signature__ = signature
+        parametrized.__doc__ = type(self).parametrized.__doc__
+
+        self.parametrized = self.p = parametrized
 
     def __repr__(self):
         r = ('<{mod}.{qn}: t → {fmod}.{fqn}(t, {kwa}), at 0x{id:x}>')
@@ -218,38 +295,36 @@ class _Easing:
     @reify
     def out(self):
         rval = _Easing(self.orig_func, kwargs=self.kwargs,
-                       filters=self.filters + (_ease_out_func,))
+                       _filters=self.filters + (_ease_out_func,))
         rval.out = self
         return rval
 
     @reify
     def in_out(self):
         return _Easing(self.orig_func, kwargs=self.kwargs,
-                       filters=self.filters + (_ease_in_out_func,))
+                       _filters=self.filters + (_ease_in_out_func,))
 
     @reify
     def out_in(self):
         return _Easing(self.orig_func, kwargs=self.kwargs,
-                       filters=self.filters + (_ease_out_in_func,))
+                       _filters=self.filters + (_ease_out_in_func,))
 
     def _repr_svg_(self):
         return format_svg(self)
 
-    def parametrized(self, **kwargs):
+    def parametrized(self, *args, **kwargs):
         """Returns an easing with new parameters
 
-        For example, a large overshoot tween can be created as:
+        For example, a bouncy Bézier easing can be created as::
 
-        .. easing_graph:: large_overshoot
+        .. easing_graph:: hop
 
-            >>> large_overshoot = back.parametrized(amount=4)
-            >>> large_overshoot.out(0.4)
-            1.3...
+            >>> hop = cubic_bezier.parametrized(1, 1.737, 0, 0.6)
+            >>> hop(0), hop(0.5), hop(1)
+            (0, 1.00..., 1)
 
         """
-        new_kwargs = dict(self.kwargs)
-        new_kwargs.update(kwargs)
-        return _Easing(self.orig_func, kwargs=new_kwargs)
+        return self.p(*args, **kwargs)
 
 
 def easing(func):
@@ -475,6 +550,7 @@ def cubic_bezier(t, x1=1, y1=0.5, x2=0, y2=0.5):
     One example is `cubic-bezier.com`_.
 
     .. _cubic-bezier.com: http://cubic-bezier.com/
+
     """
 
     if not 0 <= x1 <= 1:
@@ -617,18 +693,17 @@ def plot(func, *, overshoots=None, figsize=5, sampling_frequency=110,
             pass
         else:
             for arg in inspect.signature(parametrized).parameters.values():
-                if arg.kind == inspect.Parameter.KEYWORD_ONLY:
-                    for variation_factor in kwarg_variations:
+                for variation_factor in kwarg_variations:
+                    try:
                         value = arg.default * variation_factor
                         part = parametrized(**{arg.name: value})
-                        try:
-                            pts = _get_points(part, xes)
-                        except ValueError:
-                            continue
-                        patches = ax.plot(xes, pts, color=[0, 0, 1, 0.2])
-                        for patch in patches:
-                            gid = set_next_gid(patch)
-                            fig._gillcup_tooltips[gid] = part.__name__
+                        pts = _get_points(part, xes)
+                    except ValueError:
+                        continue
+                    patches = ax.plot(xes, pts, color=[0, 0, 1, 0.2])
+                    for patch in patches:
+                        gid = set_next_gid(patch)
+                        fig._gillcup_tooltips[gid] = part.__name__
     patches = ax.plot(xes, _get_points(func, xes), 'b')
     for patch in patches:
         gid = set_next_gid(patch)
