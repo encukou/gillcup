@@ -24,8 +24,8 @@ Reference
     A dictionary mapping the names of built-in easings to the corresponding
     functions
 
-Power easing functions
-......................
+Basic power easings
+...................
 
 .. autofunction:: linear(t)
 
@@ -47,8 +47,8 @@ Power easing functions
 
     .. easing_graph:: quint
 
-Other simple easing functions
-.............................
+Other simple easings
+....................
 
 .. autofunction:: sine(t)
 
@@ -58,8 +58,8 @@ Other simple easing functions
 
     .. easing_graph:: circ
 
-Parametrized easing functions
-.............................
+Parametrized easings
+....................
 
 Use keyword arguments to override the defaults.
 
@@ -90,10 +90,12 @@ Use keyword arguments to override the defaults.
 
 .. autoclass:: ParametrizationWarning
 
-Helpers for creating new easing functions
-.........................................
+Creating new easings
+....................
 
 .. autofunction:: easing
+
+.. autoclass:: Easing
 
 Presentation helpers
 ....................
@@ -139,13 +141,13 @@ def get(key):
     raise LookupError(key)
 
 
-def _ease_out_func(func):
+def _ease_out_filter(func):
     def _ease_out(t, **kwargs):
         return 1 - func(1 - t, **kwargs)
     return _ease_out, '.out'
 
 
-def _ease_in_out_func(func):
+def _ease_in_out_filter(func):
     def _ease_in_out(t, **kwargs):
         if t < 0.5:
             return func(2 * t, **kwargs) / 2
@@ -154,7 +156,7 @@ def _ease_in_out_func(func):
     return _ease_in_out, '.in_out'
 
 
-def _ease_out_in_func(func):
+def _ease_out_in_filter(func):
     def _ease_out_in(t, **kwargs):
         if t < 0.5:
             return (1 - func(1 - 2 * t, **kwargs)) / 2
@@ -182,7 +184,33 @@ def _normalize(func):
         return func, ''
 
 
-class _Easing:
+class Easing:
+    """Callable easing object
+
+    Easing objects are created from functions that can take
+    one positional argument.
+
+    Easing objects can only be called with one argument.
+    Other arguments can be baked in :token:`kwargs`;
+    to change them one must create a new Easing object,
+    usually with :meth:`parametrize`.
+
+    The given function is normalized (scaled and moved along the y axis)
+    so that f(0) == 0 and f(1) == 1.
+
+    Easing objects display as a graph when viewed in IPython Notebook,
+    using :func:`format_svg`.
+
+    .. autospecialmethod:: __call__
+
+    .. automethod:: parametrized
+
+    .. autoattribute:: out
+    .. autoattribute:: in_out
+    .. autoattribute:: out_in
+    .. autoattribute:: in_
+
+    """
     @fix_public_signature
     def __init__(self, func, *, kwargs=None, _filters=(_normalize,)):
 
@@ -266,8 +294,8 @@ class _Easing:
                     raise TypeError('duplicate argument: %s' % param.name)
                 else:
                     new_kwargs[param.name] = arg
-            return _Easing(self.orig_func, _filters=self.filters,
-                           kwargs=new_kwargs)
+            return Easing(self.orig_func, _filters=self.filters,
+                          kwargs=new_kwargs)
 
         parametrized.__signature__ = signature
         parametrized.__doc__ = type(self).parametrized.__doc__
@@ -286,28 +314,73 @@ class _Easing:
         )
 
     def __call__(self, t):
+        """Call the underlying function"""
         return self.func(t)
 
     @reify
     def in_(self):
+        """Return this Easing unchanged. Included for completeness."""
         return self
 
     @reify
     def out(self):
-        rval = _Easing(self.orig_func, kwargs=self.kwargs,
-                       _filters=self.filters + (_ease_out_func,))
+        r"""Return the "reverse" easing to this one
+
+        Traditionally, a basic easing function is the "in" easing,
+        which starts slow and accelerates.
+        This would return the corresponding "out" easing,
+        which starts fast and decelerates.
+
+        .. math::
+
+            f.out(t) = 1 - f(1 - t)
+        """
+        rval = Easing(self.orig_func, kwargs=self.kwargs,
+                      _filters=self.filters + (_ease_out_filter,))
         rval.out = self
         return rval
 
     @reify
     def in_out(self):
-        return _Easing(self.orig_func, kwargs=self.kwargs,
-                       _filters=self.filters + (_ease_in_out_func,))
+        r"""Create the "in-out" easing from this one
+
+        Traditionally, a basic easing function is the "in" easing,
+        which starts slow and accelerates.
+        This would return the corresponding "in-out" easing,
+        which starts and ends slow, and moves fast in the middle.
+        The first half of the tween is the original function,
+        scaled by half; the second is the "out" (reverse), also scaled by half.
+
+        .. math::
+
+            f.in\_out(t) = \begin{cases}
+                f(2t) / 2           & \text{if } t < 0.5 \\
+                1 - f(1 - 2(t - 0.5)) / 2
+                                    & \text{otherwise} \\
+            \end{cases}
+        """
+        return Easing(self.orig_func, kwargs=self.kwargs,
+                      _filters=self.filters + (_ease_in_out_filter,))
 
     @reify
     def out_in(self):
-        return _Easing(self.orig_func, kwargs=self.kwargs,
-                       _filters=self.filters + (_ease_out_in_func,))
+        r"""Create the "out-in" easing from this one
+
+        The first half of the tween is the original function,
+        scaled by half; the second is the "out" (reverse), also scaled by half.
+
+        This kind of tween is usually not used, as it looks quite unnatural.
+
+        .. math::
+
+            f.out\_in(t) = \begin{cases}
+                1 - f(1 - 2t) / 2   & \text{if } t < 0.5 \\
+                f(2(t - 0.5)) / 2 + 0.5
+                                    & \text{otherwise} \\
+            \end{cases}
+        """
+        return Easing(self.orig_func, kwargs=self.kwargs,
+                      _filters=self.filters + (_ease_out_in_filter,))
 
     def _repr_svg_(self):
         return format_svg(self)
@@ -315,13 +388,21 @@ class _Easing:
     def parametrized(self, *args, **kwargs):
         """Returns an easing with new parameters
 
-        For example, a bouncy Bézier easing can be created as::
+        For convenience, this method is also available as *self.p*.
+
+        For example, a bouncy Bézier easing can be created as:
 
         .. easing_graph:: hop
 
-            >>> hop = cubic_bezier.parametrized(1, 1.737, 0, 0.6)
+            >>> hop = cubic_bezier.p(1, 1.737, 0, 0.6)
             >>> hop(0), hop(0.5), hop(1)
             (0, 1.00..., 1)
+
+        Easing only supports keyword arguments for parameters.
+        For positional arguments,
+        the function signature is used to map each argument to
+        its name.
+        This means unnamed arguments (e.g. ``*args``) can not be specified.
 
         """
         return self.p(*args, **kwargs)
@@ -330,8 +411,7 @@ class _Easing:
 def easing(func):
     """Decorator for easing functions.
 
-    Adds the :token:`in_`, :token:`out`, :token:`in_out` and :token:`out_in`
-    functions to an easing function.
+    Wraps the given function in :class:`Easing`.
 
     .. easing_graph:: staircase
 
@@ -340,11 +420,8 @@ def easing(func):
         ...     '''Discontinuous tween (to demonstrate @easing)'''
         ...     return ((t * steps) // 1) / steps
 
-    Functions decorated as an ``@easing`` will display as a graph
-    when printed out in IPython Notebook.
-
     """
-    return _Easing(func)
+    return Easing(func)
 
 
 def _easing(func=None):
