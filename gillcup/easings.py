@@ -83,6 +83,10 @@ Use keyword arguments to override the defaults.
 
     .. easing_graph:: bounce
 
+.. autofunction:: cubic_bezier
+
+    .. easing_graph:: cubic_bezier
+
 .. note:: Use :func:`partial` to make easing
           functions with different parameters.
 
@@ -445,6 +449,104 @@ def bounce(t, *, amplitude=1):
         return 1
 
 
+@_easing
+def cubic_bezier(t, *, x1=1, y1=0.5, x2=0, y2=0.5):
+    r"""Cubic Bézier easing
+
+    The *x1* and *x2* parameters must be in the interval [0, 1].
+
+    .. math::
+        \mathtt{cubic\_bezier}(t, x₁, y₁, x₂, y₂) = y
+
+    where *y* is the solution of:
+
+    .. math::
+
+        \begin{align}
+            y &= 3p (1-p)^2 y₁ + 3p^2 (1-p) y₂ + p^3 \\
+            t &= 3p (1-p)^2 x₁ + 3p^2 (1-p) x₂ + p^3 \\
+        \end{align}
+
+    Cubic béziers are used for animation in newer versions of CSS,
+    so there are many Web-based tools for visualizing them.
+    One example is `cubic-bezier.com`_.
+
+    .. _cubic-bezier.com: http://cubic-bezier.com/
+    """
+
+    if not 0 <= x1 <= 1:
+        raise ValueError('x1 out of range')
+    if not 0 <= x2 <= 1:
+        raise ValueError('x2 out of range')
+    if t <= 0:
+        return 0
+    if t >= 1:
+        return 1
+
+    # Solve for p
+
+    # 0 = 3p (1-p)² x₁              + 3p² (1-p) x₂      + p³ - t
+    # 0 = 3p (1-2p+p²) x₁           + 3p² (1-p) x₂      + p³ - t
+    # 0 = 3p x₁ - 6p² x₁ + 3p p² x₁ + 3p² x₂ - 3p² p x₂ + p³ - t
+    # 0 = 3p x₁ - 6p² x₁ + 3p³ x₁   + 3p² x₂ - 3p³ x₂   + p³ - t
+
+    # 0 = (3x₁ - 3x₂ + 1) p³ + (-6x₁ + 3x₂) p² + (3x₁) p + (-t)
+
+    a = 3 * x1 - 3 * x2 + 1
+    b = -6 * x1 + 3 * x2
+    c = 3 * x1
+    d = -t
+
+    def generalized_cuberoot(x):
+        if x < 0:
+            return -((-x) ** (1/3))
+        else:
+            return x ** (1/3)
+
+    def cubic_roots(a, b, c, d):
+        if not a:
+            yield from quadratic_roots(b, c, d)
+        else:
+            b /= a
+            c /= a
+            d /= a
+
+            q = (3 * c - b**2) / 9
+            r = (-27 * d + b * (9 * c - 2 * b**2)) / 54
+            Δ = q**3 + r**2
+            t1 = b / 3
+
+            if Δ > 0:
+                s = generalized_cuberoot(r + math.sqrt(Δ))
+                t = generalized_cuberoot(r - math.sqrt(Δ))
+                yield -t1 + s + t
+            elif not Δ:
+                rr = generalized_cuberoot(r)
+                yield -t1 + 2 * rr
+                yield -rr - t1
+            else:
+                q = -q
+                d1 = math.acos(r / math.sqrt(q**3))
+                r13 = 2 * math.sqrt(q)
+
+                yield -t1 + r13 * math.cos(d1 / 3)
+                yield -t1 + r13 * math.cos((d1 + tau) / 3)
+                yield -t1 + r13 * math.cos((d1 + 2 * tau) / 3)
+
+    def quadratic_roots(a, b, c):
+        Δ = math.sqrt(b**2 - 4 * a * c)
+        yield (-b + Δ) / (2 * a)
+        yield (-b - Δ) / (2 * a)
+
+    for p in cubic_roots(a, b, c, d):
+        if 0 <= p <= 1:
+            break
+    else:
+        raise ValueError('could not find cubic roots')
+
+    return 3 * p * (1-p)**2 * y1 + 3 * p**2 * (1-p) * y2 + p**3
+
+
 def plot(func, *, overshoots=None, figsize=5, sampling_frequency=110,
          reference=None, grid_frequency=10, kwarg_variations=None):
     """Plot an easing function using matplotlib
@@ -511,8 +613,11 @@ def plot(func, *, overshoots=None, figsize=5, sampling_frequency=110,
                 for variation_factor in kwarg_variations:
                     value = arg.default * variation_factor
                     part = partial(func, **{arg.name: value})
-                    patches = ax.plot(xes, _get_points(part, xes),
-                                      color=[0, 0, 1, 0.2])
+                    try:
+                        pts = _get_points(part, xes)
+                    except ValueError:
+                        continue
+                    patches = ax.plot(xes, pts, color=[0, 0, 1, 0.2])
                     for patch in patches:
                         gid = set_next_gid(patch)
                         fig._gillcup_tooltips[gid] = part.__name__

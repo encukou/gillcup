@@ -27,6 +27,7 @@ other_easings = collections.OrderedDict(
         (easings.expo, dict(exponent=50)),
         (easings.power, dict(exponent=1/4)),
         (easings.power, dict(exponent=50)),
+        (easings.cubic_bezier, dict(x1=1, y1=1.75, x2=0, y2=0.57)),
     ])
 
 
