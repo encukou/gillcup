@@ -146,6 +146,7 @@ import operator
 import functools
 import itertools
 import math
+import asyncio
 
 from gillcup.signals import signal
 
@@ -1203,6 +1204,8 @@ class Progress(Expression):
         self._clock = clock
         self._start = clock.time + float(delay)
         self._duration = float(duration)
+        self._done = asyncio.Future()
+        self.done = clock.wait_for(self._done)
         if self._duration < 0:
             raise ValueError('negative duration')
         if not clamp and not duration:
@@ -1235,3 +1238,4 @@ class Progress(Expression):
 
     def _fix(self):
         self.replacement = Constant(1)
+        self.done.set_result(True)

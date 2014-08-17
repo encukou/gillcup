@@ -1,5 +1,7 @@
-"""
-TODO: Write the docs
+"""Animation helpers
+
+This module builds on the building blocks in :mod:`~gillcup.expressions` and
+:mod:`~gillcup.properties` to provide higher-level animation utilities.
 
 Reference
 ---------
@@ -8,8 +10,30 @@ Reference
 
 """
 
+import asyncio
+
 from gillcup.expressions import Interpolation, Progress, Elementwise
+from gillcup.expressions import Expression
 from gillcup import easings
+
+
+class _Anim(Expression):
+    """An expression with a "done" future
+
+    An :class:`~gillcup.expressions.Expression` with a :attr:`done` attribute,
+    which is a :class:`~asyncio.Future` that becomes done when an animation
+    is finished.
+    """
+    def __init__(self, parent, done):
+        self.done = done
+        self.replacement = parent
+
+    def get(self):
+        return self.replacement.get()
+
+    @property
+    def children(self):
+        yield self.replacement
 
 
 def anim(start, end, duration, clock, *,
@@ -60,13 +84,26 @@ def anim(start, end, duration, clock, *,
     :param strength: The strength of the effect:
                      if 0, the value always stays at :token:`start`;
                      if 1, it is animated normally.
+
+    :return: An expression with a :attr:`~Anim.done` attribute, which
+             contains a future is done when this animation finishes.
+             The future is tied to the :token:`clock`.
     """
     if duration < 0:
         start, end = end, start
         duration = -duration
         delay -= duration
+
+    if delay + duration < 0:
+        future = asyncio.Future()
+        future.set_result(True)
+        done = clock.wait_for(future)
+    else:
+        done = clock.sleep(delay + duration)
+
     progress = Progress(clock, duration, delay=delay, clamp=not infinite)
     if easing:
         easing_func = easings.get(easing)
         progress = Elementwise(progress, easing_func)
-    return Interpolation(start, end, progress * strength)
+    interp = Interpolation(start, end, progress * strength)
+    return _Anim(interp, done)

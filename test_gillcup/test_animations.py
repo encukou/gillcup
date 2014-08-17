@@ -148,3 +148,18 @@ def test_easing_func_infinite(clock):
     assert abs(float(animation) - (1 - 2 / math.sqrt(2))) < ε
     clock.advance_sync(τ / 4)
     assert abs(float(animation) - 1) < ε
+
+
+def test_done(clock):
+    lst = []
+    animation = anim(1, 3, 2, clock)
+    animation.done.add_done_callback(lambda fut: lst.append('done'))
+    assert lst == []
+    clock.advance_sync(1)
+    assert lst == []
+    clock.advance_sync(1)
+    assert lst == ['done']
+    clock.advance_sync(1)
+    assert lst == ['done']
+    clock.advance_sync(1)
+    assert lst == ['done']
