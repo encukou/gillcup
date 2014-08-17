@@ -27,66 +27,30 @@ Reference
 Basic power easings
 ...................
 
-.. autofunction:: linear(t)
+.. autoeasing:: linear
+.. autoeasing:: quad
+.. autoeasing:: cubic
+.. autoeasing:: quart
+.. autoeasing:: quint
 
-    .. easing_graph:: linear
-
-.. autofunction:: quad(t)
-
-    .. easing_graph:: quad
-
-.. autofunction:: cubic(t)
-
-    .. easing_graph:: cubic
-
-.. autofunction:: quart(t)
-
-    .. easing_graph:: quart
-
-.. autofunction:: quint(t)
-
-    .. easing_graph:: quint
 
 Other simple easings
 ....................
 
-.. autofunction:: sine(t)
-
-    .. easing_graph:: sine
-
-.. autofunction:: circ(t)
-
-    .. easing_graph:: circ
+.. autoeasing:: sine
+.. autoeasing:: circ
 
 Parametrized easings
 ....................
 
 Use keyword arguments to override the defaults.
 
-.. ::
-    .. autofunction:: expo(t)
-
-        .. easing_graph:: expo
-
-.. autofunction:: power(t)
-
-    .. easing_graph:: power
-
-.. autofunction:: elastic(t)
-
-    .. easing_graph:: elastic
-
-.. autofunction:: back(t)
-
-    .. easing_graph:: back
-
-.. autofunction:: bounce(t)
-
-    .. easing_graph:: bounce
-
-.. autofunction:: cubic_bezier(t)
-
-    .. easing_graph:: cubic_bezier
+.. autoeasing:: expo
+.. autoeasing:: power
+.. autoeasing:: elastic
+.. autoeasing:: back
+.. autoeasing:: bounce
+.. autoeasing:: cubic_bezier
 
 .. autoclass:: ParametrizationWarning
 
@@ -388,7 +352,8 @@ class Easing:
     def parametrized(self, *args, **kwargs):
         """Returns an easing with new parameters
 
-        For convenience, this method is also available as *self.p*.
+        For convenience, this method is also available
+        under the short name *p*.
 
         For example, a bouncy Bézier easing can be created as:
 
@@ -398,11 +363,13 @@ class Easing:
             >>> hop(0), hop(0.5), hop(1)
             (0, 1.00..., 1)
 
+        ..
+
         Easing only supports keyword arguments for parameters.
         For positional arguments,
-        the function signature is used to map each argument to
-        its name.
-        This means unnamed arguments (e.g. ``*args``) can not be specified.
+        the function signature is used to map each argument to its name.
+        This means easings can not be parametrized on
+        name-less arguments (e.g. ``*args``).
 
         """
         return self.p(*args, **kwargs)
@@ -505,7 +472,7 @@ def expo(t, exponent=10):
 
     .. math:: \mathrm{expo}^\prime(t, x) = 2 ^ {x (t - 1)}
 
-    The result is normalized to the proper range using :func:`normalized`.
+    The result of the above formula is normalized to the proper range.
     """
     return 2 ** (exponent * (t - 1))
 
@@ -613,9 +580,7 @@ def cubic_bezier(t, x1=1, y1=0.5, x2=0, y2=0.5):
     .. math::
         \mathtt{cubic\_bezier}(t, x₁, y₁, x₂, y₂) = y
 
-    where *y* is the solution of:
-
-    .. math::
+        \text{where $y$ is the solution of:}
 
         \begin{align}
             y &= 3p (1-p)^2 y₁ + 3p^2 (1-p) y₂ + p^3 \\
