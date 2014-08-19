@@ -68,7 +68,7 @@ Reference
 import inspect
 import weakref
 
-from gillcup import util
+from gillcup.util.signature import fix_public_signature
 
 
 def _hashable_identity(obj):
@@ -127,7 +127,7 @@ class Signal:
     """
     _is_gillcup_signal = True
 
-    @util.fix_public_signature
+    @fix_public_signature
     def __init__(self, name=None, *, doc=None, signature=None,
                  _owner=None):
         self._weak_listeners = {}

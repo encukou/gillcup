@@ -314,7 +314,7 @@ import re
 import weakref
 
 from gillcup.expressions import Expression, Constant, coerce, simplify
-from gillcup.util import autoname as _autoname, autoname_property
+from gillcup.util.autoname import autoname as _autoname, autoname_property
 
 
 def autoname(cls):

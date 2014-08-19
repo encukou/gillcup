@@ -1,4 +1,4 @@
-from gillcup.util import autoname_property, autoname
+from gillcup.util.autoname import autoname_property, autoname
 
 
 def _simple_repr(self):
