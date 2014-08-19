@@ -218,8 +218,9 @@ class Signal:
                      any other object is referenced strongly.
         :param arg_adapter: An optional function for transforming arguments
                             before calling the listener.
-                            It will be called with the given (*args, **kwargs),
-                            and must return a new (args, kwargs) tuple.
+                            It will be called with the given
+                            ``(*args, **kwargs)``,
+                            and must return a new ``(args, kwargs)`` tuple.
                             If None, the original arguments are used.
         """
         try:
