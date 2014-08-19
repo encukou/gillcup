@@ -1,4 +1,4 @@
-from gillcup import util
+from gillcup.util.signature import fix_public_signature
 
 
 class Future:
@@ -9,7 +9,7 @@ class Future:
 
     See :class:`asyncio.Future` for API documentation.
     """
-    @util.fix_public_signature
+    @fix_public_signature
     def __init__(self, clock, wrapped_future, *, _category=0):
         self.clock = clock
         self._wrapped = wrapped_future
