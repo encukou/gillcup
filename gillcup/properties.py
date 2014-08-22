@@ -346,10 +346,11 @@ class AnimatedProperty:
                      Whitespace around ``:`` is optional.
                      Component names may be separated by commas
                      and/or whitespace.
+    :param str doc: An optional docstring.
 
     .. autospecialmethod:: __iter__
     """
-    def __init__(self, *default, name=None):
+    def __init__(self, *default, name=None, doc=None):
         self._instance_expressions = {}
         self._default = Constant(*default)
 
@@ -358,6 +359,7 @@ class AnimatedProperty:
 
         self._components = tuple(_ComponentProperty(self, i, name)
                                  for i, name in enumerate(component_names))
+        self.__doc__ = doc
 
     def __iter__(self):
         """Yield components of this property
