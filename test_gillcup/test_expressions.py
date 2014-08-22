@@ -483,6 +483,17 @@ def test_interpolation_simplification():
     assert simplify(Interpolation(val1, val2, 1)) is val2
 
 
+def test_interpolation_const_to_const_simplification(check_dump, range_4):
+    val1 = Value(1, 2, 3) if range_4 % 1 else Constant(1, 2, 3)
+    val2 = Value(1, 2, 3) if range_4 % 2 else Constant(1, 2, 3)
+    exp = Interpolation(val1, val2, Value(0.5))
+    with reduce_to_const(exp):
+        if range_4 % 1:
+            val1.fix()
+        if range_4 % 2:
+            val2.fix()
+
+
 def test_interpolation_dump(check_dump):
     val1 = Value(0, 0)
     val2 = Value(2, 10)

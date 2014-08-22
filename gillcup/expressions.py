@@ -1175,6 +1175,7 @@ class Interpolation(Expression):
         self._end.replacement_available.connect(self._replace_end)
         self._t.replacement_available.connect(self._replace_t)
         self._replace_t()
+        self._replace_const_to_const()
 
     def get(self):
         t = float(self._t)
@@ -1183,9 +1184,11 @@ class Interpolation(Expression):
 
     def _replace_start(self):
         self._start = _replace_child(self._start, self._replace_start)
+        self._replace_const_to_const()
 
     def _replace_end(self):
         self._end = _replace_child(self._end, self._replace_end)
+        self._replace_const_to_const()
 
     def _replace_t(self):
         self._t = t = _replace_child(self._t, self._replace_t)
@@ -1194,6 +1197,12 @@ class Interpolation(Expression):
                 self.replacement = simplify(self._start)
             elif t == 1:
                 self.replacement = simplify(self._end)
+
+    def _replace_const_to_const(self):
+        if (isinstance(self._start, Constant) and
+                isinstance(self._end, Constant) and
+                self._start == self._end):
+            self.replacement = self._start
 
     @property
     def children(self):
