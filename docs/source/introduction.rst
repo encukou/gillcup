@@ -25,7 +25,7 @@ Design
 .. toctree::
    :hidden:
 
-   clock
+   clocks
    expressions
    properties
    signals

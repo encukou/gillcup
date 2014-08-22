@@ -6,7 +6,7 @@ For example, given an Expression ``x``, the Expression ``x * 2`` will
 always evaulate to twice the value of ``x``.
 
 The power of Expressions becomes apparent when we mention that
-:class:`~gillcup.clock.Clock` time can be used an input.
+:class:`~gillcup.clocks.Clock` time can be used an input.
 Gillcup includes expression that smoothly changes value as time progresses.
 Combined with other expressions, "animations" on numbers can be created.
 

@@ -1,6 +1,6 @@
 """Asyncio-based discrete-time simulation infrastructure
 
-The clock keeps track of *time*. But, what is time?
+A clock keeps track of *time*. But, what is time?
 
 If you are familiar with the :mod:`asyncio` library,
 you might know the :func:`asyncio.sleep` coroutine.
@@ -35,7 +35,15 @@ the Gillcup time does not advance between the future's completion
 and the callback execution.
 
 A coroutine can be scheduled on a Gillcup clock using
-:meth:`~gillcup.clock.Clock.task`; see the corresponding docs for details.
+:meth:`~gillcup.clocks.Clock.task`; see the corresponding docs for details.
+
+
+Reference
+---------
+
+.. autofunction:: gillcup.coroutine
+.. autoclass:: gillcup.clocks.Clock
+.. autoclass:: gillcup.clocks.Subclock
 """
 
 import collections

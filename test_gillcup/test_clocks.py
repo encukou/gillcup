@@ -5,7 +5,7 @@ import asyncio
 import pytest
 
 import gillcup
-from gillcup.clock import Subclock
+from gillcup.clocks import Subclock
 
 
 def dummy_function():

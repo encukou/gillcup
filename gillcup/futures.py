@@ -5,7 +5,7 @@ class Future:
     """Wraps a future; calbacks on the wrapper are scheduled on a given Clock
 
     To be instantiated using
-    :meth:`Clock.wait_for() <gillcup.clock.Clock.wait_for()>`.
+    :meth:`Clock.wait_for() <gillcup.clocks.Clock.wait_for()>`.
 
     See :class:`asyncio.Future` for API documentation.
     """
