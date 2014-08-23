@@ -3,7 +3,7 @@ import contextlib
 import pytest
 
 from gillcup.properties import AnimatedProperty, link
-from gillcup.expressions import Progress
+from gillcup.expressions import Progress, Constant
 
 
 class BeeperBase:
@@ -43,6 +43,17 @@ class MultichannelBeeper(BeeperBase):
     position = x, y, z = AnimatedProperty(0, 0, 0, name='position: x y z')
 
 
+class FactorizedBeeper(BeeperBase):
+    """A beeper that uses factories for the properties"""
+    volume = AnimatedProperty(factory=lambda inst: 0, size=1, name='volume')
+    pitch = AnimatedProperty(factory=lambda inst: Constant(440),
+                             size=1,
+                             name='pitch')
+    position = x, y, z = AnimatedProperty(factory=lambda inst: (0, 0, 0),
+                                          size=3,
+                                          name='position: x y z')
+
+
 class NaïveBeeper(BeeperBase):
     """A Beeper that uses simple values/expressions instead of AnimatedProperty
 
@@ -77,7 +88,7 @@ class NaïveBeeper(BeeperBase):
             raise LookupError(behavior_type)
 
 
-beeper_subclasses = [Beeper, MultichannelBeeper, NaïveBeeper]
+beeper_subclasses = [Beeper, MultichannelBeeper, NaïveBeeper, FactorizedBeeper]
 
 
 @pytest.fixture(params=beeper_subclasses,
@@ -272,13 +283,7 @@ def test_link_dump_method(beeper, beeper_class, clock, check_dump):
     # The dump is different for normal properties and for components
     with beeper.extra_behavior('link method'):
         beeper.volume.link(beeper.pitch)
-        if beeper_class == Beeper:
-            check_dump(beeper.volume, """
-                <test beeper>.volume value <440.0>:
-                  linked <test beeper>.pitch <440.0>:
-                    Constant <440.0>
-            """)
-        elif beeper_class == MultichannelBeeper:
+        if beeper_class == MultichannelBeeper:
             check_dump(beeper.volume, """
                 <test beeper>.volume (volumes[0]) value <440.0>:
                   <test beeper>.volumes value <440.0, 0.0, 0.0>:
@@ -289,22 +294,18 @@ def test_link_dump_method(beeper, beeper_class, clock, check_dump):
                       Constant <0.0, 0.0>
             """)
         else:
-            raise TypeError(beeper_class)
+            check_dump(beeper.volume, """
+                <test beeper>.volume value <440.0>:
+                  linked <test beeper>.pitch <440.0>:
+                    Constant <440.0>
+            """)
 
 
 def test_link_dump_function(beeper, beeper_class, clock, check_dump):
     # The dump is different for normal properties and for components
     with beeper.extra_behavior('link function'):
         beeper.volume = link(beeper.pitch) + 4
-        if beeper_class == Beeper:
-            check_dump(beeper.volume, """
-                <test beeper>.volume value <444.0>:
-                  + <444.0>:
-                    linked <test beeper>.pitch <440.0>:
-                      Constant <440.0>
-                    Constant <4.0>
-            """)
-        elif beeper_class == MultichannelBeeper:
+        if beeper_class == MultichannelBeeper:
             check_dump(beeper.volume, """
                 <test beeper>.volume (volumes[0]) value <444.0>:
                   <test beeper>.volumes value <444.0, 0.0, 0.0>:
@@ -317,7 +318,13 @@ def test_link_dump_function(beeper, beeper_class, clock, check_dump):
                       Constant <0.0, 0.0>
             """)
         else:
-            raise TypeError(beeper_class)
+            check_dump(beeper.volume, """
+                <test beeper>.volume value <444.0>:
+                  + <444.0>:
+                    linked <test beeper>.pitch <440.0>:
+                      Constant <440.0>
+                    Constant <4.0>
+            """)
 
 
 def test_link_function_idempotent(beeper, clock):
@@ -362,3 +369,53 @@ def test_component_naming(name):
 def test_bad_component_naming(name):
     with pytest.raises(ValueError):
         AnimatedProperty(0, 0, 0, name=name)
+
+
+def test_factory_without_size():
+    with pytest.raises(ValueError):
+        AnimatedProperty(factory=lambda inst: 0)
+
+
+def test_mismatched_size():
+    with pytest.raises(ValueError):
+        AnimatedProperty(1, 2, 3, size=4)
+
+
+def test_matched_size_0():
+    AnimatedProperty(size=0)
+
+
+def test_matched_size_1():
+    AnimatedProperty(0, size=1)
+
+
+def test_matched_size_3():
+    AnimatedProperty(0, 1, 2, size=3)
+
+
+def test_factory():
+    class Foo:
+        def __init__(self, val):
+            self.val = val
+
+        bar = AnimatedProperty(factory=lambda inst: (inst.val, inst.val + 1),
+                               size=2)
+
+    assert Foo(1).bar == (1, 2)
+    assert Foo(2).bar == (2, 3)
+    assert Foo(1).bar + 2 == (3, 4)
+
+
+def test_factory_mismatched_size():
+    class Foo:
+        bar = AnimatedProperty(factory=lambda inst: Constant(0), size=2)
+
+    with pytest.raises(ValueError):
+        Foo().bar
+
+
+def test_factory_coercion():
+    class Foo:
+        bar = AnimatedProperty(factory=lambda inst: 3, size=3)
+
+    assert Foo().bar == (3, 3, 3)

@@ -313,7 +313,7 @@ Reference
 import re
 import weakref
 
-from gillcup.expressions import Expression, Constant, coerce, simplify
+from gillcup.expressions import Expression, coerce, simplify
 from gillcup.util import autoname as _autoname, autoname_property
 
 
@@ -347,19 +347,45 @@ class AnimatedProperty:
                      Component names may be separated by commas
                      and/or whitespace.
     :param str doc: An optional docstring.
+    :param int size: The size of the expression.
+
+                     If :token:`size` is given and
+                     :token:`default` is not `()`,
+                     the ``len(default)`` must match ``size``.
+    :param factory: A function that, when called with the object
+                    this property is on,
+                    returns the default value of the expression.
+
+                    The result will be :func:`~gillcup.expressions.coerce`-d
+                    to the :token:`size`.
+
+                    If given, :token:`default` must be `()`.
 
     .. autospecialmethod:: __iter__
     """
-    def __init__(self, *default, name=None, doc=None):
+    def __init__(self, *default, name=None, doc=None, size=None, factory=None):
         self._instance_expressions = {}
-        self._default = Constant(*default)
+        if factory:
+            if default:
+                raise ValueError('default and factory are mutually exclusive')
+            if size is None:
+                raise ValueError(
+                    'size must be specified when factory is given')
+            self._size = size
+            self._factory = factory
+        else:
+            default = coerce(default, size=size)
+            self._size = len(default)
+            self._factory = lambda instance: default
 
-        size = len(self._default)
-        self.name, component_names = _get_names(name, size)
+        self.name, component_names = _get_names(name, self._size)
 
         self._components = tuple(_ComponentProperty(self, i, name)
                                  for i, name in enumerate(component_names))
         self.__doc__ = doc
+
+    def __len__(self):
+        return self._size
 
     def __iter__(self):
         """Yield components of this property
@@ -384,12 +410,11 @@ class AnimatedProperty:
             try:
                 exp = self._instance_expressions[id(instance)]
             except KeyError:
-                exp = self._default
+                exp = coerce(self._factory(instance), size=self._size)
             return _PropertyValue(self, instance, exp)
 
     def __set__(self, instance, value):
-        prop_size = len(self._default)
-        exp = coerce(value, size=prop_size)
+        exp = coerce(value, size=self._size)
         if id(instance) not in self._instance_expressions:
             weakref.finalize(instance, self._instance_expressions.pop,
                              id(instance), None)
