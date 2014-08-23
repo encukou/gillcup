@@ -12,13 +12,3 @@ Gillcup comprises several related modules:
     to spice up motion.
 
 """
-import asyncio
-
-
-def coroutine(func):
-    """Mark a function as a Gillcup coroutine.
-
-    Direct equivalent of :func:`asyncio.coroutine` -- also does nothing
-    (unless asyncio debugging is enabled).
-    """
-    return asyncio.coroutine(func)

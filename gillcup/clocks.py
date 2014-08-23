@@ -41,7 +41,7 @@ A coroutine can be scheduled on a Gillcup clock using
 Reference
 ---------
 
-.. autofunction:: gillcup.coroutine
+.. autofunction:: gillcup.clocks.coroutine
 .. autoclass:: gillcup.clocks.Clock
 .. autoclass:: gillcup.clocks.Subclock
 """
@@ -52,6 +52,16 @@ import asyncio
 
 import gillcup.futures
 from gillcup.util.signature import fix_public_signature
+
+
+def coroutine(func):
+    """Mark a function as a Gillcup coroutine.
+
+    Direct equivalent of :func:`asyncio.coroutine` -- also does nothing
+    (unless asyncio debugging is enabled).
+    """
+    return asyncio.coroutine(func)
+
 
 _Event = collections.namedtuple('_Event',
                                 'time category index callback args')
