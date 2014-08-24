@@ -24,9 +24,9 @@ class BeeperBase:
 
 class Beeper(BeeperBase):
     """The basic beeper"""
-    volume = AnimatedProperty(0, name='volume')
-    pitch = AnimatedProperty(440, name='pitch')
-    position = x, y, z = AnimatedProperty(0, 0, 0, name='position: x y z')
+    volume = AnimatedProperty(name='volume')
+    pitch = AnimatedProperty(1, lambda inst: 440, name='pitch')
+    position = x, y, z = AnimatedProperty(3, name='position: x y z')
 
 
 class MultichannelBeeper(BeeperBase):
@@ -37,20 +37,18 @@ class MultichannelBeeper(BeeperBase):
     when they are a top-level property as when they are a component.
     """
     volumes = volume, vol2, vol3 = AnimatedProperty(
-        0, 0, 0, name='volumes:volume vol2 vol3')
+        3, name='volumes:volume vol2 vol3')
     pitches = pitch, pitch2, pitch3 = AnimatedProperty(
-        440, 440, 440, name='pitches: pitch pitch2 pitch3')
-    position = x, y, z = AnimatedProperty(0, 0, 0, name='position: x y z')
+        3, lambda inst: 440, name='pitches: pitch pitch2 pitch3')
+    position = x, y, z = AnimatedProperty(3, name='position: x y z')
 
 
 class FactorizedBeeper(BeeperBase):
     """A beeper that uses factories for the properties"""
-    volume = AnimatedProperty(factory=lambda inst: 0, size=1, name='volume')
-    pitch = AnimatedProperty(factory=lambda inst: Constant(440),
-                             size=1,
+    volume = AnimatedProperty(1, lambda inst: 0, name='volume')
+    pitch = AnimatedProperty(1, lambda inst: Constant(440),
                              name='pitch')
-    position = x, y, z = AnimatedProperty(factory=lambda inst: (0, 0, 0),
-                                          size=3,
+    position = x, y, z = AnimatedProperty(3, lambda inst: (0, 0, 0),
                                           name='position: x y z')
 
 
@@ -145,8 +143,8 @@ def test_separate_instances_vector(beeper):
 
 def test_property_naming(check_dump):
     class Foo:
-        namedprop = AnimatedProperty(5, name='namedprop')
-        unnamedprop = AnimatedProperty(5)
+        namedprop = AnimatedProperty(1, lambda inst: 5, name='namedprop')
+        unnamedprop = AnimatedProperty(1, lambda inst: 5)
 
         def __repr__(self):
             return '<a Foo>'
@@ -335,7 +333,7 @@ def test_link_function_idempotent(beeper, clock):
 
 def test_default_naming():
     class Foo:
-        bar = b, a, r = AnimatedProperty(0, 0, 0)
+        bar = b, a, r = AnimatedProperty(3)
 
     assert Foo.bar.name == '<unnamed property>'
     assert Foo.b.name == '<unnamed property>[0]'
@@ -345,7 +343,7 @@ def test_default_naming():
 
 def test_single_name():
     class Foo:
-        bar = b, a, r = AnimatedProperty(0, 0, 0, name='bar')
+        bar = b, a, r = AnimatedProperty(3, name='bar')
 
     assert Foo.bar.name == 'bar'
     assert Foo.b.name == 'bar[0]'
@@ -357,7 +355,7 @@ def test_single_name():
                                   'bar : x  y  z', 'bar  :  x , y , z'])
 def test_component_naming(name):
     class Foo:
-        bar = b, a, r = AnimatedProperty(0, 0, 0, name=name)
+        bar = b, a, r = AnimatedProperty(3, name=name)
 
     assert Foo.bar.name == 'bar'
     assert Foo.b.name == 'x'
@@ -368,29 +366,19 @@ def test_component_naming(name):
 @pytest.mark.parametrize('name', ['bar:x y', 'bar: x,,y z', 'bar:'])
 def test_bad_component_naming(name):
     with pytest.raises(ValueError):
-        AnimatedProperty(0, 0, 0, name=name)
-
-
-def test_factory_without_size():
-    with pytest.raises(ValueError):
-        AnimatedProperty(factory=lambda inst: 0)
-
-
-def test_mismatched_size():
-    with pytest.raises(ValueError):
-        AnimatedProperty(1, 2, 3, size=4)
+        AnimatedProperty(3, name=name)
 
 
 def test_matched_size_0():
-    AnimatedProperty(size=0)
+    AnimatedProperty(0, lambda inst: ())
 
 
 def test_matched_size_1():
-    AnimatedProperty(0, size=1)
+    AnimatedProperty(1, lambda inst: 0)
 
 
 def test_matched_size_3():
-    AnimatedProperty(0, 1, 2, size=3)
+    AnimatedProperty(3, lambda inst: (1, 2, 3))
 
 
 def test_factory():
@@ -398,8 +386,7 @@ def test_factory():
         def __init__(self, val):
             self.val = val
 
-        bar = AnimatedProperty(factory=lambda inst: (inst.val, inst.val + 1),
-                               size=2)
+        bar = AnimatedProperty(2, lambda inst: (inst.val, inst.val + 1))
 
     assert Foo(1).bar == (1, 2)
     assert Foo(2).bar == (2, 3)
@@ -408,7 +395,7 @@ def test_factory():
 
 def test_factory_mismatched_size():
     class Foo:
-        bar = AnimatedProperty(factory=lambda inst: Constant(0), size=2)
+        bar = AnimatedProperty(2, lambda inst: Constant(0))
 
     with pytest.raises(ValueError):
         Foo().bar
@@ -416,6 +403,6 @@ def test_factory_mismatched_size():
 
 def test_factory_coercion():
     class Foo:
-        bar = AnimatedProperty(factory=lambda inst: 3, size=3)
+        bar = AnimatedProperty(3, lambda inst: 3)
 
     assert Foo().bar == (3, 3, 3)

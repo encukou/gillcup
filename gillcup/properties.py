@@ -47,8 +47,9 @@ Animated properties are defined at the class level,
 specifying their default value, and an optional name::
 
     >>> class Beeper:
-    ...     volume = AnimatedProperty(0, name='volume')
-    ...     pitch = AnimatedProperty(440, name='pitch')
+    ...     volume = AnimatedProperty(name='volume')
+    ...     pitch = AnimatedProperty(name='pitch',
+    ...                              make_default=lambda inst: 440)
     >>> beeper = Beeper()
     >>> beeper.pitch
     <440.0>
@@ -255,7 +256,7 @@ It is easy to define properties for both the vector proprerty
 and its individual components::
 
     >>> class Point3D:
-    ...     pos = x, y, z = AnimatedProperty(0, 0, 0, name='pos: x y z')
+    ...     pos = x, y, z = AnimatedProperty(3, name='pos: x y z')
 
 Note the shorthand syntax for naming all the properties
 (but see the :ref:`Autonaming <property-autonaming>` section
@@ -289,9 +290,9 @@ and still have the properties named for easier debugging::
 
     >>> @autoname
     ... class Buzzer3D:
-    ...     volume = AnimatedProperty(0)
-    ...     pitch = AnimatedProperty(440)
-    ...     pos = x, y, z = AnimatedProperty(0, 0, 0)
+    ...     volume = AnimatedProperty()
+    ...     pitch = AnimatedProperty(make_default=lambda s: 440)
+    ...     pos = x, y, z = AnimatedProperty(3)
 
     >>> Buzzer3D.volume.name
     'volume'
@@ -333,9 +334,15 @@ def autoname(cls):
 class AnimatedProperty:
     """Descriptor for Expression-valued properties.
 
-    :param default: The default value of this property, as floats.
-                    The number of values given determines the size of the
-                    expression.
+    :param int size: The size of the expression.
+    :param make_default: A function that, when called with the object
+                         this property is on,
+                         returns the default value of the expression.
+
+                         The result will be
+                         :func:`coerced <gillcup.expressions.coerce>`.
+
+                         If not given, the default will be zeros.
     :param str name: The name of this property, which should be a valid
                      Python identifier.
 
@@ -347,38 +354,20 @@ class AnimatedProperty:
                      Component names may be separated by commas
                      and/or whitespace.
     :param str doc: An optional docstring.
-    :param int size: The size of the expression.
-
-                     If :token:`size` is given and
-                     :token:`default` is not `()`,
-                     the ``len(default)`` must match ``size``.
-    :param factory: A function that, when called with the object
-                    this property is on,
-                    returns the default value of the expression.
-
-                    The result will be :func:`~gillcup.expressions.coerce`-d
-                    to the :token:`size`.
-
-                    If given, :token:`default` must be `()`.
 
     .. autospecialmethod:: __iter__
     """
-    def __init__(self, *default, name=None, doc=None, size=None, factory=None):
+    def __init__(self, size=1, make_default=None, *, name=None, doc=None):
         self._instance_expressions = {}
-        if factory:
-            if default:
-                raise ValueError('default and factory are mutually exclusive')
-            if size is None:
-                raise ValueError(
-                    'size must be specified when factory is given')
+        if make_default:
             self._size = size
-            self._factory = factory
+            self._factory = make_default
         else:
-            default = coerce(default, size=size)
-            self._size = len(default)
+            self._size = size
+            default = coerce(0, size=size)
             self._factory = lambda instance: default
 
-        self.name, component_names = _get_names(name, self._size)
+        self.name, component_names = _get_names(name, size)
 
         self._components = tuple(_ComponentProperty(self, i, name)
                                  for i, name in enumerate(component_names))
@@ -393,7 +382,7 @@ class AnimatedProperty:
         Note that this is called when iterating the *descriptor itself*, e.g.::
 
             >>> class Sprite2D:
-            ...     position = x, y = AnimatedProperty(0, 0)
+            ...     position = x, y = AnimatedProperty(2)
 
         The values of the components are synchronized with their parent
         (*self* in this case).
