@@ -296,6 +296,7 @@ and a clock that will govern the timing::
     >>> beeper.volume
     <0.0>
     >>> beeper.volume.anim(12, duration=2, clock=clock)
+    <...>
     >>> beeper.volume
     <0.0>
     >>> clock.advance_sync(1)  # 1 second passes...
@@ -314,6 +315,7 @@ in the :meth:`~PropertyValue.anim` call::
 
     >>> beeper.clock = clock
     >>> beeper.volume.anim(0, duration=4)
+    <...>
     >>> beeper.volume
     <12.0>
     >>> clock.advance_sync(1)
@@ -327,6 +329,7 @@ for the new animation.
     >>> beeper.volume
     <9.0>
     >>> beeper.volume.anim(42, duration=2)
+    <...>
     >>> clock.advance_sync(1)
     >>> beeper.volume
     <24.0>
@@ -346,6 +349,12 @@ but will continue on, extrapolating past the given target.
 All the keyword arguments to the :meth:`~PropertyValue.anim` method
 are described in the documentation of the underlying function,
 :func:`gillcup.animations.anim`.
+
+The :meth:`~PropertyValue.anim` method returns a future that is done when
+the animation is finished.
+A :func:`coroutine <gillcup.clocks.coroutine>`
+could use ``yield from beeper.volume.anim(42, duration=2)``
+to wait (suspend itself) until the end of the animation.
 
 
 .. _property-autonaming:
@@ -554,6 +563,9 @@ class PropertyValue(Expression):
 
         For detailed description of the arguments, see
         :func:`gillcup.animations.anim`.
+
+        Returns a :class:`~asyncio.Future`-like object
+        that is done when the animation is finished.
         """
         instance = self._instance
         if clock is None:
@@ -574,6 +586,7 @@ class PropertyValue(Expression):
             strength=strength,
         )
         self._prop.__set__(instance, animation)
+        return animation.done
 
     def get(self):
         return self.replacement.get()

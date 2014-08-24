@@ -86,7 +86,7 @@ def anim(start, end, duration, clock, *,
                      if 1, it is animated normally.
 
     :return: An expression with a :attr:`~Anim.done` attribute, which
-             contains a future is done when this animation finishes.
+             contains a future that is done when this animation finishes.
              The future is tied to the :token:`clock`.
     """
     if duration < 0:

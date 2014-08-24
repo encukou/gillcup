@@ -497,3 +497,27 @@ def test_anim_explicit_clock(beeper, clock):
     with beeper.extra_behavior('anim method'):
         beeper.volume.anim(5, clock=clock)
         assert beeper.volume == 5
+
+
+def test_anim_in_coroutine(beeper, clock):
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim
+        beeper.clock = clock
+
+        def there_and_back():
+            yield from beeper.volume.anim(100, 2)
+            yield from beeper.volume.anim(0, 2)
+
+        clock.task(there_and_back())
+
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+        clock.advance_sync(1)
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 0
