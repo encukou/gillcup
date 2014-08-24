@@ -47,11 +47,16 @@ Animated properties are defined at the class level,
 specifying their default value, and an optional name::
 
     >>> class Beeper:
-    ...     volume = AnimatedProperty(0, name='volume')
-    ...     pitch = AnimatedProperty(440, name='pitch')
+    ...     volume = AnimatedProperty(name='volume')
+    ...     pitch = AnimatedProperty(name='pitch',
+    ...                              make_default=lambda inst: 440)
     >>> beeper = Beeper()
     >>> beeper.pitch
     <440.0>
+
+.. note:: See the :ref:`Autonaming <property-autonaming>` section
+          for a more convenient naming method.
+
 
 It should be noted that, except for the additional features described here,
 most of Python's normal attribute/value mechanics are preserved -- the example
@@ -251,9 +256,11 @@ It is easy to define properties for both the vector proprerty
 and its individual components::
 
     >>> class Point3D:
-    ...     pos = x, y, z = AnimatedProperty(0, 0, 0, name='pos: x y z')
+    ...     pos = x, y, z = AnimatedProperty(3, name='pos: x y z')
 
-Note the shorthand syntax for naming all the properties.
+Note the shorthand syntax for naming all the properties
+(but see the :ref:`Autonaming <property-autonaming>` section
+for a more convenient naming method).
 
 The component properties defined this way are synchronized
 with their parent vector::
@@ -270,27 +277,72 @@ with their parent vector::
     >>> point.pos
     <42.0, 20.0, 30.0>
 
+.. _property-autonaming:
+
+Autonaming
+----------
+
+The :func:`autoname` decorator, when applied to a class,
+names all its animated properties according to the attribute name they
+are assigned to.
+This means you can avoid repeating the name,
+and still have the properties named for easier debugging::
+
+    >>> @autoname
+    ... class Buzzer3D:
+    ...     volume = AnimatedProperty()
+    ...     pitch = AnimatedProperty(make_default=lambda s: 440)
+    ...     pos = x, y, z = AnimatedProperty(3)
+
+    >>> Buzzer3D.volume.name
+    'volume'
+    >>> Buzzer3D.pos.name
+    'pos'
+    >>> Buzzer3D.x.name
+    'x'
+
+
 Reference
 ---------
 
 .. autoclass:: AnimatedProperty
 .. autofunction:: link
-
+.. autofunction:: autoname
 
 """
 
 import re
 import weakref
 
-from gillcup.expressions import Expression, Constant, coerce, simplify
+from gillcup.expressions import Expression, coerce, simplify
+from gillcup.util.autoname import autoname as _autoname, autoname_property
 
 
+def autoname(cls):
+    """Class decorator that automatically names properties
+
+    Every AnimatedProperty defined directly on the decorated class
+    has its name set to the atribute name it is bound to.
+
+    See the :ref:`Autonaming <property-autonaming>` section
+    of the documentation for discussion.
+    """
+    return _autoname(cls)
+
+
+@autoname_property('name')
 class AnimatedProperty:
     """Descriptor for Expression-valued properties.
 
-    :param default: The default value of this property, as floats.
-                    The number of values given determines the size of the
-                    expression.
+    :param int size: The size of the expression.
+    :param make_default: A function that, when called with the object
+                         this property is on,
+                         returns the default value of the expression.
+
+                         The result will be
+                         :func:`coerced <gillcup.expressions.coerce>`.
+
+                         If not given, the default will be zeros.
     :param str name: The name of this property, which should be a valid
                      Python identifier.
 
@@ -301,18 +353,28 @@ class AnimatedProperty:
                      Whitespace around ``:`` is optional.
                      Component names may be separated by commas
                      and/or whitespace.
+    :param str doc: An optional docstring.
 
     .. autospecialmethod:: __iter__
     """
-    def __init__(self, *default, name=None):
+    def __init__(self, size=1, make_default=None, *, name=None, doc=None):
         self._instance_expressions = {}
-        self._default = Constant(*default)
+        if make_default:
+            self._size = size
+            self._factory = make_default
+        else:
+            self._size = size
+            default = coerce(0, size=size)
+            self._factory = lambda instance: default
 
-        size = len(self._default)
         self.name, component_names = _get_names(name, size)
 
         self._components = tuple(_ComponentProperty(self, i, name)
                                  for i, name in enumerate(component_names))
+        self.__doc__ = doc
+
+    def __len__(self):
+        return self._size
 
     def __iter__(self):
         """Yield components of this property
@@ -320,7 +382,7 @@ class AnimatedProperty:
         Note that this is called when iterating the *descriptor itself*, e.g.::
 
             >>> class Sprite2D:
-            ...     position = x, y = AnimatedProperty(0, 0)
+            ...     position = x, y = AnimatedProperty(2)
 
         The values of the components are synchronized with their parent
         (*self* in this case).
@@ -337,12 +399,11 @@ class AnimatedProperty:
             try:
                 exp = self._instance_expressions[id(instance)]
             except KeyError:
-                exp = self._default
+                exp = coerce(self._factory(instance), size=self._size)
             return _PropertyValue(self, instance, exp)
 
     def __set__(self, instance, value):
-        prop_size = len(self._default)
-        exp = coerce(value, size=prop_size)
+        exp = coerce(value, size=self._size)
         if id(instance) not in self._instance_expressions:
             weakref.finalize(instance, self._instance_expressions.pop,
                              id(instance), None)
@@ -430,6 +491,7 @@ class _Linked(Expression):
         return self
 
 
+@autoname_property('name')
 class _ComponentProperty:
     def __init__(self, parent, index, name):
         self._parent = parent

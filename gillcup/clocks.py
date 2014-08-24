@@ -1,6 +1,6 @@
 """Asyncio-based discrete-time simulation infrastructure
 
-The clock keeps track of *time*. But, what is time?
+A clock keeps track of *time*. But, what is time?
 
 If you are familiar with the :mod:`asyncio` library,
 you might know the :func:`asyncio.sleep` coroutine.
@@ -35,7 +35,15 @@ the Gillcup time does not advance between the future's completion
 and the callback execution.
 
 A coroutine can be scheduled on a Gillcup clock using
-:meth:`~gillcup.clock.Clock.task`; see the corresponding docs for details.
+:meth:`~gillcup.clocks.Clock.task`; see the corresponding docs for details.
+
+
+Reference
+---------
+
+.. autofunction:: gillcup.clocks.coroutine
+.. autoclass:: gillcup.clocks.Clock
+.. autoclass:: gillcup.clocks.Subclock
 """
 
 import collections
@@ -43,7 +51,17 @@ import heapq
 import asyncio
 
 import gillcup.futures
-from gillcup import util
+from gillcup.util.signature import fix_public_signature
+
+
+def coroutine(func):
+    """Mark a function as a Gillcup coroutine.
+
+    Direct equivalent of :func:`asyncio.coroutine` -- also does nothing
+    (unless asyncio debugging is enabled).
+    """
+    return asyncio.coroutine(func)
+
 
 _Event = collections.namedtuple('_Event',
                                 'time category index callback args')
@@ -150,7 +168,7 @@ class Clock:
             return None
 
     @asyncio.coroutine
-    @util.fix_public_signature
+    @fix_public_signature
     def advance(self, delay, *, _continuing=False):
         """Advance the clock's time
 
@@ -225,7 +243,7 @@ class Clock:
         for subclock in self._subclocks:
             subclock._advance(dt * subclock.speed)
 
-    @util.fix_public_signature
+    @fix_public_signature
     def sleep(self, delay, *, _category=0):
         """Return a future that will complete after "delay" time units
 
@@ -249,7 +267,7 @@ class Clock:
         else:
             return gillcup.futures.Future(self, future)
 
-    @util.fix_public_signature
+    @fix_public_signature
     def schedule(self, delay, callback, *args, _category=0):
         """Schedule callback to be called after "delay" time units
         """

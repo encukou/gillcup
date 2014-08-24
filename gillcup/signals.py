@@ -68,7 +68,7 @@ Reference
 import inspect
 import weakref
 
-from gillcup import util
+from gillcup.util.signature import fix_public_signature
 
 
 def _hashable_identity(obj):
@@ -127,7 +127,7 @@ class Signal:
     """
     _is_gillcup_signal = True
 
-    @util.fix_public_signature
+    @fix_public_signature
     def __init__(self, name=None, *, doc=None, signature=None,
                  _owner=None):
         self._weak_listeners = {}
@@ -218,8 +218,9 @@ class Signal:
                      any other object is referenced strongly.
         :param arg_adapter: An optional function for transforming arguments
                             before calling the listener.
-                            It will be called with the given (*args, **kwargs),
-                            and must return a new (args, kwargs) tuple.
+                            It will be called with the given
+                            ``(*args, **kwargs)``,
+                            and must return a new ``(args, kwargs)`` tuple.
                             If None, the original arguments are used.
         """
         try:

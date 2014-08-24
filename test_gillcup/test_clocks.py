@@ -4,8 +4,7 @@ import asyncio
 
 import pytest
 
-import gillcup
-from gillcup.clock import Subclock
+from gillcup.clocks import Subclock, coroutine
 
 
 def dummy_function():
@@ -157,7 +156,7 @@ def test_integer_times(clock):
 
 def test_recursive_advance(clock):
     """Test that calling advance() from within advance() is blocked"""
-    @gillcup.coroutine
+    @coroutine
     def advance():
         print("Advancing!")
         yield 0.1
@@ -223,7 +222,7 @@ def test_subclock_speed_arg(clock):
     assert subclock.time == 2
 
 
-@gillcup.coroutine
+@coroutine
 def appending_task(lst):
     lst.append(0)
     yield 1
@@ -257,7 +256,7 @@ def test_task(clock):
     assert future.result() == 'ok'
 
 
-@gillcup.coroutine
+@coroutine
 def error_task():
     raise RuntimeError('bad')
     yield
@@ -272,7 +271,7 @@ def test_error_task(clock):
     assert str(future.exception()) == 'bad'
 
 
-@gillcup.coroutine
+@coroutine
 def complex_task(lst):
     try:
         yield from error_task()
@@ -309,7 +308,7 @@ def test_double_complex_task(clock):
     assert future2.result() == 'ok'
 
 
-@gillcup.coroutine
+@coroutine
 def delaying_task(lst):
     for i in range(100):
         yield

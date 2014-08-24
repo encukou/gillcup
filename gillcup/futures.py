@@ -1,15 +1,15 @@
-from gillcup import util
+from gillcup.util.signature import fix_public_signature
 
 
 class Future:
     """Wraps a future; calbacks on the wrapper are scheduled on a given Clock
 
     To be instantiated using
-    :meth:`Clock.wait_for() <gillcup.clock.Clock.wait_for()>`.
+    :meth:`Clock.wait_for() <gillcup.clocks.Clock.wait_for()>`.
 
     See :class:`asyncio.Future` for API documentation.
     """
-    @util.fix_public_signature
+    @fix_public_signature
     def __init__(self, clock, wrapped_future, *, _category=0):
         self.clock = clock
         self._wrapped = wrapped_future
