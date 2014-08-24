@@ -277,6 +277,77 @@ with their parent vector::
     >>> point.pos
     <42.0, 20.0, 30.0>
 
+.. _property-anim:
+
+Animation
+---------
+
+As its name would suggest, the :class:`AnimatedProperty` makes it easy
+to animate properties.
+
+To animate a property, call its value's :class:`~PropertyValue.anim` method
+with a target, the desired duration of the animation,
+and a clock that will govern the timing::
+
+    >>> from gillcup.clocks import Clock
+    >>> clock = Clock()
+
+    >>> beeper = Beeper()
+    >>> beeper.volume
+    <0.0>
+    >>> beeper.volume.anim(12, duration=2, clock=clock)
+    >>> beeper.volume
+    <0.0>
+    >>> clock.advance_sync(1)  # 1 second passes...
+    >>> beeper.volume
+    <6.0>
+    >>> clock.advance_sync(1)  # another second passes...
+    >>> beeper.volume
+    <12.0>
+    >>> clock.advance_sync(1)  # more passes, but the animation is done
+    >>> beeper.volume
+    <12.0>
+
+For convenience, if the object the property is on has a *clock* attribute,
+you can leave out the *clock* argument
+in the :meth:`~PropertyValue.anim` call::
+
+    >>> beeper.clock = clock
+    >>> beeper.volume.anim(0, duration=4)
+    >>> beeper.volume
+    <12.0>
+    >>> clock.advance_sync(1)
+    >>> beeper.volume
+    <9.0>
+
+When animation is started on an property that already has an animation running,
+the previous animation is not interrupted -- it becomes a starting point
+for the new animation.
+
+    >>> beeper.volume
+    <9.0>
+    >>> beeper.volume.anim(42, duration=2)
+    >>> clock.advance_sync(1)
+    >>> beeper.volume
+    <24.0>
+    >>> # 24 is halfway between 6 (value of previous animation), and 42
+
+Of course, the target value passed to :meth:`~PropertyValue.anim` may be
+an arbitrary :class:`~gillcup.expressions.Expression`,
+so the end value can be changing in time as well.
+
+Other interesting effects are possible using :mod:`~gillcup.easings`:
+give :meth:`~PropertyValue.anim` an argument
+such as ``easing='quad.in_out'`` for more natural movement.
+
+If ``infinite=True`` is given, the animation will not end after *duration*,
+but will continue on, extrapolating past the given target.
+
+All the keyword arguments to the :meth:`~PropertyValue.anim` method
+are described in the documentation of the underlying function,
+:func:`gillcup.animations.anim`.
+
+
 .. _property-autonaming:
 
 Autonaming
@@ -306,6 +377,7 @@ Reference
 ---------
 
 .. autoclass:: AnimatedProperty
+.. autoclass:: PropertyValue
 .. autofunction:: link
 .. autofunction:: autoname
 
@@ -452,8 +524,37 @@ def _link_method(self, source):
         self._prop.__set__(self._instance, linked)
 
 
-def _anim_method(self, target, duration=0, clock=None, *,
-                 delay=0, easing=None, infinite=False, strength=1):
+class PropertyValue(Expression):
+    """Result of attribute access on an animeted property
+
+    Do not instantiate this class directly.
+
+    .. automethod:: anim
+    """
+    # This provides common functionality for both
+    # _PropertyValue and _ComponentPropertyValue.
+    # It is unusable by itself.
+    # It's also used for documentation of the values' methods
+    # (since their public API is the same).
+
+    def anim(self, target, duration=0, clock=None, *,
+             delay=0, easing=None, infinite=False, strength=1):
+        """Animate this property
+
+        Causes this property's value to gradually become *target*
+        in *duration* time units.
+
+        for convenience, if *clock* is not given,
+        the ``clock`` attribute from the object
+        this property is on is used as the clock.
+        A :exc:`TypeError` is raised if that attribute doesn't exist.
+
+        See the :ref:`Animation <property-anim>` section of the documentation
+        for a discussion.
+
+        For detailed description of the arguments, see
+        :func:`gillcup.animations.anim`.
+        """
         instance = self._instance
         if clock is None:
             try:
@@ -474,29 +575,28 @@ def _anim_method(self, target, duration=0, clock=None, *,
         )
         self._prop.__set__(instance, animation)
 
+    def get(self):
+        return self.replacement.get()
 
-class _PropertyValue(Expression):
+
+class _PropertyValue(PropertyValue):
     def __init__(self, prop, instance, expression):
         self._prop = prop
         self._instance = instance
         self.replacement = simplify(expression)
 
-    def get(self):
-        return self.replacement.get()
-
     @property
     def pretty_name(self):
         return '{0!r}.{1} value'.format(self._instance, self._prop.name)
+
+    def _gillcup_propexp_link(self):
+        return _Linked(self._prop, self._instance)
 
     @property
     def children(self):
         yield self.replacement
 
-    def _gillcup_propexp_link(self):
-        return _Linked(self._prop, self._instance)
-
     link = _link_method
-    anim = _anim_method
 
 
 class _Linked(Expression):
@@ -540,16 +640,13 @@ class _ComponentProperty:
         self._parent.__set__(instance, new)
 
 
-class _ComponentPropertyValue(Expression):
+class _ComponentPropertyValue(PropertyValue):
     def __init__(self, prop, parent, instance, expression, index):
         self._prop = prop
         self._parent = parent
         self._instance = instance
         self._index = index
         self.replacement = simplify(expression[self._index])
-
-    def get(self):
-        return self.replacement.get()
 
     @property
     def pretty_name(self):
@@ -567,7 +664,6 @@ class _ComponentPropertyValue(Expression):
                                 self._index)
 
     link = _link_method
-    anim = _anim_method
 
 
 class _LinkedComponent(Expression):
