@@ -2,6 +2,7 @@
 # The parts that Gillcup uses should work...
 
 import io
+import inspect
 
 import sphinx.ext.autodoc
 from docutils import nodes
@@ -85,6 +86,70 @@ class SpecialMethodDocumenter(sphinx.ext.autodoc.MethodDocumenter):
                 self.add_line('', '<autodoc>')
                 self.add_line('   *a.k.a.* :token:`%s%s`' % (self.name, sig),
                               '<autodoc>')
+
+
+class EasingDocumenter(sphinx.ext.autodoc.FunctionDocumenter):
+    """Auto-document a gillcup.easings.Easing object
+
+    The docstring can have these special markers in it:
+        .. graph!
+        .. params!
+
+    These specify the points where the graph and parameters go.
+    If they don't appear, the content goes before the first line starting with
+    '.. math::', or at the end of the docstring.
+    """
+    objtype = 'easing'
+    directivetype = 'function'
+
+    def format_args(self):
+        return '(t)'
+
+    def get_doc(self, encoding=None, ignore=1):
+        [orig_lines] = super().get_doc(encoding=encoding, ignore=ignore)
+
+        if '.. graph!' in orig_lines:
+            graph_marker = '.. graph!'
+        else:
+            graph_marker = '.. math::'
+
+        if '.. params!' in orig_lines:
+            params_marker = '.. params!'
+        else:
+            params_marker = '.. math::'
+
+        def generate_doc():
+            nonlocal graph_marker, params_marker
+            for line in orig_lines:
+                if params_marker and line.startswith(params_marker):
+                    yield from generate_params()
+                    yield ''
+                    params_marker = None
+                if graph_marker and line.startswith(graph_marker):
+                    yield from generate_graphs()
+                    yield ''
+                    graph_marker = None
+                yield line
+
+            if params_marker:
+                yield from generate_params()
+            if graph_marker:
+                yield from generate_graphs()
+
+        def generate_params():
+            sig = inspect.signature(self.object.p)
+            name = self.object.__name__
+            if sig.parameters:
+                yield '.. py:method:: {}.parametrized{}'.format(
+                    self.object.__name__, sig)
+                yield ''
+                yield '    Create a parametrized *{}* easing.'.format(name)
+                yield '    See :meth:`Easing.parametrized`.'
+
+        def generate_graphs():
+            yield '.. easing_graph:: {}'.format(self.name)
+
+        return [list(generate_doc())]
 
 
 class easing_graph(nodes.General, nodes.Element):
@@ -195,6 +260,7 @@ def gallery_latex(func, kwarg_variations=(0.5, 1.5), overshoots=0.5,
 
 def setup(app):
     app.add_autodocumenter(SpecialMethodDocumenter)
+    app.add_autodocumenter(EasingDocumenter)
     app.add_node(
         easing_graph,
         html=(noop_visit, eg_leave_factory(easings.gallery_html)),
