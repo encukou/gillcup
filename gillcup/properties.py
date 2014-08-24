@@ -315,6 +315,7 @@ import re
 import weakref
 
 from gillcup.expressions import Expression, coerce, simplify
+from gillcup.animations import anim
 from gillcup.util.autoname import autoname as _autoname, autoname_property
 
 
@@ -446,6 +447,34 @@ def link(prop):
         return func()
 
 
+def _link_method(self, source):
+        linked = link(source)
+        self._prop.__set__(self._instance, linked)
+
+
+def _anim_method(self, target, duration=0, clock=None, *,
+                 delay=0, easing=None, infinite=False, strength=1):
+        instance = self._instance
+        if clock is None:
+            try:
+                clock = instance.clock
+            except AttributeError:
+                raise TypeError('{} does not have a clock. '
+                                'Pass a clock to anim() explicitly.'.format(
+                                    instance))
+        animation = anim(
+            start=self.replacement,
+            end=target,
+            duration=duration,
+            clock=clock,
+            delay=delay,
+            easing=easing,
+            infinite=infinite,
+            strength=strength,
+        )
+        self._prop.__set__(instance, animation)
+
+
 class _PropertyValue(Expression):
     def __init__(self, prop, instance, expression):
         self._prop = prop
@@ -466,9 +495,8 @@ class _PropertyValue(Expression):
     def _gillcup_propexp_link(self):
         return _Linked(self._prop, self._instance)
 
-    def link(self, source):
-        linked = link(source)
-        self._prop.__set__(self._instance, linked)
+    link = _link_method
+    anim = _anim_method
 
 
 class _Linked(Expression):
@@ -538,9 +566,8 @@ class _ComponentPropertyValue(Expression):
         return _LinkedComponent(self._prop, self._parent, self._instance,
                                 self._index)
 
-    def link(self, source):
-        linked = link(source)
-        self._prop.__set__(self._instance, linked)
+    link = _link_method
+    anim = _anim_method
 
 
 class _LinkedComponent(Expression):

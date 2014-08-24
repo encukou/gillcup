@@ -74,6 +74,11 @@ class NaïveBeeper(BeeperBase):
             with pytest.raises(AttributeError) as e:
                 yield
             assert str(e.value) == "'int' object has no attribute 'link'"
+        elif behavior_type == 'anim method':
+            # AnimatedProperty values have an anim() method
+            with pytest.raises(AttributeError) as e:
+                yield
+            assert str(e.value) == "'int' object has no attribute 'anim'"
         elif behavior_type == 'syncs-components':
             # Tuple AnimatedProperty values sync with their components
             with pytest.raises(AssertionError) as e:
@@ -406,3 +411,89 @@ def test_factory_coercion():
         bar = AnimatedProperty(3, lambda inst: 3)
 
     assert Foo().bar == (3, 3, 3)
+
+
+def test_anim_basic(beeper, clock):
+    beeper.clock = clock
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(50)
+        assert beeper.volume == 50
+
+
+def test_anim_duration(beeper, clock):
+    beeper.clock = clock
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(100, 2)
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+
+
+def test_anim_delay(beeper, clock):
+    beeper.clock = clock
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(100, 2, delay=1)
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+
+
+def test_anim_easing(beeper, clock):
+    beeper.clock = clock
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(100, 2, easing='quad')
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 25
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+
+
+def test_anim_infinite(beeper, clock):
+    beeper.clock = clock
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(100, 2, infinite=True)
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+        clock.advance_sync(1)
+        assert beeper.volume == 150
+
+
+def test_anim_strength(beeper, clock):
+    beeper.clock = clock
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(100, 2, strength=0.5)
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 25
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+
+
+def test_anim_no_clock(beeper):
+    with beeper.extra_behavior('anim method'):
+        with pytest.raises(TypeError):
+            beeper.volume.anim(5)
+
+
+def test_anim_explicit_clock(beeper, clock):
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(5, clock=clock)
+        assert beeper.volume == 5
