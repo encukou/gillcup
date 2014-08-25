@@ -398,6 +398,7 @@ import weakref
 from gillcup.expressions import Expression, coerce, simplify
 from gillcup.animations import anim
 from gillcup.util.autoname import autoname as _autoname, autoname_property
+from gillcup.util.slice import get_slice_indices
 
 
 def autoname(cls):
@@ -451,7 +452,8 @@ class AnimatedProperty:
 
         self.name, component_names = _get_names(name, size)
 
-        self._component_names = dict(enumerate(component_names))
+        self._component_names = {(i, i + 1): n
+                                 for i, n in enumerate(component_names)}
         self.__doc__ = doc
 
     def __len__(self):
@@ -474,11 +476,13 @@ class AnimatedProperty:
         yield from (self[i] for i in range(self._size))
 
     def __getitem__(self, index):
+        return _ComponentProperty(self, index)
+
+    def _get_component_name(self, start, end):
         try:
-            name = self._component_names[index]
-        except (TypeError, KeyError):
-            name = '{}[{}]'.format(self.name, index)
-        return _ComponentProperty(self, index, name)
+            return self._component_names[start, end]
+        except KeyError:
+            return '{}[{}:{}]'.format(self.name, start, end)
 
     def __get__(self, instance, owner=None):
         if instance is None:
@@ -649,11 +653,13 @@ class _Linked(Expression):
 
 @autoname_property('name')
 class _ComponentProperty:
-    def __init__(self, vector_property, index, name):
+    def __init__(self, vector_property, index):
         self._vector_property = vector_property
-        self._index = index
-        self._size = len(([[None]] * len(vector_property))[index])
-        self.name = name
+        self._start, self._end = get_slice_indices(len(vector_property), index)
+        self.name = vector_property._get_component_name(self._start, self._end)
+
+    def __len__(self):
+        return self._end - self._start
 
     def __get__(self, instance, owner=None):
         if instance is None:
@@ -664,30 +670,54 @@ class _ComponentProperty:
                 name=self.name,
                 parent_property=self,
                 instance=instance,
-                expression=simplify(exp)[self._index],
-                index=self._index)
+                expression=simplify(exp)[self._start:self._end],
+                start=self._start,
+                end=self._end)
+
+    def __getitem__(self, index):
+        start, end = get_slice_indices(len(self), index)
+        index = slice(self._start + start, self._start + end)
+        return _ComponentProperty(
+            vector_property=self._vector_property,
+            index=index)
 
     def __set__(self, instance, value):
         exp = self._vector_property.__get__(instance)
-        new = exp.replace(self._index, coerce(value, size=self._size))
+        new = exp.replace(slice(self._start, self._end),
+                          coerce(value, size=len(self)))
         self._vector_property.__set__(instance, new)
 
 
+def _component_repr(instance, name, vect_name, start, end):
+    if start + 1 == end:
+        index = start
+    else:
+        index = ':'.join((start, end))
+    return '{inst!r}.{name} ({vect_name}[{index}])'.format(
+        inst=instance,
+        name=name,
+        vect_name=vect_name,
+        index=index)
+
+
 class _ComponentPropertyValue(PropertyValue):
-    def __init__(self, name, parent_property, instance, expression, index):
+    def __init__(self, name, parent_property, instance, expression,
+                 start, end):
         self._name = name
         self._parent_property = parent_property
         self._instance = instance
-        self._index = index
+        self._start = start
+        self._end = end
         self.replacement = expression
 
     @property
     def pretty_name(self):
-        return '{inst!r}.{name} ({vect_name}[{index}]) value'.format(
-            inst=self._instance,
+        return _component_repr(
+            instance=self._instance,
             name=self._name,
             vect_name=self._parent_property._vector_property.name,
-            index=self._index)
+            start=self._start,
+            end=self._end) + ' value'
 
     @property
     def children(self):
@@ -698,29 +728,32 @@ class _ComponentPropertyValue(PropertyValue):
             name=self._name,
             parent_property=self._parent_property,
             instance=self._instance,
-            index=self._index)
+            start=self._start,
+            end=self._end)
 
     link = _link_method
 
 
 class _LinkedComponent(Expression):
-    def __init__(self, name, parent_property, instance, index):
+    def __init__(self, name, parent_property, instance, start, end):
         self._name = name
         self._parent_property = parent_property
         self._instance = instance
-        self._index = index
+        self._start = start
+        self._end = end
 
     def get(self):
         exp = self._parent_property._vector_property.__get__(self._instance)
-        return (exp.get()[self._index], )
+        return exp.get()[self._start:self._end]
 
     @property
     def pretty_name(self):
-        return 'linked {inst!r}.{name} ({vect_name}[{index}])'.format(
-            inst=self._instance,
+        return 'linked ' + _component_repr(
+            instance=self._instance,
             name=self._name,
             vect_name=self._parent_property._vector_property.name,
-            index=self._index)
+            start=self._start,
+            end=self._end)
 
     @property
     def children(self):

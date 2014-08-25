@@ -149,6 +149,7 @@ import math
 import asyncio
 
 from gillcup.signals import signal
+from gillcup.util.slice import get_slice_indices
 
 
 def simplify(exp):
@@ -508,7 +509,7 @@ class Expression:
             >>> Constant(1, 2, 3).replace(slice(0, -1), Constant(-1))
             <-1.0, 3.0>
         """
-        start, stop = _get_slice_indices(self, index)
+        start, stop = get_slice_indices(len(self), index)
         replacement = coerce(replacement, size=stop - start, strict=False)
         return simplify(Concat(self[:start], replacement, self[stop:]))
 
@@ -681,7 +682,8 @@ class Constant(Expression):
         return self._value
 
     def __getitem__(self, index):
-        return Constant(*self._value[slice(*_get_slice_indices(self, index))])
+        start, end = get_slice_indices(len(self), index)
+        return Constant(*self._value[slice(start, end)])
 
 
 class Value(Expression):
@@ -937,27 +939,6 @@ class Neg(Elementwise):
         super().__init__(operand, operator.neg)
 
 
-def _get_slice_indices(source, index):
-    try:
-        index = int(index)
-    except TypeError:
-        try:
-            indices = index.indices
-        except AttributeError:
-            message = 'indices must be slices or integers, not {}'
-            raise TypeError(message.format(type(index).__name__))
-        start, stop, step = indices(len(source))
-        if step not in (None, 1):
-            raise IndexError('non-1 step not supported')
-        return start, stop
-    else:
-        if index < 0:
-            index += len(source)
-        if not (0 <= index < len(source)):
-            raise IndexError('expression index out of range')
-        return index, index + 1
-
-
 class Slice(Expression):
     """Slice of an Expression
 
@@ -965,7 +946,7 @@ class Slice(Expression):
     """
     def __init__(self, source, index):
         self._source = simplify(source)
-        self._start, self._stop = _get_slice_indices(source, index)
+        self._start, self._stop = get_slice_indices(len(source), index)
         self._len = self._stop - self._start
         if self._len <= 0:
             self.replacement = Constant()
@@ -1084,7 +1065,7 @@ class Concat(Expression):
             [self.replacement] = self._children
 
     def __getitem__(self, index):
-        start, end = _get_slice_indices(self, index)
+        start, end = get_slice_indices(len(self), index)
         new_children = []
         for child in self._children:
             child_len = len(child)

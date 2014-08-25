@@ -548,3 +548,44 @@ def test_anim_components(beeper, clock):
     with beeper.extra_behavior('anim method'):
         beeper.position[0:2].anim((5, 6), clock=clock)
         assert beeper.position == (5, 6, 0)
+
+
+def test_sliced_property():
+    class Foo:
+        bar = AnimatedProperty(5)
+        xyz = bar[1:4]
+
+    assert len(Foo.bar) == 5
+    assert len(Foo.xyz) == 3
+
+    foo = Foo()
+    assert len(foo.bar) == 5
+    assert len(foo.xyz) == 3
+
+    assert foo.xyz == (0, 0, 0)
+    foo.xyz = 1, 2, 3
+    assert foo.bar == (0, 1, 2, 3, 0)
+
+
+def test_sliced_sliced_property():
+    class Foo:
+        bar = AnimatedProperty(5)
+        xyz = bar[1:-1]
+        m = xyz[1:-1]
+        z = m[1:-1]
+
+    assert len(Foo.bar) == 5
+    assert len(Foo.xyz) == 3
+    assert len(Foo.m) == 1
+    assert len(Foo.z) == 0
+
+    foo = Foo()
+    assert len(foo.bar) == 5
+    assert len(foo.xyz) == 3
+    assert len(foo.m) == 1
+    assert len(foo.z) == 0
+
+    assert foo.xyz == (0, 0, 0)
+    foo.xyz = 1, 2, 3
+    foo.m = 47
+    assert foo.bar == (0, 1, 47, 3, 0)
