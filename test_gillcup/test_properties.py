@@ -78,7 +78,7 @@ class NaïveBeeper(BeeperBase):
             # AnimatedProperty values have an anim() method
             with pytest.raises(AttributeError) as e:
                 yield
-            assert str(e.value) == "'int' object has no attribute 'anim'"
+            assert str(e.value).endswith("' object has no attribute 'anim'")
         elif behavior_type == 'syncs-components':
             # Tuple AnimatedProperty values sync with their components
             with pytest.raises(AssertionError) as e:

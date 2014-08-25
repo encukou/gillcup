@@ -529,8 +529,8 @@ def link(prop):
 
 
 def _link_method(self, source):
-        linked = link(source)
-        self._prop.__set__(self._instance, linked)
+    linked = link(source)
+    self._parent_property.__set__(self._instance, linked)
 
 
 class PropertyValue(Expression):
@@ -585,7 +585,7 @@ class PropertyValue(Expression):
             infinite=infinite,
             strength=strength,
         )
-        self._prop.__set__(instance, animation)
+        self._parent_property.__set__(instance, animation)
         return animation.done
 
     def get(self):
@@ -593,17 +593,18 @@ class PropertyValue(Expression):
 
 
 class _PropertyValue(PropertyValue):
-    def __init__(self, prop, instance, expression):
-        self._prop = prop
+    def __init__(self, parent_property, instance, expression):
+        self._parent_property = parent_property
         self._instance = instance
         self.replacement = simplify(expression)
 
     @property
     def pretty_name(self):
-        return '{0!r}.{1} value'.format(self._instance, self._prop.name)
+        return '{0!r}.{1} value'.format(self._instance,
+                                        self._parent_property.name)
 
     def _gillcup_propexp_link(self):
-        return _Linked(self._prop, self._instance)
+        return _Linked(self._parent_property, self._instance)
 
     @property
     def children(self):
@@ -613,20 +614,21 @@ class _PropertyValue(PropertyValue):
 
 
 class _Linked(Expression):
-    def __init__(self, prop, instance):
-        self._prop = prop
+    def __init__(self, parent_property, instance):
+        self._parent_property = parent_property
         self._instance = instance
 
     def get(self):
-        return self._prop.__get__(self._instance).get()
+        return self._parent_property.__get__(self._instance).get()
 
     @property
     def pretty_name(self):
-        return 'linked {0!r}.{1}'.format(self._instance, self._prop.name)
+        return 'linked {0!r}.{1}'.format(self._instance,
+                                         self._parent_property.name)
 
     @property
     def children(self):
-        yield simplify(self._prop.__get__(self._instance))
+        yield simplify(self._parent_property.__get__(self._instance))
 
     def _gillcup_propexp_link(self):
         return self
@@ -634,8 +636,8 @@ class _Linked(Expression):
 
 @autoname_property('name')
 class _ComponentProperty:
-    def __init__(self, parent, index, name):
-        self._parent = parent
+    def __init__(self, vector_property, index, name):
+        self._vector_property = vector_property
         self._index = index
         self.name = name
 
@@ -643,62 +645,72 @@ class _ComponentProperty:
         if instance is None:
             return self
         else:
-            exp = self._parent.__get__(instance, owner)
-            return _ComponentPropertyValue(self, self._parent, instance, exp,
-                                           self._index)
+            exp = self._vector_property.__get__(instance, owner)
+            return _ComponentPropertyValue(
+                name=self.name,
+                parent_property=self,
+                instance=instance,
+                expression=exp[self._index],
+                index=self._index)
 
     def __set__(self, instance, value):
-        exp = self._parent.__get__(instance)
+        exp = self._vector_property.__get__(instance)
         new = exp.replace(self._index, coerce(value, size=1))
-        self._parent.__set__(instance, new)
+        self._vector_property.__set__(instance, new)
 
 
 class _ComponentPropertyValue(PropertyValue):
-    def __init__(self, prop, parent, instance, expression, index):
-        self._prop = prop
-        self._parent = parent
+    def __init__(self, name, parent_property, instance, expression, index):
+        self._name = name
+        self._parent_property = parent_property
         self._instance = instance
         self._index = index
-        self.replacement = simplify(expression[self._index])
+        self.replacement = simplify(expression)
 
     @property
     def pretty_name(self):
-        return '{0!r}.{1} ({2}[{3}]) value'.format(self._instance,
-                                                   self._prop.name,
-                                                   self._parent.name,
-                                                   self._index)
+        return '{inst!r}.{name} ({vect_name}[{index}]) value'.format(
+            inst=self._instance,
+            name=self._name,
+            vect_name=self._parent_property._vector_property.name,
+            index=self._index)
 
     @property
     def children(self):
-        yield self._parent.__get__(self._instance)
+        yield self._parent_property._vector_property.__get__(self._instance)
 
     def _gillcup_propexp_link(self):
-        return _LinkedComponent(self._prop, self._parent, self._instance,
-                                self._index)
+        return _LinkedComponent(
+            name=self._name,
+            parent_property=self._parent_property,
+            instance=self._instance,
+            index=self._index)
 
     link = _link_method
 
 
 class _LinkedComponent(Expression):
-    def __init__(self, prop, parent, instance, index):
-        self._prop = prop
-        self._parent = parent
+    def __init__(self, name, parent_property, instance, index):
+        self._name = name
+        self._parent_property = parent_property
         self._instance = instance
         self._index = index
 
     def get(self):
-        return (self._parent.__get__(self._instance).get()[self._index], )
+        exp = self._parent_property._vector_property.__get__(self._instance)
+        return (exp.get()[self._index], )
 
     @property
     def pretty_name(self):
-        return 'linked {0!r}.{1} ({2}[{3}])'.format(self._instance,
-                                                    self._prop.name,
-                                                    self._parent.name,
-                                                    self._index)
+        return 'linked {inst!r}.{name} ({vect_name}[{index}])'.format(
+            inst=self._instance,
+            name=self._name,
+            vect_name=self._parent_property._vector_property.name,
+            index=self._index)
 
     @property
     def children(self):
-        yield self._parent.__get__(self._instance)
+        yield self._parent_property._vector_property.__get__(self._instance)
 
     def _gillcup_propexp_link(self):
         return self
