@@ -8,6 +8,7 @@ import pytest
 from gillcup.expressions import Constant, Value, Concat, Interpolation, Slice
 from gillcup.expressions import Sum, Difference, Product, Quotient, Neg, Box
 from gillcup.expressions import Progress, dump, simplify
+from gillcup import expressions
 
 
 try:
@@ -76,6 +77,11 @@ def op(request):
         pos=lambda a: +a,
         neg=lambda a: -a,
     )[request.param]
+
+
+@pytest.fixture(params=range(4))
+def range_4(request):
+    return request.param
 
 
 class Flag:
@@ -477,6 +483,17 @@ def test_interpolation_simplification():
     assert simplify(Interpolation(val1, val2, 1)) is val2
 
 
+def test_interpolation_const_to_const_simplification(check_dump, range_4):
+    val1 = Value(1, 2, 3) if range_4 % 1 else Constant(1, 2, 3)
+    val2 = Value(1, 2, 3) if range_4 % 2 else Constant(1, 2, 3)
+    exp = Interpolation(val1, val2, Value(0.5))
+    with reduce_to_const(exp):
+        if range_4 % 1:
+            val1.fix()
+        if range_4 % 2:
+            val2.fix()
+
+
 def test_interpolation_dump(check_dump):
     val1 = Value(0, 0)
     val2 = Value(2, 10)
@@ -614,6 +631,31 @@ def test_slice_simplification(start, end):
     val = Value(1, 2, 3, 4)
     with reduce_to_const(Slice(val, slice(start, end))):
         val.fix()
+
+
+@pytest.mark.parametrize(['cls_name', 'identity', 'is_commutative'], [
+    ('Sum', 0, True), ('Product', 1, True),
+    ('Difference', 0, False), ('Quotient', 1, False),
+])
+def test_reduce_simplification_2(check_dump, cls_name, identity,
+                                 is_commutative, range_4):
+    cls = getattr(expressions, cls_name)
+    const = Constant(identity, identity, identity)
+    vals = [const] * 3
+    if range_4 < 3:
+        vals[range_4] = Value(identity, identity, identity)
+        if is_commutative or range_4 == 0:
+            expected = "Value <{0}, {0}, {0}>".format(float(identity))
+        else:
+            expected = """
+                {1} <{0}, {0}, {0}>:
+                  Constant <{0}, {0}, {0}>
+                  Value <{0}, {0}, {0}>
+            """.format(float(identity), cls.pretty_name)
+    else:
+        expected = "Constant <{0}, {0}, {0}>".format(float(identity))
+    exp = cls(vals)
+    check_dump(simplify(exp), expected)
 
 
 def test_neg_simplification():

@@ -788,8 +788,16 @@ class Reduce(Expression):
 
             True to enable optimizations that assume `op` implements a
             commutative operator
+
+        .. attribute:: identity_element
+
+            If not None, the number that can be ignored for this
+            operation (or if :token:`commutative` is true, that can be
+            ignored if it's not the firsr operand.
+            For example, 0 for ``+`` or ``-``, 1 for ``*`` or ``/``).
     """
     commutative = False
+    identity_element = None
 
     def __init__(self, operands, op):
         self._op = op
@@ -804,6 +812,9 @@ class Reduce(Expression):
     def get(self):
         return _reduce_tuples(self._operands, self._op)
 
+    def __len__(self):
+        return len(self._operands[0])
+
     @property
     def pretty_name(self):
         return '{}({})'.format(type(self).__name__, self._op)
@@ -814,6 +825,7 @@ class Reduce(Expression):
 
     def _replace_operands(self, commutative=False):
         new = []
+        size = len(self._operands[0])
 
         def _generate_operands(operands):
             for i, oper in enumerate(operands):
@@ -834,6 +846,12 @@ class Reduce(Expression):
                                               tuple(oper))))
             else:
                 new.append(oper)
+            if (new and isinstance(oper, Constant) and
+                    (self.commutative or len(new) > 1) and
+                    all(x == self.identity_element for x in new[-1])):
+                new.pop()
+        if not new:
+            new.append(Constant(*[self.identity_element] * size))
         self._operands = new
         if len(self._operands) == 1:
             [self.replacement] = self._operands
@@ -846,6 +864,7 @@ class Sum(Reduce):
     """
     pretty_name = '+'
     commutative = True
+    identity_element = 0
 
     def __init__(self, operands):
         super().__init__(operands, operator.add)
@@ -861,6 +880,7 @@ class Product(Reduce):
     """
     pretty_name = '*'
     commutative = True
+    identity_element = 1
 
     def __init__(self, operands):
         super().__init__(operands, operator.mul)
@@ -872,6 +892,7 @@ class Difference(Reduce):
     All operands must be the same size.
     """
     pretty_name = '-'
+    identity_element = 0
 
     def __init__(self, operands):
         super().__init__(operands, operator.sub)
@@ -901,6 +922,7 @@ class Quotient(Reduce):
     an exception -- see :func:`safediv`.
     """
     pretty_name = '/'
+    identity_element = 1
 
     def __init__(self, operands):
         super().__init__(operands, safediv)
@@ -1153,6 +1175,7 @@ class Interpolation(Expression):
         self._end.replacement_available.connect(self._replace_end)
         self._t.replacement_available.connect(self._replace_t)
         self._replace_t()
+        self._replace_const_to_const()
 
     def get(self):
         t = float(self._t)
@@ -1161,9 +1184,11 @@ class Interpolation(Expression):
 
     def _replace_start(self):
         self._start = _replace_child(self._start, self._replace_start)
+        self._replace_const_to_const()
 
     def _replace_end(self):
         self._end = _replace_child(self._end, self._replace_end)
+        self._replace_const_to_const()
 
     def _replace_t(self):
         self._t = t = _replace_child(self._t, self._replace_t)
@@ -1172,6 +1197,12 @@ class Interpolation(Expression):
                 self.replacement = simplify(self._start)
             elif t == 1:
                 self.replacement = simplify(self._end)
+
+    def _replace_const_to_const(self):
+        if (isinstance(self._start, Constant) and
+                isinstance(self._end, Constant) and
+                self._start == self._end):
+            self.replacement = self._start
 
     @property
     def children(self):
