@@ -87,6 +87,12 @@ class NaïveBeeper(BeeperBase):
             # AnimatedProperty values are always expressions
             with pytest.raises(AssertionError) as e:
                 yield
+        elif behavior_type == 'tuple immutable':
+            # Tuple AnimatedProperty values sync with their components
+            with pytest.raises(TypeError) as e:
+                yield
+            assert str(e.value) == (
+                "'tuple' object does not support item assignment")
         else:
             raise LookupError(behavior_type)
 
@@ -521,3 +527,24 @@ def test_anim_in_coroutine(beeper, clock):
         assert beeper.volume == 0
         clock.advance_sync(1)
         assert beeper.volume == 0
+
+
+def test_component_assign(beeper, clock):
+    with beeper.extra_behavior('tuple immutable'):
+        beeper.position[0] = 5
+        assert beeper.position == (5, 0, 0)
+        beeper.position[1:] = 6, 7
+        assert beeper.position == (5, 6, 7)
+
+
+def test_anim_component(beeper, clock):
+    with beeper.extra_behavior('anim method'):
+        print(beeper.position[0])
+        beeper.position[0].anim(5, clock=clock)
+        assert beeper.position == (5, 0, 0)
+
+
+def test_anim_components(beeper, clock):
+    with beeper.extra_behavior('anim method'):
+        beeper.position[0:2].anim((5, 6), clock=clock)
+        assert beeper.position == (5, 6, 0)

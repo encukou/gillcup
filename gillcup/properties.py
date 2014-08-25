@@ -451,8 +451,7 @@ class AnimatedProperty:
 
         self.name, component_names = _get_names(name, size)
 
-        self._components = tuple(_ComponentProperty(self, i, name)
-                                 for i, name in enumerate(component_names))
+        self._component_names = dict(enumerate(component_names))
         self.__doc__ = doc
 
     def __len__(self):
@@ -472,7 +471,14 @@ class AnimatedProperty:
         The component descriptors have the same interface as
         :class:`AnimatedProperty`, except they lack ``__iter__``.
         """
-        yield from self._components
+        yield from (self[i] for i in range(self._size))
+
+    def __getitem__(self, index):
+        try:
+            name = self._component_names[index]
+        except (TypeError, KeyError):
+            name = '{}[{}]'.format(self.name, index)
+        return _ComponentProperty(self, index, name)
 
     def __get__(self, instance, owner=None):
         if instance is None:
@@ -610,6 +616,13 @@ class _PropertyValue(PropertyValue):
     def children(self):
         yield self.replacement
 
+    def __setitem__(self, index, new_value):
+        exp = self.replacement.replace(index, new_value)
+        self._parent_property.__set__(self._instance, exp)
+
+    def __getitem__(self, index):
+        return self._parent_property[index].__get__(self._instance)
+
     link = _link_method
 
 
@@ -639,6 +652,7 @@ class _ComponentProperty:
     def __init__(self, vector_property, index, name):
         self._vector_property = vector_property
         self._index = index
+        self._size = len(([[None]] * len(vector_property))[index])
         self.name = name
 
     def __get__(self, instance, owner=None):
@@ -650,12 +664,12 @@ class _ComponentProperty:
                 name=self.name,
                 parent_property=self,
                 instance=instance,
-                expression=exp[self._index],
+                expression=simplify(exp)[self._index],
                 index=self._index)
 
     def __set__(self, instance, value):
         exp = self._vector_property.__get__(instance)
-        new = exp.replace(self._index, coerce(value, size=1))
+        new = exp.replace(self._index, coerce(value, size=self._size))
         self._vector_property.__set__(instance, new)
 
 
@@ -665,7 +679,7 @@ class _ComponentPropertyValue(PropertyValue):
         self._parent_property = parent_property
         self._instance = instance
         self._index = index
-        self.replacement = simplify(expression)
+        self.replacement = expression
 
     @property
     def pretty_name(self):
