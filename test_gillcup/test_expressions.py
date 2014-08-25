@@ -531,6 +531,41 @@ def test_progress_simplification(clock):
         clock.advance_sync(1)
 
 
+def test_progress_no_negative_duration(clock):
+    with pytest.raises(ValueError):
+        Progress(clock, -2)
+
+
+def test_progress_zero_duration(clock):
+    exp = Progress(clock, 0, delay=2)
+    assert exp == 0
+    clock.advance_sync(1)
+    assert exp == 0
+    clock.advance_sync(1)
+    assert exp == 1
+    clock.advance_sync(1)
+    assert exp == 1
+
+
+def test_progress_infinity_n_beyond(clock):
+    with pytest.raises(ValueError):
+        Progress(clock, 0, clamp=False)
+
+
+def test_progress_negative_delay(clock):
+    exp = Progress(clock, 2, delay=-1)
+    assert exp == 0.5
+    clock.advance_sync(1)
+    assert exp == 1
+
+
+def test_progress_large_negative_delay(clock):
+    exp = Progress(clock, 1, delay=-2)
+    assert exp == 1
+    clock.advance_sync(1)
+    assert exp == 1
+
+
 @pytest.mark.parametrize('chain_length', [0, 1, 2, 3, 50])
 def test_interpolation_chain_simplification(chain_length):
     t = Value(0)

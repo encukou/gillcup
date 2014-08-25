@@ -74,6 +74,11 @@ class NaïveBeeper(BeeperBase):
             with pytest.raises(AttributeError) as e:
                 yield
             assert str(e.value) == "'int' object has no attribute 'link'"
+        elif behavior_type == 'anim method':
+            # AnimatedProperty values have an anim() method
+            with pytest.raises(AttributeError) as e:
+                yield
+            assert str(e.value).endswith("' object has no attribute 'anim'")
         elif behavior_type == 'syncs-components':
             # Tuple AnimatedProperty values sync with their components
             with pytest.raises(AssertionError) as e:
@@ -82,6 +87,12 @@ class NaïveBeeper(BeeperBase):
             # AnimatedProperty values are always expressions
             with pytest.raises(AssertionError) as e:
                 yield
+        elif behavior_type == 'tuple immutable':
+            # Tuple AnimatedProperty values sync with their components
+            with pytest.raises(TypeError) as e:
+                yield
+            assert str(e.value) == (
+                "'tuple' object does not support item assignment")
         else:
             raise LookupError(behavior_type)
 
@@ -406,3 +417,175 @@ def test_factory_coercion():
         bar = AnimatedProperty(3, lambda inst: 3)
 
     assert Foo().bar == (3, 3, 3)
+
+
+def test_anim_basic(beeper, clock):
+    beeper.clock = clock
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(50)
+        assert beeper.volume == 50
+
+
+def test_anim_duration(beeper, clock):
+    beeper.clock = clock
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(100, 2)
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+
+
+def test_anim_delay(beeper, clock):
+    beeper.clock = clock
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(100, 2, delay=1)
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+
+
+def test_anim_easing(beeper, clock):
+    beeper.clock = clock
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(100, 2, easing='quad')
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 25
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+
+
+def test_anim_infinite(beeper, clock):
+    beeper.clock = clock
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(100, 2, infinite=True)
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+        clock.advance_sync(1)
+        assert beeper.volume == 150
+
+
+def test_anim_strength(beeper, clock):
+    beeper.clock = clock
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(100, 2, strength=0.5)
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 25
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+
+
+def test_anim_no_clock(beeper):
+    with beeper.extra_behavior('anim method'):
+        with pytest.raises(TypeError):
+            beeper.volume.anim(5)
+
+
+def test_anim_explicit_clock(beeper, clock):
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(5, clock=clock)
+        assert beeper.volume == 5
+
+
+def test_anim_in_coroutine(beeper, clock):
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim
+        beeper.clock = clock
+
+        def there_and_back():
+            yield from beeper.volume.anim(100, 2)
+            yield from beeper.volume.anim(0, 2)
+
+        clock.task(there_and_back())
+
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+        clock.advance_sync(1)
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 0
+
+
+def test_component_assign(beeper, clock):
+    with beeper.extra_behavior('tuple immutable'):
+        beeper.position[0] = 5
+        assert beeper.position == (5, 0, 0)
+        beeper.position[1:] = 6, 7
+        assert beeper.position == (5, 6, 7)
+
+
+def test_anim_component(beeper, clock):
+    with beeper.extra_behavior('anim method'):
+        print(beeper.position[0])
+        beeper.position[0].anim(5, clock=clock)
+        assert beeper.position == (5, 0, 0)
+
+
+def test_anim_components(beeper, clock):
+    with beeper.extra_behavior('anim method'):
+        beeper.position[0:2].anim((5, 6), clock=clock)
+        assert beeper.position == (5, 6, 0)
+
+
+def test_sliced_property():
+    class Foo:
+        bar = AnimatedProperty(5)
+        xyz = bar[1:4]
+
+    assert len(Foo.bar) == 5
+    assert len(Foo.xyz) == 3
+
+    foo = Foo()
+    assert len(foo.bar) == 5
+    assert len(foo.xyz) == 3
+
+    assert foo.xyz == (0, 0, 0)
+    foo.xyz = 1, 2, 3
+    assert foo.bar == (0, 1, 2, 3, 0)
+
+
+def test_sliced_sliced_property():
+    class Foo:
+        bar = AnimatedProperty(5)
+        xyz = bar[1:-1]
+        m = xyz[1:-1]
+        z = m[1:-1]
+
+    assert len(Foo.bar) == 5
+    assert len(Foo.xyz) == 3
+    assert len(Foo.m) == 1
+    assert len(Foo.z) == 0
+
+    foo = Foo()
+    assert len(foo.bar) == 5
+    assert len(foo.xyz) == 3
+    assert len(foo.m) == 1
+    assert len(foo.z) == 0
+
+    assert foo.xyz == (0, 0, 0)
+    foo.xyz = 1, 2, 3
+    foo.m = 47
+    assert foo.bar == (0, 1, 47, 3, 0)

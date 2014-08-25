@@ -277,6 +277,86 @@ with their parent vector::
     >>> point.pos
     <42.0, 20.0, 30.0>
 
+.. _property-anim:
+
+Animation
+---------
+
+As its name would suggest, the :class:`AnimatedProperty` makes it easy
+to animate properties.
+
+To animate a property, call its value's :class:`~PropertyValue.anim` method
+with a target, the desired duration of the animation,
+and a clock that will govern the timing::
+
+    >>> from gillcup.clocks import Clock
+    >>> clock = Clock()
+
+    >>> beeper = Beeper()
+    >>> beeper.volume
+    <0.0>
+    >>> beeper.volume.anim(12, duration=2, clock=clock)
+    <...>
+    >>> beeper.volume
+    <0.0>
+    >>> clock.advance_sync(1)  # 1 second passes...
+    >>> beeper.volume
+    <6.0>
+    >>> clock.advance_sync(1)  # another second passes...
+    >>> beeper.volume
+    <12.0>
+    >>> clock.advance_sync(1)  # more passes, but the animation is done
+    >>> beeper.volume
+    <12.0>
+
+For convenience, if the object the property is on has a *clock* attribute,
+you can leave out the *clock* argument
+in the :meth:`~PropertyValue.anim` call::
+
+    >>> beeper.clock = clock
+    >>> beeper.volume.anim(0, duration=4)
+    <...>
+    >>> beeper.volume
+    <12.0>
+    >>> clock.advance_sync(1)
+    >>> beeper.volume
+    <9.0>
+
+When animation is started on an property that already has an animation running,
+the previous animation is not interrupted -- it becomes a starting point
+for the new animation.
+
+    >>> beeper.volume
+    <9.0>
+    >>> beeper.volume.anim(42, duration=2)
+    <...>
+    >>> clock.advance_sync(1)
+    >>> beeper.volume
+    <24.0>
+    >>> # 24 is halfway between 6 (value of previous animation), and 42
+
+Of course, the target value passed to :meth:`~PropertyValue.anim` may be
+an arbitrary :class:`~gillcup.expressions.Expression`,
+so the end value can be changing in time as well.
+
+Other interesting effects are possible using :mod:`~gillcup.easings`:
+give :meth:`~PropertyValue.anim` an argument
+such as ``easing='quad.in_out'`` for more natural movement.
+
+If ``infinite=True`` is given, the animation will not end after *duration*,
+but will continue on, extrapolating past the given target.
+
+All the keyword arguments to the :meth:`~PropertyValue.anim` method
+are described in the documentation of the underlying function,
+:func:`gillcup.animations.anim`.
+
+The :meth:`~PropertyValue.anim` method returns a future that is done when
+the animation is finished.
+A :func:`coroutine <gillcup.clocks.coroutine>`
+could use ``yield from beeper.volume.anim(42, duration=2)``
+to wait (suspend itself) until the end of the animation.
+
+
 .. _property-autonaming:
 
 Autonaming
@@ -306,6 +386,7 @@ Reference
 ---------
 
 .. autoclass:: AnimatedProperty
+.. autoclass:: PropertyValue
 .. autofunction:: link
 .. autofunction:: autoname
 
@@ -315,7 +396,9 @@ import re
 import weakref
 
 from gillcup.expressions import Expression, coerce, simplify
+from gillcup.animations import anim
 from gillcup.util.autoname import autoname as _autoname, autoname_property
+from gillcup.util.slice import get_slice_indices
 
 
 def autoname(cls):
@@ -369,8 +452,8 @@ class AnimatedProperty:
 
         self.name, component_names = _get_names(name, size)
 
-        self._components = tuple(_ComponentProperty(self, i, name)
-                                 for i, name in enumerate(component_names))
+        self._component_names = {(i, i + 1): n
+                                 for i, n in enumerate(component_names)}
         self.__doc__ = doc
 
     def __len__(self):
@@ -390,7 +473,16 @@ class AnimatedProperty:
         The component descriptors have the same interface as
         :class:`AnimatedProperty`, except they lack ``__iter__``.
         """
-        yield from self._components
+        yield from (self[i] for i in range(self._size))
+
+    def __getitem__(self, index):
+        return _ComponentProperty(self, index)
+
+    def _get_component_name(self, start, end):
+        try:
+            return self._component_names[start, end]
+        except KeyError:
+            return '{}[{}:{}]'.format(self.name, start, end)
 
     def __get__(self, instance, owner=None):
         if instance is None:
@@ -446,46 +538,114 @@ def link(prop):
         return func()
 
 
-class _PropertyValue(Expression):
-    def __init__(self, prop, instance, expression):
-        self._prop = prop
-        self._instance = instance
-        self.replacement = simplify(expression)
+def _link_method(self, source):
+    linked = link(source)
+    self._parent_property.__set__(self._instance, linked)
+
+
+class PropertyValue(Expression):
+    """Result of attribute access on an animeted property
+
+    Do not instantiate this class directly.
+
+    .. automethod:: anim
+    """
+    # This provides common functionality for both
+    # _PropertyValue and _ComponentPropertyValue.
+    # It is unusable by itself.
+    # It's also used for documentation of the values' methods
+    # (since their public API is the same).
+
+    def anim(self, target, duration=0, clock=None, *,
+             delay=0, easing=None, infinite=False, strength=1):
+        """Animate this property
+
+        Causes this property's value to gradually become *target*
+        in *duration* time units.
+
+        for convenience, if *clock* is not given,
+        the ``clock`` attribute from the object
+        this property is on is used as the clock.
+        A :exc:`TypeError` is raised if that attribute doesn't exist.
+
+        See the :ref:`Animation <property-anim>` section of the documentation
+        for a discussion.
+
+        For detailed description of the arguments, see
+        :func:`gillcup.animations.anim`.
+
+        Returns a :class:`~asyncio.Future`-like object
+        that is done when the animation is finished.
+        """
+        instance = self._instance
+        if clock is None:
+            try:
+                clock = instance.clock
+            except AttributeError:
+                raise TypeError('{} does not have a clock. '
+                                'Pass a clock to anim() explicitly.'.format(
+                                    instance))
+        animation = anim(
+            start=self.replacement,
+            end=target,
+            duration=duration,
+            clock=clock,
+            delay=delay,
+            easing=easing,
+            infinite=infinite,
+            strength=strength,
+        )
+        self._parent_property.__set__(instance, animation)
+        return animation.done
 
     def get(self):
         return self.replacement.get()
 
+
+class _PropertyValue(PropertyValue):
+    def __init__(self, parent_property, instance, expression):
+        self._parent_property = parent_property
+        self._instance = instance
+        self.replacement = simplify(expression)
+
     @property
     def pretty_name(self):
-        return '{0!r}.{1} value'.format(self._instance, self._prop.name)
+        return '{0!r}.{1} value'.format(self._instance,
+                                        self._parent_property.name)
+
+    def _gillcup_propexp_link(self):
+        return _Linked(self._parent_property, self._instance)
 
     @property
     def children(self):
         yield self.replacement
 
-    def _gillcup_propexp_link(self):
-        return _Linked(self._prop, self._instance)
+    def __setitem__(self, index, new_value):
+        exp = self.replacement.replace(index, new_value)
+        self._parent_property.__set__(self._instance, exp)
 
-    def link(self, source):
-        linked = link(source)
-        self._prop.__set__(self._instance, linked)
+    def __getitem__(self, index):
+        return self._parent_property[index].__get__(self._instance)
+
+    link = _link_method
 
 
 class _Linked(Expression):
-    def __init__(self, prop, instance):
-        self._prop = prop
+    def __init__(self, parent_property, instance):
+        self._parent_property = parent_property
         self._instance = instance
 
     def get(self):
-        return self._prop.__get__(self._instance).get()
+        return self._parent_property.__get__(self._instance).get()
 
     @property
     def pretty_name(self):
-        return 'linked {0!r}.{1}'.format(self._instance, self._prop.name)
+        return 'linked {0!r}.{1}'.format(self._instance,
+                                         self._parent_property.name)
 
     @property
     def children(self):
-        yield simplify(self._prop.__get__(self._instance))
+        yield simplify(self._parent_property.__get__(self._instance))
 
     def _gillcup_propexp_link(self):
         return self
@@ -493,76 +653,111 @@ class _Linked(Expression):
 
 @autoname_property('name')
 class _ComponentProperty:
-    def __init__(self, parent, index, name):
-        self._parent = parent
-        self._index = index
-        self.name = name
+    def __init__(self, vector_property, index):
+        self._vector_property = vector_property
+        self._start, self._end = get_slice_indices(len(vector_property), index)
+        self.name = vector_property._get_component_name(self._start, self._end)
+
+    def __len__(self):
+        return self._end - self._start
 
     def __get__(self, instance, owner=None):
         if instance is None:
             return self
         else:
-            exp = self._parent.__get__(instance, owner)
-            return _ComponentPropertyValue(self, self._parent, instance, exp,
-                                           self._index)
+            exp = self._vector_property.__get__(instance, owner)
+            return _ComponentPropertyValue(
+                name=self.name,
+                parent_property=self,
+                instance=instance,
+                expression=simplify(exp)[self._start:self._end],
+                start=self._start,
+                end=self._end)
+
+    def __getitem__(self, index):
+        start, end = get_slice_indices(len(self), index)
+        index = slice(self._start + start, self._start + end)
+        return _ComponentProperty(
+            vector_property=self._vector_property,
+            index=index)
 
     def __set__(self, instance, value):
-        exp = self._parent.__get__(instance)
-        new = exp.replace(self._index, coerce(value, size=1))
-        self._parent.__set__(instance, new)
+        exp = self._vector_property.__get__(instance)
+        new = exp.replace(slice(self._start, self._end),
+                          coerce(value, size=len(self)))
+        self._vector_property.__set__(instance, new)
 
 
-class _ComponentPropertyValue(Expression):
-    def __init__(self, prop, parent, instance, expression, index):
-        self._prop = prop
-        self._parent = parent
+def _component_repr(instance, name, vect_name, start, end):
+    if start + 1 == end:
+        index = start
+    else:
+        index = ':'.join((start, end))
+    return '{inst!r}.{name} ({vect_name}[{index}])'.format(
+        inst=instance,
+        name=name,
+        vect_name=vect_name,
+        index=index)
+
+
+class _ComponentPropertyValue(PropertyValue):
+    def __init__(self, name, parent_property, instance, expression,
+                 start, end):
+        self._name = name
+        self._parent_property = parent_property
         self._instance = instance
-        self._index = index
-        self.replacement = simplify(expression[self._index])
-
-    def get(self):
-        return self.replacement.get()
+        self._start = start
+        self._end = end
+        self.replacement = expression
 
     @property
     def pretty_name(self):
-        return '{0!r}.{1} ({2}[{3}]) value'.format(self._instance,
-                                                   self._prop.name,
-                                                   self._parent.name,
-                                                   self._index)
+        return _component_repr(
+            instance=self._instance,
+            name=self._name,
+            vect_name=self._parent_property._vector_property.name,
+            start=self._start,
+            end=self._end) + ' value'
 
     @property
     def children(self):
-        yield self._parent.__get__(self._instance)
+        yield self._parent_property._vector_property.__get__(self._instance)
 
     def _gillcup_propexp_link(self):
-        return _LinkedComponent(self._prop, self._parent, self._instance,
-                                self._index)
+        return _LinkedComponent(
+            name=self._name,
+            parent_property=self._parent_property,
+            instance=self._instance,
+            start=self._start,
+            end=self._end)
 
-    def link(self, source):
-        linked = link(source)
-        self._prop.__set__(self._instance, linked)
+    link = _link_method
 
 
 class _LinkedComponent(Expression):
-    def __init__(self, prop, parent, instance, index):
-        self._prop = prop
-        self._parent = parent
+    def __init__(self, name, parent_property, instance, start, end):
+        self._name = name
+        self._parent_property = parent_property
         self._instance = instance
-        self._index = index
+        self._start = start
+        self._end = end
 
     def get(self):
-        return (self._parent.__get__(self._instance).get()[self._index], )
+        exp = self._parent_property._vector_property.__get__(self._instance)
+        return exp.get()[self._start:self._end]
 
     @property
     def pretty_name(self):
-        return 'linked {0!r}.{1} ({2}[{3}])'.format(self._instance,
-                                                    self._prop.name,
-                                                    self._parent.name,
-                                                    self._index)
+        return 'linked ' + _component_repr(
+            instance=self._instance,
+            name=self._name,
+            vect_name=self._parent_property._vector_property.name,
+            start=self._start,
+            end=self._end)
 
     @property
     def children(self):
-        yield self._parent.__get__(self._instance)
+        yield self._parent_property._vector_property.__get__(self._instance)
 
     def _gillcup_propexp_link(self):
         return self
