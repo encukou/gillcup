@@ -776,9 +776,11 @@ def _check_len(exp, expected):
 
 
 class Reduce(Expression):
-    """Applies an :func:`reduce` element-wise on a number of Expressions.
+    """Applies a :func:`reduce <functools.reduce>` operation
+    element-wise on a number of Expressions.
 
-    Assumes the `op` function is pure.
+    Assumes the `op` function is pure, and takes number of arguments equal
+    to the number of operands.
 
     All operands must be the same size.
 
@@ -791,10 +793,10 @@ class Reduce(Expression):
 
         .. attribute:: identity_element
 
-            If not None, the number that can be ignored for this
-            operation (or if :token:`commutative` is true, that can be
-            ignored if it's not the firsr operand.
-            For example, 0 for ``+`` or ``-``, 1 for ``*`` or ``/``).
+            If not None, gives the number that can be ignored for this
+            operation (or if :token:`commutative` is true, the number that
+            can be ignored if it's not the first operand).
+            For example, 0 for ``+`` or ``-``, 1 for ``*`` or ``/``.
     """
     commutative = False
     identity_element = None
