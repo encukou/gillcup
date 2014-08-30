@@ -18,7 +18,8 @@ makes it possible to remove the dynamic aspect of the expression involved.
 Gillcup expressions are actually 1-D vectors.
 Each Expression has a fixed :term:`size` that determines how many
 numbers it contains.
-Operations such as addition are element-wise (``<1, 2> + <3, 4> == <4, 6>``).
+Operations such as addition are element-wise
+(``<1, 2> + <3, 4>`` results in ``<4, 6>``).
 To get the value of an Expression, use either the :meth:`~Expression.get`
 method, or iterate the Expression::
 
@@ -44,6 +45,22 @@ Expressions with a single component can be converted directly to a number::
 
     >>> int(exp)
     1
+
+    >>> bool(exp)
+    True
+
+Like arithmetic operations, comparisons are element-wise,
+``(<1, 2> == <1, 3>)`` results in ``<False, True>``.
+Comparisons with more than one element cannot be converted directly to
+a single boolean; you need to use Python's :func:`all` or :func:`any`
+functions to check them:
+
+    >>> if all(Constant(1, 2, 3) == Constant(1, 2, 3)):
+    ...     print('yes, they are equal')
+    yes, they are equal
+    >>> if any(Constant(1, 1, 1) > Constant(100, 200, 0)):
+    ...     print('yes, some are larger')
+    yes, some are larger
 
 Expression values are floating-point numbers,
 so they cannot be used for precise computation [#goldberg]_.
@@ -123,6 +140,7 @@ to constructing them directly:
 .. autoclass:: gillcup.expressions.Difference
 .. autoclass:: gillcup.expressions.Quotient
 .. autoclass:: gillcup.expressions.Neg
+.. autoclass:: gillcup.expressions.Compare
 
 .. autoclass:: gillcup.expressions.Slice
 .. autoclass:: gillcup.expressions.Concat
@@ -247,7 +265,6 @@ def coerce(value, *, size=None, strict=True):
         return simplify(value)
 
 
-@functools.total_ordering
 class Expression:
     """A dynamic numeric value.
 
@@ -296,13 +313,10 @@ class Expression:
 
                 *a.k.a.* :token:`__eq__(other)` etc.
 
-                Compare the *value* of this expression,
-                element-wise (as a tuple), to :token:`other`.
+                Return an Expression that compares the this expression
+                element-wise to :token:`other`.
 
-                :token:`other` may be be an expression or a tuple.
-
-                :token:`other` may also be a real number,
-                which is only equal to one-element expressions
+                The resing is an expression whose elements can be 0 or 1.
 
         .. function:: self + other
                       self - other
@@ -356,6 +370,16 @@ class Expression:
     def __int__(self):
         """Returns ``int(float(exp))``."""
         return int(float(self))
+
+    def __bool__(self):
+        size = len(self)
+        if size == 1:
+            return bool(float(self))
+        elif size == 0:
+            return False
+        else:
+            raise ValueError('using a vector as a boolean is ambiguous; '
+                             'use `all` or `any` to clarify')
 
     def __repr__(self):
         try:
@@ -427,10 +451,22 @@ class Expression:
         return simplify(Slice(self, index))
 
     def __eq__(self, other):
-        return self.get() == _as_tuple(other)
+        return simplify(Compare([self, other], operator.eq, '='))
+
+    def __ne__(self, other):
+        return simplify(Compare([self, other], operator.ne, '≠'))
 
     def __lt__(self, other):
-        return self.get() < _as_tuple(other)
+        return simplify(Compare([self, other], operator.lt, '<'))
+
+    def __gt__(self, other):
+        return simplify(Compare([self, other], operator.gt, '>'))
+
+    def __le__(self, other):
+        return simplify(Compare([self, other], operator.le, '≤'))
+
+    def __ge__(self, other):
+        return simplify(Compare([self, other], operator.ge, '≥'))
 
     def __add__(self, other):
         return simplify(Sum((self, other)))
@@ -860,9 +896,7 @@ class Reduce(Expression):
 
 
 class Sum(Reduce):
-    """Element-wise sum of same-sized expressions
-
-    All operands must be the same size.
+    """Element-wise sum
     """
     pretty_name = '+'
     commutative = True
@@ -876,9 +910,7 @@ class Sum(Reduce):
 
 
 class Product(Reduce):
-    """Element-wise product of same-sized expressions
-
-    All operands must be the same size.
+    """Element-wise product
     """
     pretty_name = '*'
     commutative = True
@@ -888,10 +920,20 @@ class Product(Reduce):
         super().__init__(operands, operator.mul)
 
 
-class Difference(Reduce):
-    """Element-wise difference of same-sized expressions
+class Compare(Reduce):
+    """Element-wise comparison
+    """
+    @property
+    def pretty_name(self):
+        return '`{}`'.format(self._symbol)
 
-    All operands must be the same size.
+    def __init__(self, operands, op, symbol):
+        super().__init__(operands, op)
+        self._symbol = symbol
+
+
+class Difference(Reduce):
+    """Element-wise difference
     """
     pretty_name = '-'
     identity_element = 0
@@ -916,9 +958,7 @@ def safediv(a, b):
 
 
 class Quotient(Reduce):
-    """Element-wise quotient of same-sized expressions
-
-    All operands must be the same size.
+    """Element-wise quotient
 
     Division by zero will result in NaN or infinity, rather than raising
     an exception -- see :func:`safediv`.
@@ -1203,7 +1243,7 @@ class Interpolation(Expression):
     def _replace_const_to_const(self):
         if (isinstance(self._start, Constant) and
                 isinstance(self._end, Constant) and
-                self._start == self._end):
+                all(self._start == self._end)):
             self.replacement = self._start
 
     @property

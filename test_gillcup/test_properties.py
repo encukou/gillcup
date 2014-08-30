@@ -94,7 +94,7 @@ def buzzer(buzzer_class):
 def test_defaults(buzzer):
     assert buzzer.volume == 0
     assert buzzer.pitch == 440
-    assert buzzer.position == (0, 0, 0)
+    assert all(x == 0 for x in buzzer.position)
     assert buzzer.x == buzzer.y == buzzer.z == 0
 
 
@@ -107,7 +107,7 @@ def test_setting_scalar(buzzer):
 
 def test_setting_vector(buzzer):
     buzzer.position = 1, 2, 3
-    assert buzzer.position == (1, 2, 3)
+    assert all(a == b for a, b in zip(buzzer.position, (1, 2, 3)))
     with buzzer.extra_behavior('syncs-components'):
         assert buzzer.x == 1
         assert buzzer.y == 2
@@ -119,7 +119,7 @@ def test_setting_component(buzzer):
     buzzer.y = 2
     buzzer.z = 3
     with buzzer.extra_behavior('syncs-components'):
-        assert buzzer.position == (1, 2, 3)
+        assert all(a == b for a, b in zip(buzzer.position, (1, 2, 3)))
     assert buzzer.x == 1
     assert buzzer.y == 2
     assert buzzer.z == 3
@@ -128,8 +128,8 @@ def test_setting_component(buzzer):
 def test_separate_instances_vector(buzzer):
     buzzer2 = Buzzer()
     buzzer2.x = 5
-    assert buzzer2.position == (5, 0, 0)
-    assert buzzer.position == (0, 0, 0)
+    assert all(a == b for a, b in zip(buzzer2.position, (5, 0, 0)))
+    assert all(a == b for a, b in zip(buzzer.position, (0, 0, 0)))
 
 
 def test_property_naming(check_dump):
