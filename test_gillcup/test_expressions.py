@@ -7,7 +7,7 @@ import pytest
 
 from gillcup.expressions import Constant, Value, Concat, Interpolation, Slice
 from gillcup.expressions import Sum, Difference, Product, Quotient, Neg, Box
-from gillcup.expressions import Progress, dump, simplify
+from gillcup.expressions import Map, Progress, dump, simplify
 from gillcup import expressions
 
 
@@ -796,3 +796,27 @@ def test_comparisons(check_dump, symbol, func):
     """.format(*(func(a, func(b, c)) for a, b, c in zip(val1, val2, val3)),
                s=[func(b, c) for a, b, c in zip(val1, val2, val3)],
                sym=symbol))
+
+
+@pytest.mark.parametrize(['nargs', 'func'], [
+    [1, lambda a: a + 3],
+    [2, lambda a, b: a + b],
+    [3, lambda a, b, c: a + b * c],
+    [10, lambda *seq: sum(seq)],
+])
+def test_map(check_dump, nargs, func):
+    values = [Value(1, i, 2 * i) for i in range(nargs)]
+    exp = Map(func, *values)
+    check_dump(exp, 'Map <lambda> <{0}, {1}, {2}>:\n{lst}'.format(
+        *exp,
+        lst='\n'.join('  Value <{0}, {1}, {2}>'.format(*v) for v in values)))
+    assert all(exp == map(func, *values))
+
+
+def test_neg(check_dump):
+    val = Value(1, 2, -3)
+    exp = Neg(val)
+    check_dump(exp, """
+        Neg <-1.0, -2.0, 3.0>:
+          Value <1.0, 2.0, -3.0>
+    """)

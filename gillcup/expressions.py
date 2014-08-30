@@ -125,7 +125,7 @@ Compound Expressions
 ....................
 
 .. autoclass:: gillcup.expressions.Reduce
-.. autoclass:: gillcup.expressions.Elementwise
+.. autoclass:: gillcup.expressions.Map
 .. autoclass:: gillcup.expressions.Interpolation
 .. autoclass:: gillcup.expressions.Box
 
@@ -845,9 +845,6 @@ class Reduce(Expression):
     def __init__(self, operands, op):
         self._op = op
         self._operands = tuple(_coerce_all(operands))
-        first = self._operands[0]
-        for operand in self._operands[1:]:
-            _check_len_match(operand, first)
         for i, oper in enumerate(self._operands):
             oper.replacement_available.connect(self._replace_operands)
         self._replace_operands()
@@ -975,34 +972,48 @@ class Quotient(Reduce):
         super().__init__(operands, safediv)
 
 
-class Elementwise(Expression):
-    """Applies a function element-wise on a single Expression.
+class Map(Expression):
+    """Applies a function element-wise on a zipped Expressions.
 
-    Assumes the `op` function is pure.
+    Assumes the `op` function is pure, and takes as many numeric arguments
+    as there are operands.
+
+    All operands must be the same size.
     """
-    def __init__(self, operand, op):
-        self._operand = coerce(operand)
+    def __init__(self, op, *operands):
+        self._operands = tuple(_coerce_all(operands))
         self._op = op
-        self._operand.replacement_available.connect(self._replace_operand)
-        self._replace_operand()
+        for i, oper in enumerate(self._operands):
+            oper.replacement_available.connect(self._replace_operands)
+        self._replace_operands()
+
+    @property
+    def pretty_name(self):
+        return 'Map {}'.format(self._op.__name__)
+
+    def __len__(self):
+        return len(self._operands[0])
 
     def get(self):
-        return tuple(map(self._op, self._operand.get()))
+        return tuple(map(self._op, *(op.get() for op in self._operands)))
 
     @property
     def children(self):
-        yield self._operand
+        yield from self._operands
 
-    def _replace_operand(self):
-        self._operand = _replace_child(self._operand, self._replace_operand)
-        if isinstance(self._operand, Constant):
+    def _replace_operands(self, commutative=False):
+        self._operands = tuple(_replace_child(op, self._replace_operands)
+                               for op in self._operands)
+        if all(isinstance(op, Constant) for op in self._operands):
             self.replacement = Constant(*self)
 
 
-class Neg(Elementwise):
+class Neg(Map):
     """Element-wise negation"""
+    pretty_name = 'Neg'
+
     def __init__(self, operand):
-        super().__init__(operand, operator.neg)
+        super().__init__(operator.neg, operand)
 
 
 def _get_slice_indices(source, index):
