@@ -457,22 +457,22 @@ class Expression:
         return simplify(Slice(self, index))
 
     def __eq__(self, other):
-        return simplify(_Compare([self, other], operator.eq, '='))
+        return simplify(_Compare('=', operator.eq, (self, other)))
 
     def __ne__(self, other):
-        return simplify(_Compare([self, other], operator.ne, '≠'))
+        return simplify(_Compare('≠', operator.ne, (self, other)))
 
     def __lt__(self, other):
-        return simplify(_Compare([self, other], operator.lt, '<'))
+        return simplify(_Compare('<', operator.lt, (self, other)))
 
     def __gt__(self, other):
-        return simplify(_Compare([self, other], operator.gt, '>'))
+        return simplify(_Compare('>', operator.gt, (self, other)))
 
     def __le__(self, other):
-        return simplify(_Compare([self, other], operator.le, '≤'))
+        return simplify(_Compare('≤', operator.le, (self, other)))
 
     def __ge__(self, other):
-        return simplify(_Compare([self, other], operator.ge, '≥'))
+        return simplify(_Compare('≥', operator.ge, (self, other)))
 
     def __add__(self, other):
         return simplify(Sum((self, other)))
@@ -844,7 +844,7 @@ class Reduce(Expression):
     commutative = False
     identity_element = None
 
-    def __init__(self, operands, op):
+    def __init__(self, op, operands):
         self._op = op
         self._operands = tuple(_coerce_all(operands))
         for i, oper in enumerate(self._operands):
@@ -907,7 +907,7 @@ class Sum(Reduce):
     identity_element = 0
 
     def __init__(self, operands):
-        super().__init__(operands, operator.add)
+        super().__init__(operator.add, operands)
 
     def _dump_name(self):
         return '+'
@@ -921,7 +921,7 @@ class Product(Reduce):
     identity_element = 1
 
     def __init__(self, operands):
-        super().__init__(operands, operator.mul)
+        super().__init__(operator.mul, operands)
 
 
 class _Compare(Reduce):
@@ -931,8 +931,8 @@ class _Compare(Reduce):
     def pretty_name(self):
         return '`{}`'.format(self._symbol)
 
-    def __init__(self, operands, op, symbol):
-        super().__init__(operands, op)
+    def __init__(self, symbol, op, operands):
+        super().__init__(op, operands)
         self._symbol = symbol
 
 
@@ -943,7 +943,7 @@ class Difference(Reduce):
     identity_element = 0
 
     def __init__(self, operands):
-        super().__init__(operands, operator.sub)
+        super().__init__(operator.sub, operands)
 
 
 def safediv(a, b):
@@ -971,7 +971,7 @@ class Quotient(Reduce):
     identity_element = 1
 
     def __init__(self, operands):
-        super().__init__(operands, safediv)
+        super().__init__(safediv, operands)
 
 
 class Map(Expression):
