@@ -6,7 +6,7 @@ For example, given an Expression ``x``, the Expression ``x * 2`` will
 always evaulate to twice the value of ``x``.
 
 The power of Expressions becomes apparent when we mention that
-:class:`~gillcup.clock.Clock` time can be used an input.
+:class:`~gillcup.clocks.Clock` time can be used an input.
 Gillcup includes expression that smoothly changes value as time progresses.
 Combined with other expressions, "animations" on numbers can be created.
 
@@ -144,6 +144,11 @@ to constructing them directly:
 
 .. autoclass:: gillcup.expressions.Slice
 .. autoclass:: gillcup.expressions.Concat
+
+Internal Expressions
+....................
+
+.. autoclass:: gillcup.expressions.Time
 
 Debugging helpers
 .................
@@ -1253,6 +1258,19 @@ class Interpolation(Expression):
         yield Box('t', self._t)
 
 
+class Time(Expression):
+    """Gives the time on a clock
+
+    This is a monotonically increasing scalar Expression, i.e.,
+    its value is a single number that can never decrease.
+    """
+    def __init__(self, clock):
+        self._clock = clock
+
+    def get(self):
+        return (self._clock._time_value, )
+
+
 class Progress(Expression):
     """Gives linear progress according to a Clock
 
@@ -1267,7 +1285,7 @@ class Progress(Expression):
     """
     def __init__(self, clock, duration, *, delay=0, clamp=True):
         self._clock = clock
-        self._start = clock.time + float(delay)
+        self._start = float(clock.time) + float(delay)
         self._duration = float(duration)
         if self._duration == 0:
             raise ZeroDivisionError()
@@ -1279,7 +1297,7 @@ class Progress(Expression):
         return 1
 
     def get(self):
-        rv = (self._clock.time - self._start) / self._duration
+        rv = (float(self._clock.time) - self._start) / self._duration
         if self._clamp:
             if rv <= 0:
                 return (0, )

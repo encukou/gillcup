@@ -2,7 +2,7 @@ import textwrap
 
 import pytest
 
-from gillcup.clock import Clock, Subclock
+from gillcup.clocks import Clock, Subclock
 from gillcup.expressions import dump
 
 

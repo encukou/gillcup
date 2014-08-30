@@ -4,8 +4,7 @@ import asyncio
 
 import pytest
 
-import gillcup
-from gillcup.clock import Subclock
+from gillcup.clocks import Subclock, coroutine
 
 
 def dummy_function():
@@ -23,7 +22,14 @@ def append_const(lst, value):
 def append_time(lst, clock):
     """Helper callback; returns func that appends clock's time to list"""
     def _append():
-        lst.append(clock.time)
+        lst.append(float(clock.time))
+    return _append
+
+
+def append_time_internal(lst, clock):
+    """Helper callback for func that appends internal time value to list"""
+    def _append():
+        lst.append(clock._time_value)
     return _append
 
 
@@ -32,6 +38,12 @@ def test_clock(clock):
     assert clock.time == 0
     clock.advance_sync(1)
     assert clock.time == 1
+
+
+def test_no_time_set(clock):
+    """Test that simple clock advancement works"""
+    with pytest.raises(AttributeError):
+        clock.time = -1
 
 
 def test_scheduling(clock):
@@ -142,12 +154,14 @@ def test_integer_times(clock):
     """Test that we keep to int arithmetic as much as we can
 
     Ensure that even if the clock advances by float ticks, events scheduled
-    at integer times get fired with clock.time being an integer.
+    at integer times get fired with clock._time_value being an integer.
+
+    This tests internals.
     """
     lst = []
-    clock.schedule(1, append_time(lst, clock))
-    clock.schedule(2, append_time(lst, clock))
-    clock.schedule(3, append_time(lst, clock))
+    clock.schedule(1, append_time_internal(lst, clock))
+    clock.schedule(2, append_time_internal(lst, clock))
+    clock.schedule(3, append_time_internal(lst, clock))
     for dummy in range(30):
         clock.advance_sync(0.3)
     assert lst == [1, 2, 3]
@@ -157,7 +171,7 @@ def test_integer_times(clock):
 
 def test_recursive_advance(clock):
     """Test that calling advance() from within advance() is blocked"""
-    @gillcup.coroutine
+    @coroutine
     def advance():
         print("Advancing!")
         yield 0.1
@@ -223,7 +237,7 @@ def test_subclock_speed_arg(clock):
     assert subclock.time == 2
 
 
-@gillcup.coroutine
+@coroutine
 def appending_task(lst):
     lst.append(0)
     yield 1
@@ -257,7 +271,7 @@ def test_task(clock):
     assert future.result() == 'ok'
 
 
-@gillcup.coroutine
+@coroutine
 def error_task():
     raise RuntimeError('bad')
     yield
@@ -272,7 +286,7 @@ def test_error_task(clock):
     assert str(future.exception()) == 'bad'
 
 
-@gillcup.coroutine
+@coroutine
 def complex_task(lst):
     try:
         yield from error_task()
@@ -309,7 +323,7 @@ def test_double_complex_task(clock):
     assert future2.result() == 'ok'
 
 
-@gillcup.coroutine
+@coroutine
 def delaying_task(lst):
     for i in range(100):
         yield

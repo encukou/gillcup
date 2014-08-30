@@ -1,6 +1,6 @@
 """Asyncio-based discrete-time simulation infrastructure
 
-The clock keeps track of *time*. But, what is time?
+A clock keeps track of *time*. But, what is time?
 
 If you are familiar with the :mod:`asyncio` library,
 you might know the :func:`asyncio.sleep` coroutine.
@@ -35,7 +35,15 @@ the Gillcup time does not advance between the future's completion
 and the callback execution.
 
 A coroutine can be scheduled on a Gillcup clock using
-:meth:`~gillcup.clock.Clock.task`; see the corresponding docs for details.
+:meth:`~gillcup.clocks.Clock.task`; see the corresponding docs for details.
+
+
+Reference
+---------
+
+.. autofunction:: gillcup.clocks.coroutine
+.. autoclass:: gillcup.clocks.Clock
+.. autoclass:: gillcup.clocks.Subclock
 """
 
 import collections
@@ -43,7 +51,18 @@ import heapq
 import asyncio
 
 import gillcup.futures
-from gillcup import util
+from gillcup.util.signature import fix_public_signature
+from gillcup import expressions
+
+
+def coroutine(func):
+    """Mark a function as a Gillcup coroutine.
+
+    Direct equivalent of :func:`asyncio.coroutine` -- also does nothing
+    (unless asyncio debugging is enabled).
+    """
+    return asyncio.coroutine(func)
+
 
 _Event = collections.namedtuple('_Event',
                                 'time category index callback args')
@@ -88,8 +107,9 @@ class Clock:
 
         .. attribute:: time
 
-            The current time on the clock. Never assign to it directly;
-            use :meth:`advance` instead.
+            The current time on the clock. A read-only expression.
+
+            Use :meth:`advance` to increase this value.
 
         .. attribute:: speed
 
@@ -112,7 +132,7 @@ class Clock:
     """
     def __init__(self):
         # Time on the clock
-        self.time = 0
+        self._time_value = 0
 
         # Heap queue of scheduled actions
         self.events = []
@@ -125,14 +145,22 @@ class Clock:
 
     speed = 1
 
+    @property
+    def time(self):
+        try:
+            return self._time_exp
+        except AttributeError:
+            prop = self._time_exp = expressions.Time(self)
+            return prop
+
     def _get_next_event(self):
         try:
             event = self.events[0]
         except IndexError:
             events = []
         else:
-            events = [(event.time - self.time, event.category, event.index,
-                       self, event)]
+            events = [(event.time - self._time_value, event.category,
+                       event.index, self, event)]
         for subclock in self._subclocks:
             event = subclock._get_next_event()
             if event:
@@ -150,7 +178,7 @@ class Clock:
             return None
 
     @asyncio.coroutine
-    @util.fix_public_signature
+    @fix_public_signature
     def advance(self, delay, *, _continuing=False):
         """Advance the clock's time
 
@@ -201,9 +229,9 @@ class Clock:
         if event_dt:
             self._advance(event_dt)
         _evt = heapq.heappop(clock.events)
-        assert _evt is event and clock.time == event.time
+        assert _evt is event and clock._time_value == event.time
         # jump to the event's time
-        clock.time = event.time
+        clock._time_value = event.time
         # Handle the event (synchronously!)
         event.callback(*event.args)
 
@@ -221,11 +249,11 @@ class Clock:
         loop.run_until_complete(self.advance(delay))
 
     def _advance(self, dt):
-        self.time += dt
+        self._time_value += dt
         for subclock in self._subclocks:
             subclock._advance(dt * subclock.speed)
 
-    @util.fix_public_signature
+    @fix_public_signature
     def sleep(self, delay, *, _category=0):
         """Return a future that will complete after "delay" time units
 
@@ -249,7 +277,7 @@ class Clock:
         else:
             return gillcup.futures.Future(self, future)
 
-    @util.fix_public_signature
+    @fix_public_signature
     def schedule(self, delay, callback, *args, _category=0):
         """Schedule callback to be called after "delay" time units
         """
@@ -257,7 +285,7 @@ class Clock:
         if delay < 0:
             raise ValueError('Scheduling an action in the past')
         _next_index += 1
-        scheduled_time = self.time + delay
+        scheduled_time = self._time_value + delay
         event = _Event(scheduled_time, _category, _next_index, callback, args)
         heapq.heappush(self.events, event)
 
