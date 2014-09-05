@@ -139,6 +139,7 @@ to constructing them directly:
 .. autoclass:: gillcup.expressions.Product
 .. autoclass:: gillcup.expressions.Difference
 .. autoclass:: gillcup.expressions.Quotient
+.. autoclass:: gillcup.expressions.Power
 .. autoclass:: gillcup.expressions.Neg
 
 .. autoclass:: gillcup.expressions.Slice
@@ -161,6 +162,7 @@ Helpers
 .. autofunction:: gillcup.expressions.simplify
 .. autofunction:: gillcup.expressions.coerce
 .. autofunction:: gillcup.expressions.safediv
+.. autofunction:: gillcup.expressions.safepow
 
 """
 
@@ -328,6 +330,7 @@ class Expression:
                       self - other
                       self * other
                       self / other
+                      self ** other
 
                 *a.k.a.* :token:`__add__(other)` etc.
 
@@ -493,6 +496,12 @@ class Expression:
 
     def __rtruediv__(self, other):
         return simplify(Quotient((other, self)))
+
+    def __pow__(self, other):
+        return simplify(Power((self, other)))
+
+    def __rpow__(self, other):
+        return simplify(Power((other, self)))
 
     def __pos__(self):
         """Return this Expression unchanged"""
@@ -927,6 +936,7 @@ class Product(Reduce):
 class _Compare(Reduce):
     """Element-wise comparison
     """
+
     @property
     def pretty_name(self):
         return '`{}`'.format(self._symbol)
@@ -972,6 +982,26 @@ class Quotient(Reduce):
 
     def __init__(self, operands):
         super().__init__(safediv, operands)
+
+
+def safepow(a, b):
+    """Raise a to b-th power, but return NaN on float domain error"""
+    try:
+        return math.pow(a, b)
+    except ValueError:
+        return float('nan')
+
+
+class Power(Reduce):
+    """Element-wise power
+
+    Math domain errors will result in NaN, rather than raising an exception.
+    """
+    pretty_name = '**'
+    identity_element = 1
+
+    def __init__(self, operands):
+        super().__init__(safepow, operands)
 
 
 class Map(Expression):

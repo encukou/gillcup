@@ -29,6 +29,7 @@ def pytest_generate_tests(metafunc):
                 lambda a, b: a - b,
                 lambda a, b: a * b,
                 lambda a, b: a / b,
+                lambda a, b: a ** b,
                 lambda a: +a,
                 lambda a: -a,
                 lambda a, b: (a + b) * (a - b),
@@ -48,6 +49,7 @@ def pytest_generate_tests(metafunc):
                 lambda a, b: a > b,
                 lambda a, b: a <= b,
                 lambda a, b: a >= b,
+                lambda a, b, c: a ** b ** c,
             ]:
                 numbers = -3, 0, 3, float('inf'), float('nan')
                 count = len(inspect.signature(formula).parameters)
@@ -233,7 +235,8 @@ def test_value_zero_size():
 
 def check_formula(numpy, formula, expected_args, got_args):
     if numpy:
-        expected = formula(*(numpy.array(a) for a in expected_args))
+        expected = formula(*(numpy.array(a, dtype=float)
+                             for a in expected_args))
     else:
         try:
             expected = formula(*expected_args)
@@ -243,7 +246,7 @@ def check_formula(numpy, formula, expected_args, got_args):
     got = formula(*got_args)
     print(dump(got))
     if math.isnan(got):
-        assert math.isnan(expected)
+        assert isinstance(expected, complex) or math.isnan(expected)
     else:
         assert expected == got
     return got
