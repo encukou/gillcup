@@ -37,4 +37,5 @@ Design
    expressions
    properties
    signals
+   animations
    easings

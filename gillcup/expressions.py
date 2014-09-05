@@ -169,8 +169,10 @@ import operator
 import functools
 import itertools
 import math
+import asyncio
 
 from gillcup.signals import signal
+from gillcup.util.slice import get_slice_indices
 
 
 def simplify(exp):
@@ -548,7 +550,7 @@ class Expression:
             >>> Constant(1, 2, 3).replace(slice(0, -1), Constant(-1))
             <-1.0, 3.0>
         """
-        start, stop = _get_slice_indices(self, index)
+        start, stop = get_slice_indices(len(self), index)
         replacement = coerce(replacement, size=stop - start, strict=False)
         return simplify(Concat(self[:start], replacement, self[stop:]))
 
@@ -721,7 +723,8 @@ class Constant(Expression):
         return self._value
 
     def __getitem__(self, index):
-        return Constant(*self._value[slice(*_get_slice_indices(self, index))])
+        start, end = get_slice_indices(len(self), index)
+        return Constant(*self._value[slice(start, end)])
 
 
 class Value(Expression):
@@ -1016,27 +1019,6 @@ class Neg(Map):
         super().__init__(operator.neg, operand)
 
 
-def _get_slice_indices(source, index):
-    try:
-        index = int(index)
-    except TypeError:
-        try:
-            indices = index.indices
-        except AttributeError:
-            message = 'indices must be slices or integers, not {}'
-            raise TypeError(message.format(type(index).__name__))
-        start, stop, step = indices(len(source))
-        if step not in (None, 1):
-            raise IndexError('non-1 step not supported')
-        return start, stop
-    else:
-        if index < 0:
-            index += len(source)
-        if not (0 <= index < len(source)):
-            raise IndexError('expression index out of range')
-        return index, index + 1
-
-
 class Slice(Expression):
     """Slice of an Expression
 
@@ -1044,7 +1026,7 @@ class Slice(Expression):
     """
     def __init__(self, source, index):
         self._source = simplify(source)
-        self._start, self._stop = _get_slice_indices(source, index)
+        self._start, self._stop = get_slice_indices(len(source), index)
         self._len = self._stop - self._start
         if self._len <= 0:
             self.replacement = Constant()
@@ -1163,7 +1145,7 @@ class Concat(Expression):
             [self.replacement] = self._children
 
     def __getitem__(self, index):
-        start, end = _get_slice_indices(self, index)
+        start, end = get_slice_indices(len(self), index)
         new_children = []
         for child in self._children:
             child_len = len(child)
@@ -1286,35 +1268,57 @@ class Progress(Expression):
     """Gives linear progress according to a Clock
 
     The value of this expression is
-    0 at the start (``clock``'s current time + ``delay``),
-    and 1 at the end (``duration`` time units after start).
+    0 at the start (:token:`clock`'s current time + :token:`delay`),
+    and 1 at the end (:token:`duration` time units after start).
     Between those two times, it changes smoothly as the clock advances.
 
-    If ``clamp`` is true, the value stays 0 before the start and 1 after end.
+    If :token:`clamp` is true, the value stays 0 before the start
+    and 1 after end.
     Otherwise, it is extrapolated: it will be negative before the start,
     and greater than 1 after the end.
+
+    :token:`duration` may not be negative.
+
+    If :token:`duration` is zero, the value changes from 0 to 1 abruptly
+    at :token:`delay` time units in the future.
+    In this case, :token:`clamp` must be true.
     """
     def __init__(self, clock, duration, *, delay=0, clamp=True):
         self._clock = clock
         self._start = float(clock.time) + float(delay)
         self._duration = float(duration)
-        if self._duration == 0:
-            raise ZeroDivisionError()
+        self._done = asyncio.Future()
+        self.done = clock.wait_for(self._done)
+        if self._duration < 0:
+            raise ValueError('negative duration')
+        if not clamp and not duration:
+            raise ValueError('extrapolation to infinity')
         self._clamp = clamp
         if clamp:
-            clock.schedule(delay + duration, self._fix)
+            end_time = delay + duration
+            if end_time >= 0:
+                clock.schedule(end_time, self._fix)
+            else:
+                self._fix()
 
     def __len__(self):
         return 1
 
     def get(self):
-        rv = (float(self._clock.time) - self._start) / self._duration
-        if self._clamp:
-            if rv <= 0:
-                return (0, )
-            elif rv >= 1:
-                return (1, )
-        return (rv, )
+        progress_time = float(self._clock.time) - self._start
+        if self._duration:
+            rv = progress_time / self._duration
+            if self._clamp:
+                if rv <= 0:
+                    return (0, )
+                elif rv >= 1:
+                    return (1, )
+            return (rv, )
+        elif progress_time < 0:
+            return (0, )
+        else:
+            return (1, )
 
     def _fix(self):
         self.replacement = Constant(1)
+        self.done.set_result(True)

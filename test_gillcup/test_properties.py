@@ -3,7 +3,7 @@ import contextlib
 import pytest
 
 from gillcup.properties import AnimatedProperty, link
-from gillcup.expressions import Progress
+from gillcup.expressions import Progress, Constant
 
 
 class BeeperBase:
@@ -24,9 +24,9 @@ class BeeperBase:
 
 class Beeper(BeeperBase):
     """The basic beeper"""
-    volume = AnimatedProperty(0, name='volume')
-    pitch = AnimatedProperty(440, name='pitch')
-    position = x, y, z = AnimatedProperty(0, 0, 0, name='position: x y z')
+    volume = AnimatedProperty(name='volume')
+    pitch = AnimatedProperty(1, lambda inst: 440, name='pitch')
+    position = x, y, z = AnimatedProperty(3, name='position: x y z')
 
 
 class MultichannelBeeper(BeeperBase):
@@ -37,10 +37,19 @@ class MultichannelBeeper(BeeperBase):
     when they are a top-level property as when they are a component.
     """
     volumes = volume, vol2, vol3 = AnimatedProperty(
-        0, 0, 0, name='volumes:volume vol2 vol3')
+        3, name='volumes:volume vol2 vol3')
     pitches = pitch, pitch2, pitch3 = AnimatedProperty(
-        440, 440, 440, name='pitches: pitch pitch2 pitch3')
-    position = x, y, z = AnimatedProperty(0, 0, 0, name='position: x y z')
+        3, lambda inst: 440, name='pitches: pitch pitch2 pitch3')
+    position = x, y, z = AnimatedProperty(3, name='position: x y z')
+
+
+class FactorizedBeeper(BeeperBase):
+    """A beeper that uses factories for the properties"""
+    volume = AnimatedProperty(1, lambda inst: 0, name='volume')
+    pitch = AnimatedProperty(1, lambda inst: Constant(440),
+                             name='pitch')
+    position = x, y, z = AnimatedProperty(3, lambda inst: (0, 0, 0),
+                                          name='position: x y z')
 
 
 class NaïveBeeper(BeeperBase):
@@ -65,6 +74,11 @@ class NaïveBeeper(BeeperBase):
             with pytest.raises(AttributeError) as e:
                 yield
             assert str(e.value) == "'int' object has no attribute 'link'"
+        elif behavior_type == 'anim method':
+            # AnimatedProperty values have an anim() method
+            with pytest.raises(AttributeError) as e:
+                yield
+            assert str(e.value).endswith("' object has no attribute 'anim'")
         elif behavior_type == 'syncs-components':
             # Tuple AnimatedProperty values sync with their components
             with pytest.raises(AssertionError) as e:
@@ -73,11 +87,17 @@ class NaïveBeeper(BeeperBase):
             # AnimatedProperty values are always expressions
             with pytest.raises(AssertionError) as e:
                 yield
+        elif behavior_type == 'tuple immutable':
+            # Tuple AnimatedProperty values sync with their components
+            with pytest.raises(TypeError) as e:
+                yield
+            assert str(e.value) == (
+                "'tuple' object does not support item assignment")
         else:
             raise LookupError(behavior_type)
 
 
-beeper_subclasses = [Beeper, MultichannelBeeper, NaïveBeeper]
+beeper_subclasses = [Beeper, MultichannelBeeper, NaïveBeeper, FactorizedBeeper]
 
 
 @pytest.fixture(params=beeper_subclasses,
@@ -134,8 +154,8 @@ def test_separate_instances_vector(beeper):
 
 def test_property_naming(check_dump):
     class Foo:
-        namedprop = AnimatedProperty(5, name='namedprop')
-        unnamedprop = AnimatedProperty(5)
+        namedprop = AnimatedProperty(1, lambda inst: 5, name='namedprop')
+        unnamedprop = AnimatedProperty(1, lambda inst: 5)
 
         def __repr__(self):
             return '<a Foo>'
@@ -272,13 +292,7 @@ def test_link_dump_method(beeper, beeper_class, clock, check_dump):
     # The dump is different for normal properties and for components
     with beeper.extra_behavior('link method'):
         beeper.volume.link(beeper.pitch)
-        if beeper_class == Beeper:
-            check_dump(beeper.volume, """
-                <test beeper>.volume value <440.0>:
-                  linked <test beeper>.pitch <440.0>:
-                    Constant <440.0>
-            """)
-        elif beeper_class == MultichannelBeeper:
+        if beeper_class == MultichannelBeeper:
             check_dump(beeper.volume, """
                 <test beeper>.volume (volumes[0]) value <440.0>:
                   <test beeper>.volumes value <440.0, 0.0, 0.0>:
@@ -289,22 +303,18 @@ def test_link_dump_method(beeper, beeper_class, clock, check_dump):
                       Constant <0.0, 0.0>
             """)
         else:
-            raise TypeError(beeper_class)
+            check_dump(beeper.volume, """
+                <test beeper>.volume value <440.0>:
+                  linked <test beeper>.pitch <440.0>:
+                    Constant <440.0>
+            """)
 
 
 def test_link_dump_function(beeper, beeper_class, clock, check_dump):
     # The dump is different for normal properties and for components
     with beeper.extra_behavior('link function'):
         beeper.volume = link(beeper.pitch) + 4
-        if beeper_class == Beeper:
-            check_dump(beeper.volume, """
-                <test beeper>.volume value <444.0>:
-                  + <444.0>:
-                    linked <test beeper>.pitch <440.0>:
-                      Constant <440.0>
-                    Constant <4.0>
-            """)
-        elif beeper_class == MultichannelBeeper:
+        if beeper_class == MultichannelBeeper:
             check_dump(beeper.volume, """
                 <test beeper>.volume (volumes[0]) value <444.0>:
                   <test beeper>.volumes value <444.0, 0.0, 0.0>:
@@ -317,7 +327,13 @@ def test_link_dump_function(beeper, beeper_class, clock, check_dump):
                       Constant <0.0, 0.0>
             """)
         else:
-            raise TypeError(beeper_class)
+            check_dump(beeper.volume, """
+                <test beeper>.volume value <444.0>:
+                  + <444.0>:
+                    linked <test beeper>.pitch <440.0>:
+                      Constant <440.0>
+                    Constant <4.0>
+            """)
 
 
 def test_link_function_idempotent(beeper, clock):
@@ -328,7 +344,7 @@ def test_link_function_idempotent(beeper, clock):
 
 def test_default_naming():
     class Foo:
-        bar = b, a, r = AnimatedProperty(0, 0, 0)
+        bar = b, a, r = AnimatedProperty(3)
 
     assert Foo.bar.name == '<unnamed property>'
     assert Foo.b.name == '<unnamed property>[0]'
@@ -338,7 +354,7 @@ def test_default_naming():
 
 def test_single_name():
     class Foo:
-        bar = b, a, r = AnimatedProperty(0, 0, 0, name='bar')
+        bar = b, a, r = AnimatedProperty(3, name='bar')
 
     assert Foo.bar.name == 'bar'
     assert Foo.b.name == 'bar[0]'
@@ -350,7 +366,7 @@ def test_single_name():
                                   'bar : x  y  z', 'bar  :  x , y , z'])
 def test_component_naming(name):
     class Foo:
-        bar = b, a, r = AnimatedProperty(0, 0, 0, name=name)
+        bar = b, a, r = AnimatedProperty(3, name=name)
 
     assert Foo.bar.name == 'bar'
     assert Foo.b.name == 'x'
@@ -361,4 +377,215 @@ def test_component_naming(name):
 @pytest.mark.parametrize('name', ['bar:x y', 'bar: x,,y z', 'bar:'])
 def test_bad_component_naming(name):
     with pytest.raises(ValueError):
-        AnimatedProperty(0, 0, 0, name=name)
+        AnimatedProperty(3, name=name)
+
+
+def test_matched_size_0():
+    AnimatedProperty(0, lambda inst: ())
+
+
+def test_matched_size_1():
+    AnimatedProperty(1, lambda inst: 0)
+
+
+def test_matched_size_3():
+    AnimatedProperty(3, lambda inst: (1, 2, 3))
+
+
+def test_factory():
+    class Foo:
+        def __init__(self, val):
+            self.val = val
+
+        bar = AnimatedProperty(2, lambda inst: (inst.val, inst.val + 1))
+
+    assert all(Foo(1).bar == (1, 2))
+    assert all(Foo(2).bar == (2, 3))
+    assert all(Foo(1).bar + 2 == (3, 4))
+
+
+def test_factory_mismatched_size():
+    class Foo:
+        bar = AnimatedProperty(2, lambda inst: Constant(0))
+
+    with pytest.raises(ValueError):
+        Foo().bar
+
+
+def test_factory_coercion():
+    class Foo:
+        bar = AnimatedProperty(3, lambda inst: 3)
+
+    assert all(Foo().bar == (3, 3, 3))
+
+
+def test_anim_basic(beeper, clock):
+    beeper.clock = clock
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(50)
+        assert beeper.volume == 50
+
+
+def test_anim_duration(beeper, clock):
+    beeper.clock = clock
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(100, 2)
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+
+
+def test_anim_delay(beeper, clock):
+    beeper.clock = clock
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(100, 2, delay=1)
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+
+
+def test_anim_easing(beeper, clock):
+    beeper.clock = clock
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(100, 2, easing='quad')
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 25
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+
+
+def test_anim_infinite(beeper, clock):
+    beeper.clock = clock
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(100, 2, infinite=True)
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+        clock.advance_sync(1)
+        assert beeper.volume == 150
+
+
+def test_anim_strength(beeper, clock):
+    beeper.clock = clock
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(100, 2, strength=0.5)
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 25
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+
+
+def test_anim_no_clock(beeper):
+    with beeper.extra_behavior('anim method'):
+        with pytest.raises(TypeError):
+            beeper.volume.anim(5)
+
+
+def test_anim_explicit_clock(beeper, clock):
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim(5, clock=clock)
+        assert beeper.volume == 5
+
+
+def test_anim_in_coroutine(beeper, clock):
+    with beeper.extra_behavior('anim method'):
+        beeper.volume.anim
+        beeper.clock = clock
+
+        def there_and_back():
+            yield from beeper.volume.anim(100, 2)
+            yield from beeper.volume.anim(0, 2)
+
+        clock.task(there_and_back())
+
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+        clock.advance_sync(1)
+        assert beeper.volume == 100
+        clock.advance_sync(1)
+        assert beeper.volume == 50
+        clock.advance_sync(1)
+        assert beeper.volume == 0
+        clock.advance_sync(1)
+        assert beeper.volume == 0
+
+
+def test_component_assign(beeper, clock):
+    with beeper.extra_behavior('tuple immutable'):
+        beeper.position[0] = 5
+        assert all(beeper.position == (5, 0, 0))
+        beeper.position[1:] = 6, 7
+        assert all(beeper.position == (5, 6, 7))
+
+
+def test_anim_component(beeper, clock):
+    with beeper.extra_behavior('anim method'):
+        print(beeper.position[0])
+        beeper.position[0].anim(5, clock=clock)
+        assert all(beeper.position == (5, 0, 0))
+
+
+def test_anim_components(beeper, clock):
+    with beeper.extra_behavior('anim method'):
+        beeper.position[0:2].anim((5, 6), clock=clock)
+        assert all(beeper.position == (5, 6, 0))
+
+
+def test_sliced_property():
+    class Foo:
+        bar = AnimatedProperty(5)
+        xyz = bar[1:4]
+
+    assert len(Foo.bar) == 5
+    assert len(Foo.xyz) == 3
+
+    foo = Foo()
+    assert len(foo.bar) == 5
+    assert len(foo.xyz) == 3
+
+    assert all(foo.xyz == (0, 0, 0))
+    foo.xyz = 1, 2, 3
+    assert all(foo.bar == (0, 1, 2, 3, 0))
+
+
+def test_sliced_sliced_property():
+    class Foo:
+        bar = AnimatedProperty(5)
+        xyz = bar[1:-1]
+        m = xyz[1:-1]
+        z = m[1:-1]
+
+    assert len(Foo.bar) == 5
+    assert len(Foo.xyz) == 3
+    assert len(Foo.m) == 1
+    assert len(Foo.z) == 0
+
+    foo = Foo()
+    assert len(foo.bar) == 5
+    assert len(foo.xyz) == 3
+    assert len(foo.m) == 1
+    assert len(foo.z) == 0
+
+    assert all(foo.xyz == (0, 0, 0))
+    foo.xyz = 1, 2, 3
+    foo.m = 47
+    assert all(foo.bar == (0, 1, 47, 3, 0))
