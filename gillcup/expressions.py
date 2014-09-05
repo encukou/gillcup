@@ -140,7 +140,6 @@ to constructing them directly:
 .. autoclass:: gillcup.expressions.Difference
 .. autoclass:: gillcup.expressions.Quotient
 .. autoclass:: gillcup.expressions.Neg
-.. autoclass:: gillcup.expressions.Compare
 
 .. autoclass:: gillcup.expressions.Slice
 .. autoclass:: gillcup.expressions.Concat
@@ -458,22 +457,22 @@ class Expression:
         return simplify(Slice(self, index))
 
     def __eq__(self, other):
-        return simplify(Compare([self, other], operator.eq, '='))
+        return simplify(_Compare([self, other], operator.eq, '='))
 
     def __ne__(self, other):
-        return simplify(Compare([self, other], operator.ne, '≠'))
+        return simplify(_Compare([self, other], operator.ne, '≠'))
 
     def __lt__(self, other):
-        return simplify(Compare([self, other], operator.lt, '<'))
+        return simplify(_Compare([self, other], operator.lt, '<'))
 
     def __gt__(self, other):
-        return simplify(Compare([self, other], operator.gt, '>'))
+        return simplify(_Compare([self, other], operator.gt, '>'))
 
     def __le__(self, other):
-        return simplify(Compare([self, other], operator.le, '≤'))
+        return simplify(_Compare([self, other], operator.le, '≤'))
 
     def __ge__(self, other):
-        return simplify(Compare([self, other], operator.ge, '≥'))
+        return simplify(_Compare([self, other], operator.ge, '≥'))
 
     def __add__(self, other):
         return simplify(Sum((self, other)))
@@ -925,7 +924,7 @@ class Product(Reduce):
         super().__init__(operands, operator.mul)
 
 
-class Compare(Reduce):
+class _Compare(Reduce):
     """Element-wise comparison
     """
     @property
