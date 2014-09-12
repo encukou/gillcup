@@ -140,6 +140,8 @@ to constructing them directly:
 .. autoclass:: gillcup.expressions.Difference
 .. autoclass:: gillcup.expressions.Quotient
 .. autoclass:: gillcup.expressions.Power
+.. autoclass:: gillcup.expressions.Modulus
+.. autoclass:: gillcup.expressions.FloorQuotient
 .. autoclass:: gillcup.expressions.Neg
 
 .. autoclass:: gillcup.expressions.Slice
@@ -161,8 +163,14 @@ Helpers
 
 .. autofunction:: gillcup.expressions.simplify
 .. autofunction:: gillcup.expressions.coerce
+
+Safe Arithmetic
+~~~~~~~~~~~~~~~~~~~~~~
+
 .. autofunction:: gillcup.expressions.safediv
 .. autofunction:: gillcup.expressions.safepow
+.. autofunction:: gillcup.expressions.safemod
+.. autofunction:: gillcup.expressions.safefloordiv
 
 """
 
@@ -331,6 +339,8 @@ class Expression:
                       self * other
                       self / other
                       self ** other
+                      self % other
+                      self // other
 
                 *a.k.a.* :token:`__add__(other)` etc.
 
@@ -496,6 +506,18 @@ class Expression:
 
     def __rtruediv__(self, other):
         return simplify(Quotient((other, self)))
+
+    def __floordiv__(self, other):
+        return simplify(FloorQuotient((self, other)))
+
+    def __rfloordiv__(self, other):
+        return simplify(FloorQuotient((other, self)))
+
+    def __mod__(self, other):
+        return simplify(Modulus((self, other)))
+
+    def __rmod__(self, other):
+        return simplify(Modulus((other, self)))
 
     def __pow__(self, other):
         return simplify(Power((self, other)))
@@ -982,6 +1004,58 @@ class Quotient(Reduce):
 
     def __init__(self, operands):
         super().__init__(safediv, operands)
+
+
+def safefloordiv(a, b):
+    """Divide a by b and floor the result; NaN or infinity on division by zero
+
+    The behavior is equivalent to Numpy with the 'ignore' setting,
+    except it uses Python's behavior for (-x // inf) and (x // -inf),
+    as described in http://bugs.python.org/issue22198
+    """
+    try:
+        return a // b
+    except ZeroDivisionError:
+        sign = a * b
+        if a and not math.isnan(a):
+            return math.copysign(float('inf'), sign)
+        else:
+            return float('nan')
+
+
+class FloorQuotient(Reduce):
+    """Element-wise floored quotient
+
+    Division by zero will result in NaN or infinity, rather than raising
+    an exception -- see :func:`safefloordiv`.
+    """
+    pretty_name = '//'
+
+    def __init__(self, operands):
+        super().__init__(safefloordiv, operands)
+
+
+def safemod(a, b):
+    """Modulus of a and b, but return NaN or infinity on division by zero
+
+    The behavior is equivalent to Numpy with the 'ignore' setting.
+    """
+    try:
+        return a % b
+    except ZeroDivisionError:
+        return float('nan')
+
+
+class Modulus(Reduce):
+    """Element-wise modulus
+
+    Division by zero will result in NaN or infinity, rather than raising
+    an exception -- see :func:`safemod`.
+    """
+    pretty_name = '%'
+
+    def __init__(self, operands):
+        super().__init__(safemod, operands)
 
 
 def safepow(a, b):

@@ -21,6 +21,10 @@ def get_lambda_source(f):
     return inspect.getsource(f).split(':', 1)[1].strip().rstrip(',')
 
 
+# see TODO in check_formula
+FLOORDIV_OPERATOR = lambda a, b: a // b
+
+
 def pytest_generate_tests(metafunc):
     if {'args', 'formula'} <= set(metafunc.fixturenames):
         def _gen():
@@ -30,6 +34,8 @@ def pytest_generate_tests(metafunc):
                 lambda a, b: a * b,
                 lambda a, b: a / b,
                 lambda a, b: a ** b,
+                FLOORDIV_OPERATOR,
+                lambda a, b: a % b,
                 lambda a: +a,
                 lambda a: -a,
                 lambda a, b: (a + b) * (a - b),
@@ -247,6 +253,11 @@ def check_formula(numpy, formula, expected_args, got_args):
     print(dump(got))
     if math.isnan(got):
         assert isinstance(expected, complex) or math.isnan(expected)
+    elif (numpy and formula is FLOORDIV_OPERATOR and expected == 0 and
+          got == -1):
+        # http://bugs.python.org/issue22198
+        # TODO: remove this case, and inline FLOORDIV_OPERATOR, when fixed
+        raise pytest.xfail('ran into python bug 22198')
     else:
         assert expected == got
     return got
