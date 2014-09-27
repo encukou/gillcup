@@ -69,6 +69,7 @@ import inspect
 import weakref
 
 from gillcup.util.signature import fix_public_signature
+from gillcup.backports.weakref import finalize, WeakMethod
 
 
 def _hashable_identity(obj):
@@ -81,7 +82,7 @@ def _hashable_identity(obj):
 
 def _ref(obj, callback=None):
     if inspect.ismethod(obj):
-        return weakref.WeakMethod(obj, callback)
+        return WeakMethod(obj, callback)
     else:
         return weakref.ref(obj, callback)
 
@@ -189,7 +190,7 @@ class Signal:
             if cls:
                 parent = self.__get__(None, cls)
 
-        weakref.finalize(owner, self._instance_signals.pop, key, None)
+        finalize(owner, self._instance_signals.pop, key, None)
 
         new_signal = type(self)(self.name, doc=self.__doc__,
                                 signature=signature, _owner=owner)

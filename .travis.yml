@@ -2,11 +2,12 @@
 
 language: python
 python:
+  - "3.3"
   - "3.4"
 install:
     - sudo apt-get install python3-numpy python-pip
-    - pip install pytest pep8
+    - pip install pytest flake8
     - pip install -e.
 script:
     - python -m pytest -v
-    - python -m pep8 .
+    - python -m flake8 .

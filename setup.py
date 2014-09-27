@@ -32,13 +32,19 @@ setup_args = dict(
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Topic :: Software Development :: Libraries',
     ],
 
+    install_requires=[],
+
     tests_require=['pytest'],
     cmdclass={'test': PyTest},
 )
+
+if sys.version_info < (3, 4):
+    setup_args['install_requires'].append('asyncio')
 
 
 if __name__ == '__main__':

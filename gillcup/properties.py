@@ -393,12 +393,12 @@ Reference
 """
 
 import re
-import weakref
 
 from gillcup.expressions import Expression, coerce, simplify
 from gillcup.animations import anim
 from gillcup.util.autoname import autoname as _autoname, autoname_property
 from gillcup.util.slice import get_slice_indices
+from gillcup.backports.weakref import finalize
 
 
 def autoname(cls):
@@ -497,8 +497,8 @@ class AnimatedProperty:
     def __set__(self, instance, value):
         exp = coerce(value, size=self._size)
         if id(instance) not in self._instance_expressions:
-            weakref.finalize(instance, self._instance_expressions.pop,
-                             id(instance), None)
+            finalize(instance, self._instance_expressions.pop,
+                     id(instance), None)
         self._instance_expressions[id(instance)] = simplify(exp)
 
 
