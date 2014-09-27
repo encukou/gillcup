@@ -12,7 +12,7 @@ Reference
 
 import asyncio
 
-from gillcup.expressions import Interpolation, Progress, Elementwise
+from gillcup.expressions import Interpolation, Progress, Map
 from gillcup.expressions import Expression
 from gillcup import easings
 
@@ -104,6 +104,6 @@ def anim(start, end, duration, clock, *,
     progress = Progress(clock, duration, delay=delay, clamp=not infinite)
     if easing:
         easing_func = easings.get(easing)
-        progress = Elementwise(progress, easing_func)
+        progress = Map(easing_func, progress)
     interp = Interpolation(start, end, progress * strength)
     return _Anim(interp, done)

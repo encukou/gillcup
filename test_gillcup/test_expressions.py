@@ -7,7 +7,7 @@ import pytest
 
 from gillcup.expressions import Constant, Value, Concat, Interpolation, Slice
 from gillcup.expressions import Sum, Difference, Product, Quotient, Neg, Box
-from gillcup.expressions import Progress, dump, simplify
+from gillcup.expressions import Map, Progress, dump, simplify
 from gillcup import expressions
 
 
@@ -29,6 +29,7 @@ def pytest_generate_tests(metafunc):
                 lambda a, b: a - b,
                 lambda a, b: a * b,
                 lambda a, b: a / b,
+                lambda a, b: a ** b,
                 lambda a: +a,
                 lambda a: -a,
                 lambda a, b: (a + b) * (a - b),
@@ -42,6 +43,13 @@ def pytest_generate_tests(metafunc):
                 lambda a: a * Constant(2) * 3,
                 lambda a: 2 / a / 2 / 3,
                 lambda a: a / Constant(2) / 3,
+                lambda a, b: a == b,
+                lambda a, b: a != b,
+                lambda a, b: a < b,
+                lambda a, b: a > b,
+                lambda a, b: a <= b,
+                lambda a, b: a >= b,
+                lambda a, b, c: a ** b ** c,
             ]:
                 numbers = -3, 0, 3, float('inf'), float('nan')
                 count = len(inspect.signature(formula).parameters)
@@ -104,7 +112,7 @@ def reduce_to_const(exp):
     exp.replacement_available.connect(repl_available.set)
     yield exp
     print(dump(simplify(exp)))
-    assert exp == simplify(exp)
+    assert all(exp == simplify(exp))
     assert isinstance(simplify(exp), Constant), type(exp.replacement)
     assert repl_available
 
@@ -130,12 +138,18 @@ def test_simple_value(exp):
     assert exp <= (3,)
     assert exp >= (3,)
 
-    assert not exp == (3, 0)
-    assert exp != (3, 0)
-    assert exp < (3, 0)
-    assert exp > (2, 99)
-    assert exp <= (3, 0)
-    assert exp >= (2, 99)
+    with pytest.raises(ValueError):
+        exp == (3, 0)
+    with pytest.raises(ValueError):
+        exp != (3, 0)
+    with pytest.raises(ValueError):
+        exp < (3, 0)
+    with pytest.raises(ValueError):
+        exp > (2, 99)
+    with pytest.raises(ValueError):
+        exp <= (3, 0)
+    with pytest.raises(ValueError):
+        exp >= (2, 99)
 
     assert exp
 
@@ -149,21 +163,22 @@ def test_tuple_value(exp):
         int(exp)
     assert repr(exp) == '<3.0, 4.0, 5.0>'
 
-    assert exp == (3, 4, 5)
-    assert exp != (3, 5, 5)
-    assert exp < (3, 4, 6)
-    assert exp > (3, 4, 4)
-    assert exp <= (3, 5, 5)
-    assert exp >= (3, 2, 5)
+    assert all(exp == (3, 4, 5))
+    assert all(exp != (6, 6, 6))
+    assert all(exp < (6, 6, 6))
+    assert all(exp > (2, 2, 2))
+    assert all(exp <= (5, 5, 5))
+    assert all(exp >= (3, 3, 3))
 
-    assert not exp == 3
-    assert exp != 3
-    assert exp < 4
-    assert exp > 3
-    assert exp <= 4
-    assert exp >= 3
+    assert tuple(exp == 3) == (True, False, False)
+    assert tuple(exp != 3) == (False, True, True)
+    assert tuple(exp < 4) == (True, False, False)
+    assert tuple(exp > 3) == (False, True, True)
+    assert tuple(exp <= 4) == (True, True, False)
+    assert tuple(exp >= 4) == (False, True, True)
 
-    assert exp
+    with pytest.raises(ValueError):
+        bool(exp)
 
 
 def test_value_setting():
@@ -199,7 +214,7 @@ def test_value_fix_1():
 
 
 def test_constant_zero_size():
-    assert Constant() == ()
+    assert not Constant()
     assert tuple(Constant()) == ()
 
     with pytest.raises(ValueError):
@@ -209,7 +224,7 @@ def test_constant_zero_size():
 
 
 def test_value_zero_size():
-    assert Value() == ()
+    assert not Value()
     assert tuple(Value()) == ()
 
     with pytest.raises(ValueError):
@@ -220,7 +235,8 @@ def test_value_zero_size():
 
 def check_formula(numpy, formula, expected_args, got_args):
     if numpy:
-        expected = formula(*(numpy.array(a) for a in expected_args))
+        expected = formula(*(numpy.array(a, dtype=float)
+                             for a in expected_args))
     else:
         try:
             expected = formula(*expected_args)
@@ -230,7 +246,7 @@ def check_formula(numpy, formula, expected_args, got_args):
     got = formula(*got_args)
     print(dump(got))
     if math.isnan(got):
-        assert math.isnan(expected)
+        assert isinstance(expected, complex) or math.isnan(expected)
     else:
         assert expected == got
     return got
@@ -247,11 +263,11 @@ def test_formula_values(formula, args, maybe_numpy):
 def test_tuples(op):
     num_args = len(inspect.signature(op).parameters)
     if num_args == 1:
-        assert op(Value(1, 2)) == (op(1), op(2))
+        assert all(op(Value(1, 2)) == (op(1), op(2)))
     elif num_args == 2:
-        assert op(Value(1, 2), Value(3, 4)) == (op(1, 3), op(2, 4))
-        assert op(Value(1, 2), 3) == (op(1, 3), op(2, 3))
-        assert op(3, Value(1, 2)) == (op(3, 1), op(3, 2))
+        assert all(op(Value(1, 2), Value(3, 4)) == (op(1, 3), op(2, 4)))
+        assert all(op(Value(1, 2), 3) == (op(1, 3), op(2, 3)))
+        assert all(op(3, Value(1, 2)) == (op(3, 1), op(3, 2)))
     else:
         raise ValueError(num_args)
 
@@ -319,14 +335,14 @@ def test_index_get():
     assert val[2] == 3
     assert val[-2] == 2
     assert val[-3] == 1
-    assert val[:-1] == (1, 2)
+    assert all(val[:-1] == (1, 2))
     assert val[-1:] == (3, )
     with pytest.raises(IndexError):
         val[3]
     with pytest.raises(IndexError):
         val[-80]
-    assert val[1:1] == ()
-    assert val[2:1] == ()
+    assert len(val[1:1]) == 0
+    assert len(val[2:1]) == 0
     with pytest.raises(TypeError):
         val[None]
 
@@ -336,12 +352,12 @@ def test_index_get():
 
     assert first_item == 1
     assert last_item == 3
-    assert first_two == (1, 2)
+    assert all(first_two == (1, 2))
 
     val.set(2, 3, 4)
     assert first_item == 2
     assert last_item == 4
-    assert first_two == (2, 3)
+    assert all(first_two == (2, 3))
 
     assert len(val[1]) == 1
     assert len(val[:1]) == 1
@@ -374,9 +390,9 @@ def test_basic_slice_simplification(check_dump):
 def test_concat():
     val = Value(3)
     cat = Concat(val, 2, Value(5, 4))
-    assert cat == (3, 2, 5, 4)
+    assert all(cat == (3, 2, 5, 4))
     val.set(8)
-    assert cat == (8, 2, 5, 4)
+    assert all(cat == (8, 2, 5, 4))
 
 
 def test_simple_concat_simplification(check_dump):
@@ -388,7 +404,7 @@ def test_complex_concat_simplification(check_dump):
     val1 = Value(1)
     val2 = Value(4, 5)
     cat = Concat(val1, 2, 3, val2)
-    assert cat == (1, 2, 3, 4, 5)
+    assert all(cat == (1, 2, 3, 4, 5))
     check_dump(cat, """
         Concat <1.0, 2.0, 3.0, 4.0, 5.0>:
           Value <1.0>
@@ -403,15 +419,15 @@ def test_complex_concat_simplification(check_dump):
 def test_replace_slice():
     val = Value(1, 2, 3)
     val = val.replace(1, 0)
-    assert val == (1, 0, 3)
+    assert all(val == (1, 0, 3))
     val = val.replace(slice(1, None), -1)
-    assert val == (1, -1, -1)
+    assert all(val == (1, -1, -1))
     val = val.replace(slice(1), (2, 3))
-    assert val == (2, 3, -1, -1)
+    assert all(val == (2, 3, -1, -1))
     val = val.replace(slice(0, -1), ())
-    assert val == -1
+    assert all(val == -1)
 
-    assert val.replace(slice(None, None), ()) == ()
+    assert all(val.replace(slice(None, None), ()) == ())
 
 
 def test_constant_slice_simplification(check_dump):
@@ -458,13 +474,16 @@ def test_interpolation():
     val2 = Value(10, 1, 0, 2)
     t = Value(0)
     exp = Interpolation(val1, val2, t)
-    assert exp == simplify(exp) == (0, 1, 5, 1)
+    assert all(exp == simplify(exp))
+    assert all(exp == (0, 1, 5, 1))
 
     t.set(1)
-    assert exp == simplify(exp) == (10, 1, 0, 2)
+    assert all(exp == simplify(exp))
+    assert all(exp == (10, 1, 0, 2))
 
     t.set(0.5)
-    assert exp == simplify(exp) == (5, 1, 2.5, 1.5)
+    assert all(exp == simplify(exp))
+    assert all(exp == (5, 1, 2.5, 1.5))
 
 
 def test_interpolation_ramps():
@@ -756,12 +775,12 @@ def test_box():
     name = 'Boxed variable'
     val = Value(0, 0, 0)
     exp = Box(name, val)
-    assert exp == (0, 0, 0)
+    assert all(exp == (0, 0, 0))
     assert exp.pretty_name == name
     val.fix(3, 3, 3)
-    assert exp == (3, 3, 3)
+    assert all(exp == (3, 3, 3))
     exp.value = Value(6, 6, 6)
-    assert exp == (6, 6, 6)
+    assert all(exp == (6, 6, 6))
 
 
 def test_box_recursion(check_dump):
@@ -773,4 +792,69 @@ def test_box_recursion(check_dump):
     check_dump(exp, """
         Box with itself inside <RuntimeError while getting value>:  (&1)
           Box with itself inside <RuntimeError while getting value>  (*1)
+    """)
+
+
+@pytest.mark.parametrize(['symbol', 'func'], [
+    ['=', lambda a, b: a == b],
+    ['≠', lambda a, b: a != b],
+    ['<', lambda a, b: a < b],
+    ['>', lambda a, b: a > b],
+    ['≤', lambda a, b: a <= b],
+    ['≥', lambda a, b: a >= b],
+])
+def test_comparisons(check_dump, symbol, func):
+    val1 = Value(1, 2, 3)
+    val2 = Value(3, 2, 1)
+    val3 = Value(2, 2, 2)
+
+    exp = func(val1, val2)
+    check_dump(exp, """
+        `{sym}` <{0}, {1}, {2}>:
+          Value <1.0, 2.0, 3.0>
+          Value <3.0, 2.0, 1.0>
+    """.format(*(func(a, b) for a, b in zip(val1, val2)), sym=symbol))
+
+    exp2 = func(exp, val3)
+    check_dump(exp2, """
+        `{sym}` <{0}, {1}, {2}>:
+          Value <1.0, 2.0, 3.0>
+          Value <3.0, 2.0, 1.0>
+          Value <2.0, 2.0, 2.0>
+    """.format(*(func(func(a, b), c) for a, b, c in zip(val1, val2, val3)),
+               sym=symbol))
+
+    exp3 = func(val1, func(val2, val3))
+    check_dump(exp3, """
+        `{sym}` <{0}, {1}, {2}>:
+          Value <1.0, 2.0, 3.0>
+          `{sym}` <{s[0]}, {s[1]}, {s[2]}>:
+            Value <3.0, 2.0, 1.0>
+            Value <2.0, 2.0, 2.0>
+    """.format(*(func(a, func(b, c)) for a, b, c in zip(val1, val2, val3)),
+               s=[func(b, c) for a, b, c in zip(val1, val2, val3)],
+               sym=symbol))
+
+
+@pytest.mark.parametrize(['nargs', 'func'], [
+    [1, lambda a: a + 3],
+    [2, lambda a, b: a + b],
+    [3, lambda a, b, c: a + b * c],
+    [10, lambda *seq: sum(seq)],
+])
+def test_map(check_dump, nargs, func):
+    values = [Value(1, i, 2 * i) for i in range(nargs)]
+    exp = Map(func, *values)
+    check_dump(exp, 'Map <lambda> <{0}, {1}, {2}>:\n{lst}'.format(
+        *exp,
+        lst='\n'.join('  Value <{0}, {1}, {2}>'.format(*v) for v in values)))
+    assert all(exp == map(func, *values))
+
+
+def test_neg(check_dump):
+    val = Value(1, 2, -3)
+    exp = Neg(val)
+    check_dump(exp, """
+        Neg <-1.0, -2.0, 3.0>:
+          Value <1.0, 2.0, -3.0>
     """)

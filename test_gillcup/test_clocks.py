@@ -22,7 +22,14 @@ def append_const(lst, value):
 def append_time(lst, clock):
     """Helper callback; returns func that appends clock's time to list"""
     def _append():
-        lst.append(clock.time)
+        lst.append(float(clock.time))
+    return _append
+
+
+def append_time_internal(lst, clock):
+    """Helper callback for func that appends internal time value to list"""
+    def _append():
+        lst.append(clock._time_value)
     return _append
 
 
@@ -31,6 +38,12 @@ def test_clock(clock):
     assert clock.time == 0
     clock.advance_sync(1)
     assert clock.time == 1
+
+
+def test_no_time_set(clock):
+    """Test that simple clock advancement works"""
+    with pytest.raises(AttributeError):
+        clock.time = -1
 
 
 def test_scheduling(clock):
@@ -141,12 +154,14 @@ def test_integer_times(clock):
     """Test that we keep to int arithmetic as much as we can
 
     Ensure that even if the clock advances by float ticks, events scheduled
-    at integer times get fired with clock.time being an integer.
+    at integer times get fired with clock._time_value being an integer.
+
+    This tests internals.
     """
     lst = []
-    clock.schedule(1, append_time(lst, clock))
-    clock.schedule(2, append_time(lst, clock))
-    clock.schedule(3, append_time(lst, clock))
+    clock.schedule(1, append_time_internal(lst, clock))
+    clock.schedule(2, append_time_internal(lst, clock))
+    clock.schedule(3, append_time_internal(lst, clock))
     for dummy in range(30):
         clock.advance_sync(0.3)
     assert lst == [1, 2, 3]

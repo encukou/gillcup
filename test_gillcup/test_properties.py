@@ -114,7 +114,7 @@ def beeper(beeper_class):
 def test_defaults(beeper):
     assert beeper.volume == 0
     assert beeper.pitch == 440
-    assert beeper.position == (0, 0, 0)
+    assert all(x == 0 for x in beeper.position)
     assert beeper.x == beeper.y == beeper.z == 0
 
 
@@ -127,7 +127,7 @@ def test_setting_scalar(beeper):
 
 def test_setting_vector(beeper):
     beeper.position = 1, 2, 3
-    assert beeper.position == (1, 2, 3)
+    assert all(a == b for a, b in zip(beeper.position, (1, 2, 3)))
     with beeper.extra_behavior('syncs-components'):
         assert beeper.x == 1
         assert beeper.y == 2
@@ -139,7 +139,7 @@ def test_setting_component(beeper):
     beeper.y = 2
     beeper.z = 3
     with beeper.extra_behavior('syncs-components'):
-        assert beeper.position == (1, 2, 3)
+        assert all(a == b for a, b in zip(beeper.position, (1, 2, 3)))
     assert beeper.x == 1
     assert beeper.y == 2
     assert beeper.z == 3
@@ -148,8 +148,8 @@ def test_setting_component(beeper):
 def test_separate_instances_vector(beeper):
     beeper2 = Beeper()
     beeper2.x = 5
-    assert beeper2.position == (5, 0, 0)
-    assert beeper.position == (0, 0, 0)
+    assert all(a == b for a, b in zip(beeper2.position, (5, 0, 0)))
+    assert all(a == b for a, b in zip(beeper.position, (0, 0, 0)))
 
 
 def test_property_naming(check_dump):
@@ -399,9 +399,9 @@ def test_factory():
 
         bar = AnimatedProperty(2, lambda inst: (inst.val, inst.val + 1))
 
-    assert Foo(1).bar == (1, 2)
-    assert Foo(2).bar == (2, 3)
-    assert Foo(1).bar + 2 == (3, 4)
+    assert all(Foo(1).bar == (1, 2))
+    assert all(Foo(2).bar == (2, 3))
+    assert all(Foo(1).bar + 2 == (3, 4))
 
 
 def test_factory_mismatched_size():
@@ -416,7 +416,7 @@ def test_factory_coercion():
     class Foo:
         bar = AnimatedProperty(3, lambda inst: 3)
 
-    assert Foo().bar == (3, 3, 3)
+    assert all(Foo().bar == (3, 3, 3))
 
 
 def test_anim_basic(beeper, clock):
@@ -532,22 +532,22 @@ def test_anim_in_coroutine(beeper, clock):
 def test_component_assign(beeper, clock):
     with beeper.extra_behavior('tuple immutable'):
         beeper.position[0] = 5
-        assert beeper.position == (5, 0, 0)
+        assert all(beeper.position == (5, 0, 0))
         beeper.position[1:] = 6, 7
-        assert beeper.position == (5, 6, 7)
+        assert all(beeper.position == (5, 6, 7))
 
 
 def test_anim_component(beeper, clock):
     with beeper.extra_behavior('anim method'):
         print(beeper.position[0])
         beeper.position[0].anim(5, clock=clock)
-        assert beeper.position == (5, 0, 0)
+        assert all(beeper.position == (5, 0, 0))
 
 
 def test_anim_components(beeper, clock):
     with beeper.extra_behavior('anim method'):
         beeper.position[0:2].anim((5, 6), clock=clock)
-        assert beeper.position == (5, 6, 0)
+        assert all(beeper.position == (5, 6, 0))
 
 
 def test_sliced_property():
@@ -562,9 +562,9 @@ def test_sliced_property():
     assert len(foo.bar) == 5
     assert len(foo.xyz) == 3
 
-    assert foo.xyz == (0, 0, 0)
+    assert all(foo.xyz == (0, 0, 0))
     foo.xyz = 1, 2, 3
-    assert foo.bar == (0, 1, 2, 3, 0)
+    assert all(foo.bar == (0, 1, 2, 3, 0))
 
 
 def test_sliced_sliced_property():
@@ -585,7 +585,7 @@ def test_sliced_sliced_property():
     assert len(foo.m) == 1
     assert len(foo.z) == 0
 
-    assert foo.xyz == (0, 0, 0)
+    assert all(foo.xyz == (0, 0, 0))
     foo.xyz = 1, 2, 3
     foo.m = 47
-    assert foo.bar == (0, 1, 47, 3, 0)
+    assert all(foo.bar == (0, 1, 47, 3, 0))

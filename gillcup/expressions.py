@@ -18,7 +18,8 @@ makes it possible to remove the dynamic aspect of the expression involved.
 Gillcup expressions are actually 1-D vectors.
 Each Expression has a fixed :term:`size` that determines how many
 numbers it contains.
-Operations such as addition are element-wise (``<1, 2> + <3, 4> == <4, 6>``).
+Operations such as addition are element-wise
+(``<1, 2> + <3, 4>`` results in ``<4, 6>``).
 To get the value of an Expression, use either the :meth:`~Expression.get`
 method, or iterate the Expression::
 
@@ -44,6 +45,22 @@ Expressions with a single component can be converted directly to a number::
 
     >>> int(exp)
     1
+
+    >>> bool(exp)
+    True
+
+Like arithmetic operations, comparisons are element-wise,
+``(<1, 2> == <1, 3>)`` results in ``<False, True>``.
+Comparisons with more than one element cannot be converted directly to
+a single boolean; you need to use Python's :func:`all` or :func:`any`
+functions to check them:
+
+    >>> if all(Constant(1, 2, 3) == Constant(1, 2, 3)):
+    ...     print('yes, they are equal')
+    yes, they are equal
+    >>> if any(Constant(1, 1, 1) > Constant(100, 200, 0)):
+    ...     print('yes, some are larger')
+    yes, some are larger
 
 Expression values are floating-point numbers,
 so they cannot be used for precise computation [#goldberg]_.
@@ -108,7 +125,7 @@ Compound Expressions
 ....................
 
 .. autoclass:: gillcup.expressions.Reduce
-.. autoclass:: gillcup.expressions.Elementwise
+.. autoclass:: gillcup.expressions.Map
 .. autoclass:: gillcup.expressions.Interpolation
 .. autoclass:: gillcup.expressions.Box
 
@@ -122,10 +139,16 @@ to constructing them directly:
 .. autoclass:: gillcup.expressions.Product
 .. autoclass:: gillcup.expressions.Difference
 .. autoclass:: gillcup.expressions.Quotient
+.. autoclass:: gillcup.expressions.Power
 .. autoclass:: gillcup.expressions.Neg
 
 .. autoclass:: gillcup.expressions.Slice
 .. autoclass:: gillcup.expressions.Concat
+
+Internal Expressions
+....................
+
+.. autoclass:: gillcup.expressions.Time
 
 Debugging helpers
 .................
@@ -139,6 +162,7 @@ Helpers
 .. autofunction:: gillcup.expressions.simplify
 .. autofunction:: gillcup.expressions.coerce
 .. autofunction:: gillcup.expressions.safediv
+.. autofunction:: gillcup.expressions.safepow
 
 """
 
@@ -249,7 +273,6 @@ def coerce(value, *, size=None, strict=True):
         return simplify(value)
 
 
-@functools.total_ordering
 class Expression:
     """A dynamic numeric value.
 
@@ -298,18 +321,16 @@ class Expression:
 
                 *a.k.a.* :token:`__eq__(other)` etc.
 
-                Compare the *value* of this expression,
-                element-wise (as a tuple), to :token:`other`.
+                Return an Expression that compares the this expression
+                element-wise to :token:`other`.
 
-                :token:`other` may be be an expression or a tuple.
-
-                :token:`other` may also be a real number,
-                which is only equal to one-element expressions
+                The resing is an expression whose elements can be 0 or 1.
 
         .. function:: self + other
                       self - other
                       self * other
                       self / other
+                      self ** other
 
                 *a.k.a.* :token:`__add__(other)` etc.
 
@@ -358,6 +379,16 @@ class Expression:
     def __int__(self):
         """Returns ``int(float(exp))``."""
         return int(float(self))
+
+    def __bool__(self):
+        size = len(self)
+        if size == 1:
+            return bool(float(self))
+        elif size == 0:
+            return False
+        else:
+            raise ValueError('using a vector as a boolean is ambiguous; '
+                             'use `all` or `any` to clarify')
 
     def __repr__(self):
         try:
@@ -429,10 +460,22 @@ class Expression:
         return simplify(Slice(self, index))
 
     def __eq__(self, other):
-        return self.get() == _as_tuple(other)
+        return simplify(_Compare('=', operator.eq, (self, other)))
+
+    def __ne__(self, other):
+        return simplify(_Compare('≠', operator.ne, (self, other)))
 
     def __lt__(self, other):
-        return self.get() < _as_tuple(other)
+        return simplify(_Compare('<', operator.lt, (self, other)))
+
+    def __gt__(self, other):
+        return simplify(_Compare('>', operator.gt, (self, other)))
+
+    def __le__(self, other):
+        return simplify(_Compare('≤', operator.le, (self, other)))
+
+    def __ge__(self, other):
+        return simplify(_Compare('≥', operator.ge, (self, other)))
 
     def __add__(self, other):
         return simplify(Sum((self, other)))
@@ -453,6 +496,12 @@ class Expression:
 
     def __rtruediv__(self, other):
         return simplify(Quotient((other, self)))
+
+    def __pow__(self, other):
+        return simplify(Power((self, other)))
+
+    def __rpow__(self, other):
+        return simplify(Power((other, self)))
 
     def __pos__(self):
         """Return this Expression unchanged"""
@@ -779,9 +828,11 @@ def _check_len(exp, expected):
 
 
 class Reduce(Expression):
-    """Applies an :func:`reduce` element-wise on a number of Expressions.
+    """Applies a :func:`reduce <functools.reduce>` operation
+    element-wise on a number of Expressions.
 
-    Assumes the `op` function is pure.
+    Assumes the `op` function is pure, and takes number of arguments equal
+    to the number of operands.
 
     All operands must be the same size.
 
@@ -794,20 +845,17 @@ class Reduce(Expression):
 
         .. attribute:: identity_element
 
-            If not None, the number that can be ignored for this
-            operation (or if :token:`commutative` is true, that can be
-            ignored if it's not the firsr operand.
-            For example, 0 for ``+`` or ``-``, 1 for ``*`` or ``/``).
+            If not None, gives the number that can be ignored for this
+            operation (or if :token:`commutative` is true, the number that
+            can be ignored if it's not the first operand).
+            For example, 0 for ``+`` or ``-``, 1 for ``*`` or ``/``.
     """
     commutative = False
     identity_element = None
 
-    def __init__(self, operands, op):
+    def __init__(self, op, operands):
         self._op = op
         self._operands = tuple(_coerce_all(operands))
-        first = self._operands[0]
-        for operand in self._operands[1:]:
-            _check_len_match(operand, first)
         for i, oper in enumerate(self._operands):
             oper.replacement_available.connect(self._replace_operands)
         self._replace_operands()
@@ -861,44 +909,51 @@ class Reduce(Expression):
 
 
 class Sum(Reduce):
-    """Element-wise sum of same-sized expressions
-
-    All operands must be the same size.
+    """Element-wise sum
     """
     pretty_name = '+'
     commutative = True
     identity_element = 0
 
     def __init__(self, operands):
-        super().__init__(operands, operator.add)
+        super().__init__(operator.add, operands)
 
     def _dump_name(self):
         return '+'
 
 
 class Product(Reduce):
-    """Element-wise product of same-sized expressions
-
-    All operands must be the same size.
+    """Element-wise product
     """
     pretty_name = '*'
     commutative = True
     identity_element = 1
 
     def __init__(self, operands):
-        super().__init__(operands, operator.mul)
+        super().__init__(operator.mul, operands)
+
+
+class _Compare(Reduce):
+    """Element-wise comparison
+    """
+
+    @property
+    def pretty_name(self):
+        return '`{}`'.format(self._symbol)
+
+    def __init__(self, symbol, op, operands):
+        super().__init__(op, operands)
+        self._symbol = symbol
 
 
 class Difference(Reduce):
-    """Element-wise difference of same-sized expressions
-
-    All operands must be the same size.
+    """Element-wise difference
     """
     pretty_name = '-'
     identity_element = 0
 
     def __init__(self, operands):
-        super().__init__(operands, operator.sub)
+        super().__init__(operator.sub, operands)
 
 
 def safediv(a, b):
@@ -917,9 +972,7 @@ def safediv(a, b):
 
 
 class Quotient(Reduce):
-    """Element-wise quotient of same-sized expressions
-
-    All operands must be the same size.
+    """Element-wise quotient
 
     Division by zero will result in NaN or infinity, rather than raising
     an exception -- see :func:`safediv`.
@@ -928,37 +981,71 @@ class Quotient(Reduce):
     identity_element = 1
 
     def __init__(self, operands):
-        super().__init__(operands, safediv)
+        super().__init__(safediv, operands)
 
 
-class Elementwise(Expression):
-    """Applies a function element-wise on a single Expression.
+def safepow(a, b):
+    """Raise a to b-th power, but return NaN on float domain error"""
+    try:
+        return math.pow(a, b)
+    except ValueError:
+        return float('nan')
 
-    Assumes the `op` function is pure.
+
+class Power(Reduce):
+    """Element-wise power
+
+    Math domain errors will result in NaN, rather than raising an exception.
     """
-    def __init__(self, operand, op):
-        self._operand = coerce(operand)
+    pretty_name = '**'
+    identity_element = 1
+
+    def __init__(self, operands):
+        super().__init__(safepow, operands)
+
+
+class Map(Expression):
+    """Applies a function element-wise on a zipped Expressions.
+
+    Assumes the `op` function is pure, and takes as many numeric arguments
+    as there are operands.
+
+    All operands must be the same size.
+    """
+    def __init__(self, op, *operands):
+        self._operands = tuple(_coerce_all(operands))
         self._op = op
-        self._operand.replacement_available.connect(self._replace_operand)
-        self._replace_operand()
+        for i, oper in enumerate(self._operands):
+            oper.replacement_available.connect(self._replace_operands)
+        self._replace_operands()
+
+    @property
+    def pretty_name(self):
+        return 'Map {}'.format(self._op.__name__)
+
+    def __len__(self):
+        return len(self._operands[0])
 
     def get(self):
-        return tuple(map(self._op, self._operand.get()))
+        return tuple(map(self._op, *(op.get() for op in self._operands)))
 
     @property
     def children(self):
-        yield self._operand
+        yield from self._operands
 
-    def _replace_operand(self):
-        self._operand = _replace_child(self._operand, self._replace_operand)
-        if isinstance(self._operand, Constant):
+    def _replace_operands(self, commutative=False):
+        self._operands = tuple(_replace_child(op, self._replace_operands)
+                               for op in self._operands)
+        if all(isinstance(op, Constant) for op in self._operands):
             self.replacement = Constant(*self)
 
 
-class Neg(Elementwise):
+class Neg(Map):
     """Element-wise negation"""
+    pretty_name = 'Neg'
+
     def __init__(self, operand):
-        super().__init__(operand, operator.neg)
+        super().__init__(operator.neg, operand)
 
 
 class Slice(Expression):
@@ -1183,7 +1270,7 @@ class Interpolation(Expression):
     def _replace_const_to_const(self):
         if (isinstance(self._start, Constant) and
                 isinstance(self._end, Constant) and
-                self._start == self._end):
+                all(self._start == self._end)):
             self.replacement = self._start
 
     @property
@@ -1191,6 +1278,19 @@ class Interpolation(Expression):
         yield Box('start', self._start)
         yield Box('end', self._end)
         yield Box('t', self._t)
+
+
+class Time(Expression):
+    """Gives the time on a clock
+
+    This is a monotonically increasing scalar Expression, i.e.,
+    its value is a single number that can never decrease.
+    """
+    def __init__(self, clock):
+        self._clock = clock
+
+    def get(self):
+        return (self._clock._time_value, )
 
 
 class Progress(Expression):
@@ -1214,7 +1314,7 @@ class Progress(Expression):
     """
     def __init__(self, clock, duration, *, delay=0, clamp=True):
         self._clock = clock
-        self._start = clock.time + float(delay)
+        self._start = float(clock.time) + float(delay)
         self._duration = float(duration)
         self._done = asyncio.Future()
         self.done = clock.wait_for(self._done)
@@ -1234,7 +1334,7 @@ class Progress(Expression):
         return 1
 
     def get(self):
-        progress_time = self._clock.time - self._start
+        progress_time = float(self._clock.time) - self._start
         if self._duration:
             rv = progress_time / self._duration
             if self._clamp:
