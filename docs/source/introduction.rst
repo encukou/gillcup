@@ -13,6 +13,13 @@ any particular graphics library.
 The gillcup_graphics_ package includes a more accessible demo and a tutorial.
 
 
+Version warning
+---------------
+
+This is version 0.2. The API **will** change significantly in version 0.3.
+Please make sure you specify ``gillcup < 0.3`` in your setup/requirements file.
+
+
 The Project
 -----------
 
