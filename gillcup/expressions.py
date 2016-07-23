@@ -572,11 +572,11 @@ class Expression:
 
             >>> Constant(1, 2, 3).replace(slice(0, -1), -1)
             <-1.0, -1.0, 3.0>
-            >>> Constant(1, 2, 3).replace(slice(0, -1), (-1,))
-            <-1.0, 3.0>
 
         Of course this does not happen when using a tuple or expression::
 
+            >>> Constant(1, 2, 3).replace(slice(0, -1), (-1,))
+            <-1.0, 3.0>
             >>> Constant(1, 2, 3).replace(slice(0, -1), Constant(-1))
             <-1.0, 3.0>
         """
