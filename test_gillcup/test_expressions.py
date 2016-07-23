@@ -259,6 +259,10 @@ def check_formula(numpy, formula, expected_args, got_args):
         # http://bugs.python.org/issue22198
         # TODO: remove this case, and inline FLOORDIV_OPERATOR, when fixed
         raise pytest.xfail('ran into python bug 22198')
+    elif (numpy and formula is FLOORDIV_OPERATOR and
+          expected_args[0] < 0 and
+          expected_args[-1] == 0):
+        raise pytest.xfail('Floor-dividing negative num by zero with numpy')
     else:
         assert expected == got
     return got
