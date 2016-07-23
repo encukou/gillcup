@@ -4,6 +4,7 @@ language: python
 python:
   - "3.3"
   - "3.4"
+  - "3.5"
 install:
     - sudo apt-get install python3-numpy python-pip
     - pip install pytest flake8
