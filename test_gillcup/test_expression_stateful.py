@@ -1,11 +1,16 @@
 from math import isnan, isinf, isclose
 import operator
+import sys
 
 from hypothesis import note, assume, settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, Bundle, rule
 
 from gillcup.expressions import Constant, Value, Box, dump, simplify
+
+if sys.version_info < (3, 5):
+    pytest.skip('These tests use features added in Python 3.5')
+from math import isclose  # NOQA
 
 
 def skip_errors(func, error_class):
