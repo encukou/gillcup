@@ -33,6 +33,11 @@ BINARY_OPERATORS = {
     '<=': operator.le,
 }
 
+UNARY_OPERATORS = {
+    '+': operator.pos,
+    '-': operator.neg,
+}
+
 _global_token = 0
 class ValueSetting:
     """Represents setting a Value to a concrete number
@@ -78,11 +83,11 @@ class Expressions(RuleBasedStateMachine):
           operator=st.sampled_from(BINARY_OPERATORS))
     def binop(self, operator, left, right):
         op = BINARY_OPERATORS[operator]
-        left_value, left_keys = left
-        right_value, right_keys = right
-        new_settings = {}
+        left_expr, left_xmap = left
+        right_expr, right_xmap = right
+        new_expected_map = {}
         for (l_settings, l_expected), (r_settings, r_expected) in zip(
-                left_keys.items(), right_keys.items()):
+                left_xmap.items(), right_xmap.items()):
             combined = l_settings | r_settings
             if len({id(s.value) for s in combined}) == len(combined):
                 try:
@@ -91,8 +96,24 @@ class Expressions(RuleBasedStateMachine):
                     result = float('nan')
                 if isinstance(result, complex):
                     result = float('nan')
-                new_settings[combined] = result
-        return op(left_value, right_value), new_settings
+                new_expected_map[combined] = result
+        return op(left_expr, right_expr), new_expected_map
+
+    @rule(target=trees, node=trees,
+          operator=st.sampled_from(UNARY_OPERATORS))
+    def unop(self, operator, node):
+        op = UNARY_OPERATORS[operator]
+        expr, expected_map = node
+        new_expected_map = {}
+        for settings, expected in expected_map.items():
+            try:
+                result = op(expected)
+            except (ArithmeticError, OverflowError):
+                result = float('nan')
+            if isinstance(result, complex):
+                result = float('nan')
+            new_expected_map[settings] = result
+        return op(expr), new_expected_map
 
     @rule(target=trees, node=trees.filter(lambda t: t[1]), index=st.integers())
     def trim(self, node, index):
