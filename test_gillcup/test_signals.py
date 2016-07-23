@@ -1,4 +1,5 @@
 import gc
+import sys
 import inspect
 
 import pytest
@@ -360,9 +361,20 @@ def test_signature_checking():
         value_changed(1, 2, foo=5)
 
 
+@pytest.mark.skipif(sys.version_info >= (3, 5),
+                    reason="Builtin methods are not weak referencable pre 3.5")
 def test_no_weak_builtin_method(sig):
     with pytest.raises(TypeError):
         sig.connect([].append, weak=True)
+
+
+@pytest.mark.skipif(sys.version_info < (3, 5),
+                    reason="Builtin methods are weak referencable since 3.5")
+def test_weak_builtin_method(sig):
+    lst = []
+    sig.connect(lst.append, weak=True)
+    sig(123)
+    assert lst == []
 
 
 def test_default_strong_lambda(sig):
