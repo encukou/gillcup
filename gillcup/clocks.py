@@ -302,10 +302,13 @@ class Clock:
             iterator = iter(coro)
             value = exception = None
             while True:
-                if exception is None:
-                    value = iterator.send(value)
-                else:
-                    value = iterator.throw(exception)
+                try:
+                    if exception is None:
+                        value = iterator.send(value)
+                    else:
+                        value = iterator.throw(exception)
+                except StopIteration as exc:
+                    return exc.value
                 if value is None:
                     value = 0
                 try:
