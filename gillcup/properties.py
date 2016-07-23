@@ -232,16 +232,9 @@ Other expressions cannot be linked::
 
 Beware that you can create loops by making a property's value depend
 on itself (possibly indirectly).
-The infinite recursion will result in a :class:`RuntimeError` being raised
-when the value is accessed (or even earlier)::
-
-    >>> source_beeper.volume = link(source_beeper.volume)
-    >>> int(source_beeper.volume)
-    Traceback (most recent call last):
-        ...
-        ...
-        ...
-    RuntimeError: maximum recursion depth exceeded ...
+The infinite recursion will result in a :class:`RecursionError` being raised
+when the value is accessed (or even earlier).
+(Before Python 3.5, the exception raised was :class:`RuntimeError`)
 
 .. TODO: document the link method of property values... (or get rid of it?)
 

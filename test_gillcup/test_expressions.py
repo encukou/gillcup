@@ -1,3 +1,4 @@
+import sys
 import itertools
 import inspect
 import math
@@ -800,10 +801,14 @@ def test_box_recursion(check_dump):
     exp.value = exp
     with pytest.raises(RuntimeError):
         exp.get()
+    if sys.version_info >= (3, 5):
+        exc_name = 'RecursionError'
+    else:
+        exc_name = 'RuntimeError'
     check_dump(exp, """
-        Box with itself inside <RuntimeError while getting value>:  (&1)
-          Box with itself inside <RuntimeError while getting value>  (*1)
-    """)
+        Box with itself inside <{e} while getting value>:  (&1)
+          Box with itself inside <{e} while getting value>  (*1)
+    """.format(e=exc_name))
 
 
 @pytest.mark.parametrize(['symbol', 'func'], [

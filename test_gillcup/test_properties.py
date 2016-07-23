@@ -285,7 +285,8 @@ def test_recursive_link(beeper, beeper_class, clock):
         beeper.volume = link(beeper.volume)
         with pytest.raises(RuntimeError):
             beeper.volume.get()
-        assert str(beeper.volume) == '<RuntimeError while getting value>'
+        assert str(beeper.volume) in ('<RuntimeError while getting value>',
+                                      '<RecursionError while getting value>')
 
 
 def test_link_dump_method(beeper, beeper_class, clock, check_dump):
