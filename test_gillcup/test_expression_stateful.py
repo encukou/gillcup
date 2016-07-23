@@ -1,16 +1,36 @@
-from math import isnan, isclose
+from math import isnan, isinf, isclose
 import operator
 
-from hypothesis import note
+from hypothesis import note, assume, settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, Bundle, rule
 
-from gillcup.expressions import Constant, Value, dump
+from gillcup.expressions import Constant, Value, dump, simplify
 
 
-OPERATORS = {
+def skip_errors(func, error_class):
+    def wrapped(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except error_class:
+            assume(False)
+    return wrapped
+
+
+BINARY_OPERATORS = {
     '+': operator.add,
     '-': operator.sub,
+    '*': operator.mul,
+    '**': skip_errors(operator.pow, ValueError),
+    '/': skip_errors(operator.truediv, ZeroDivisionError),
+    '//': skip_errors(operator.floordiv, ZeroDivisionError),
+    '%': skip_errors(operator.mod, ZeroDivisionError),
+    '==': operator.eq,
+    '!=': operator.ne,
+    '>': operator.gt,
+    '<': operator.lt,
+    '>=': operator.ge,
+    '<=': operator.le,
 }
 
 _global_token = 0
@@ -29,10 +49,17 @@ class ValueSetting:
         _global_token += 1
 
     def __repr__(self):
-        return "<set {} to {}>".format(id(self.value), self.number)
+        return "<{}: set {} to {}>".format(self.token, id(self.value),
+                                           self.number)
 
     def __hash__(self):
         return hash(self.token)
+
+    def __eq__(self, other):
+        return hash(self.token == other.token)
+
+    def __lt__(self, other):
+        return hash(self.token < other.token)
 
 
 class Expressions(RuleBasedStateMachine):
@@ -48,29 +75,49 @@ class Expressions(RuleBasedStateMachine):
         return val, {frozenset([ValueSetting(val, x)]): x for x in nums}
 
     @rule(target=trees, left=trees, right=trees,
-          operator=st.sampled_from(OPERATORS))
-    def operate(self, operator, left, right):
-        op = OPERATORS[operator]
+          operator=st.sampled_from(BINARY_OPERATORS))
+    def binop(self, operator, left, right):
+        op = BINARY_OPERATORS[operator]
         left_value, left_keys = left
         right_value, right_keys = right
-        return op(left_value, right_value), {
-            l_settings | r_settings: op(l_expected, r_expected)
-            for (l_settings, l_expected), (r_settings, r_expected)
-            in zip(left_keys.items(), right_keys.items())
-            if len({id(s.value) for s in l_settings | r_settings}) ==
-               len({l_settings | r_settings})}
+        new_settings = {}
+        for (l_settings, l_expected), (r_settings, r_expected) in zip(
+                left_keys.items(), right_keys.items()):
+            combined = l_settings | r_settings
+            if len({id(s.value) for s in combined}) == len(combined):
+                try:
+                    result = op(l_expected, r_expected)
+                except (ArithmeticError, OverflowError):
+                    result = float('nan')
+                if isinstance(result, complex):
+                    result = float('nan')
+                new_settings[combined] = result
+        return op(left_value, right_value), new_settings
+
+    @rule(target=trees, node=trees.filter(lambda t: t[1]), index=st.integers())
+    def trim(self, node, index):
+        expr, expected_map = node
+        settings, expected = sorted(expected_map.items())[index % len(expected_map)]
+        return expr, {settings: expected}
+
+    @rule(target=trees, node=trees)
+    def simplify(self, node):
+        expr, expected_map = node
+        expr = simplify(expr)
+        note(dump(expr))
+        return expr, expected_map
 
     @rule(tree=trees)
     def check_equiv(self, tree):
-        got, expected_values = tree
-        for settings, expected_value in expected_values.items():
+        got, expected_map = tree
+        for settings, expected_value in expected_map.items():
             note('settings: {}'.format(settings))
             note('expected: {}'.format(expected_value))
             for setting in settings:
                 setting.value.set(setting.number)
             note(dump(got,show_ids=True))
-            if isnan(expected_value):
-                assert isnan(got)
+            if isnan(expected_value) or isinf(expected_value):
+                assert isnan(got) or isinf(got)
             else:
                 assert isclose(float(got), expected_value, abs_tol=1e-09)
 
