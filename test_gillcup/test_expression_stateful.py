@@ -5,7 +5,7 @@ from hypothesis import note, assume, settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, Bundle, rule
 
-from gillcup.expressions import Constant, Value, dump, simplify
+from gillcup.expressions import Constant, Value, Box, dump, simplify
 
 
 def skip_errors(func, error_class):
@@ -114,6 +114,11 @@ class Expressions(RuleBasedStateMachine):
                 result = float('nan')
             new_expected_map[settings] = result
         return op(expr), new_expected_map
+
+    @rule(target=trees, node=trees, name=st.text())
+    def box(self, node, name):
+        expr, expected_map = node
+        return Box(value=expr, name=name), expected_map
 
     @rule(target=trees, node=trees.filter(lambda t: t[1]), index=st.integers())
     def trim(self, node, index):
