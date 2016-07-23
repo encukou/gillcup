@@ -84,8 +84,12 @@ def test_scheduling(future, clock):
 
 
 def test_unscheduling(future, future_type, clock):
-    callback = lambda: None
-    callback2 = lambda: None
+    def callback():
+        return None
+
+    def callback2():
+        return None
+
     future.add_done_callback(callback)
     assert future.remove_done_callback(callback) == 1
     future.add_done_callback(callback)

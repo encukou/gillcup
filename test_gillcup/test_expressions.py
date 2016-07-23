@@ -23,7 +23,8 @@ def get_lambda_source(f):
 
 
 # see TODO in check_formula
-FLOORDIV_OPERATOR = lambda a, b: a // b
+def FLOORDIV_OPERATOR(a, b):
+    return a // b
 
 
 def pytest_generate_tests(metafunc):

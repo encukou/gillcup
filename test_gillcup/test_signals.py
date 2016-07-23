@@ -236,8 +236,12 @@ def test_arg_adapter(sig, collector):
 
 
 def test_arg_adapter_disconnection(sig, collector):
-    adapt_y = lambda *k, **a: (['y'], {})
-    adapt_z = lambda *k, **a: (['z'], {})
+    def adapt_y(*k, **a):
+        return ['y'], {}
+
+    def adapt_z(*k, **a):
+        return ['z'], {}
+
     sig.connect(collector.collect)
     sig.connect(collector.collect, arg_adapter=adapt_y)
     sig.connect(collector.collect, arg_adapter=adapt_z)
