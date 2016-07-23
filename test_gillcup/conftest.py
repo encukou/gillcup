@@ -29,11 +29,11 @@ def check_dump():
     yield check_dump
 
 
-
 settings.register_profile("ci", settings(
     max_examples=1000,
     stateful_step_count=500,
 ))
+
 settings.register_profile("thorough", settings(
     max_examples=10000,
     stateful_step_count=1000,

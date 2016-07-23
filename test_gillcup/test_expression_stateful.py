@@ -1,8 +1,9 @@
-from math import isnan, isinf, isclose
-import operator
 import sys
+import operator
+from math import isnan, isinf
 
-from hypothesis import note, assume, settings
+import pytest
+from hypothesis import note, assume
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, Bundle, rule
 
@@ -43,7 +44,10 @@ UNARY_OPERATORS = {
     '-': operator.neg,
 }
 
-_global_token = 0
+
+_global_valuesetting_token = 0
+
+
 class ValueSetting:
     """Represents setting a Value to a concrete number
 
@@ -51,12 +55,13 @@ class ValueSetting:
     disambiguate).
     """
     __slots__ = ['value', 'number', 'token']
+
     def __init__(self, value, number):
-        global _global_token
+        global _global_valuesetting_token
         self.value = value
         self.number = number
-        self.token = _global_token
-        _global_token += 1
+        self.token = _global_valuesetting_token
+        _global_valuesetting_token += 1
 
     def __repr__(self):
         return "<{}: set {} to {}>".format(self.token, id(self.value),
@@ -128,7 +133,8 @@ class Expressions(RuleBasedStateMachine):
     @rule(target=trees, node=trees.filter(lambda t: t[1]), index=st.integers())
     def trim(self, node, index):
         expr, expected_map = node
-        settings, expected = sorted(expected_map.items())[index % len(expected_map)]
+        index %= len(expected_map)
+        settings, expected = sorted(expected_map.items())[index]
         return expr, {settings: expected}
 
     @rule(target=trees, node=trees)
@@ -146,7 +152,7 @@ class Expressions(RuleBasedStateMachine):
             note('expected: {}'.format(expected_value))
             for setting in settings:
                 setting.value.set(setting.number)
-            note(dump(got,show_ids=True))
+            note(dump(got, show_ids=True))
             if isnan(expected_value) or isinf(expected_value):
                 assert isnan(got) or isinf(got)
             else:
