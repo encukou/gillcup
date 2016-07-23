@@ -585,7 +585,7 @@ class Expression:
         return simplify(Concat(self[:start], replacement, self[stop:]))
 
 
-def dump(exp):
+def dump(exp, show_ids=False):
     """Return a pretty-printed tree of an Expression and its children
 
     Formats the value, :attr:`~Expression.pretty_name`, and, recursively,
@@ -692,6 +692,8 @@ def dump(exp):
             postfix = ''
         else:
             postfix = '  (%s%s)' % (sigil, marker)
+        if show_ids:
+            postfix += ' \t-- id=' + str(id(exp))
         return '{indent}{exp.pretty_name} {exp}{colon}{postfix}'.format(
             indent='  ' * indent,
             exp=exp,

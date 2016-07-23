@@ -39,7 +39,7 @@ setup_args = dict(
 
     install_requires=[],
 
-    tests_require=['pytest'],
+    tests_require=['pytest', 'hypothesis'],
     cmdclass={'test': PyTest},
 )
 
