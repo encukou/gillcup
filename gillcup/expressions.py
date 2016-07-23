@@ -1064,7 +1064,7 @@ def safepow(a, b):
     """Raise a to b-th power, but return NaN on float domain error"""
     try:
         return math.pow(a, b)
-    except ValueError:
+    except (ValueError, OverflowError):
         return float('nan')
 
 
