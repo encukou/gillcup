@@ -7,8 +7,8 @@ python:
   - "3.5"
 install:
     - sudo apt-get install python3-numpy python-pip
-    - pip install pytest flake8 hypothesis
+    - pip install pytest hypothesis coala-bears
     - pip install -e.
 script:
     - python -m pytest -v
-    - python -m flake8 .
+    - coala-ci
