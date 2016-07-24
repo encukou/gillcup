@@ -20,6 +20,7 @@ def skip_errors(func, error_class):
             return func(*args, **kwargs)
         except error_class:
             assume(False)
+
     return wrapped
 
 
@@ -43,7 +44,6 @@ UNARY_OPERATORS = {
     '+': operator.pos,
     '-': operator.neg,
 }
-
 
 _global_valuesetting_token = 0
 

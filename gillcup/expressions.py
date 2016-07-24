@@ -748,6 +748,7 @@ class Constant(Expression):
 
     The value of this expression cannot be changed.
     """
+
     def __init__(self, *value):
         self._value = tuple(float(v) for v in value)
 
@@ -766,6 +767,7 @@ class Value(Expression):
         .. automethod:: set
         .. automethod:: fix
     """
+
     def __init__(self, *value):
         self._value = tuple(float(v) for v in value)
         self._size = len(self._value)
@@ -1088,6 +1090,7 @@ class Map(Expression):
 
     All operands must be the same size.
     """
+
     def __init__(self, op, *operands):
         self._operands = tuple(_coerce_all(operands))
         self._op = op
@@ -1129,6 +1132,7 @@ class Slice(Expression):
 
     Typical result of an ``exp[start:stop]`` operation
     """
+
     def __init__(self, source, index):
         self._source = simplify(source)
         self._start, self._stop = get_slice_indices(len(source), index)
@@ -1203,6 +1207,7 @@ class Concat(Expression):
 
     Usually created as a result of :meth:`~Expression.replace`.
     """
+
     def __init__(self, *children):
         children_gen = (coerce(c) for c in children)
         self._children = tuple(c for c in children_gen if len(c))
@@ -1283,6 +1288,7 @@ class Box(Expression):
     Also useful to show structure of complicated expressions when debugging,
     see :func:`dump` for an example.
     """
+
     def __init__(self, name, value):
         self._name = name
         self.value = value
@@ -1310,6 +1316,7 @@ class Interpolation(Expression):
 
     Note that :token:`t` is not limited to [0..1]; extrapolation is possible.
     """
+
     def __init__(self, start, end, t):
         self._start, self._end = _coerce_all([start, end])
         self._t = coerce(t, size=1)
@@ -1362,6 +1369,7 @@ class Time(Expression):
     This is a monotonically increasing scalar Expression, i.e.,
     its value is a single number that can never decrease.
     """
+
     def __init__(self, clock):
         self._clock = clock
 
@@ -1388,6 +1396,7 @@ class Progress(Expression):
     at :token:`delay` time units in the future.
     In this case, :token:`clamp` must be true.
     """
+
     def __init__(self, clock, duration, *, delay=0, clamp=True):
         self._clock = clock
         self._start = float(clock.time) + float(delay)

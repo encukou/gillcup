@@ -33,12 +33,14 @@ def test_generate_splits_1():
 
 
 def test_generate_splits_3():
+    # start ignoring PEP8Bear because this is more readable when aligned
     assert list(generate_splits(3)) == [
         ((0,), (1,), (2,),),
         ((0,    1,), (2,),),
         ((0,), (1,    2,),),
         ((0,    1,    2,),),
     ]
+    # stop ignoring
 
 
 def pytest_generate_tests(metafunc):

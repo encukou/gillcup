@@ -24,6 +24,7 @@ class _Anim(Expression):
     which is a :class:`~asyncio.Future` that becomes done when an animation
     is finished.
     """
+
     def __init__(self, parent, done):
         self.done = done
         self.replacement = parent

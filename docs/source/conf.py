@@ -192,14 +192,14 @@ htmlhelp_basename = 'Gillcupdoc'
 # -- Options for LaTeX output ---------------------------------------------
 
 latex_elements = {
-# The paper size ('letterpaper' or 'a4paper').
-#'papersize': 'letterpaper',
+    # The paper size ('letterpaper' or 'a4paper').
+    #'papersize': 'letterpaper',
 
-# The font size ('10pt', '11pt' or '12pt').
-#'pointsize': '10pt',
+    # The font size ('10pt', '11pt' or '12pt').
+    #'pointsize': '10pt',
 
-# Additional stuff for the LaTeX preamble.
-'preamble': '''
+    # Additional stuff for the LaTeX preamble.
+    'preamble': '''
     \usepackage{tikz}
     \usepackage{fontspec}
     \usepackage{subcaption}
@@ -210,8 +210,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  ('index', 'Gillcup.tex', 'Gillcup Documentation',
-   'Petr Viktorin', 'manual'),
+    ('index', 'Gillcup.tex', 'Gillcup Documentation',
+     'Petr Viktorin', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -254,9 +254,9 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'Gillcup', 'Gillcup Documentation',
-   'Petr Viktorin', 'Gillcup', 'One line description of project.',
-   'Miscellaneous'),
+    ('index', 'Gillcup', 'Gillcup Documentation',
+     'Petr Viktorin', 'Gillcup', 'One line description of project.',
+     'Miscellaneous'),
 ]
 
 # Documents to append as an appendix to all manuals.

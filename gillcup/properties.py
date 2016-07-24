@@ -433,6 +433,7 @@ class AnimatedProperty:
 
     .. autospecialmethod:: __iter__
     """
+
     def __init__(self, size=1, make_default=None, *, name=None, doc=None):
         self._instance_expressions = {}
         if make_default:

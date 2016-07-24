@@ -1,4 +1,3 @@
-
 def autoname_property(attrname):
     """Decorator for creating autoname properties, for use with @autoname
 

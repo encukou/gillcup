@@ -130,6 +130,7 @@ class Clock:
 
         .. automethod:: task
     """
+
     def __init__(self):
         # Time on the clock
         self._time_value = 0
